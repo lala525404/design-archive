@@ -13,6 +13,7 @@ import { PromptStudioView } from "../src/views/PromptStudioView";
 import { LicenseManagementView } from "../src/views/LicenseManagementView";
 import { NamingRuleView } from "../src/views/NamingRuleView";
 import { SERVICES, guessType, normalizeTool } from "../src/lib/taxonomy";
+import { buildFolderName, parseDeliverable, parseProjectFolder } from "../src/lib/naming";
 import {
   findSameWork,
   nextVersion,
@@ -150,36 +151,57 @@ for (const q of ["색채학", "아이티뱅크", "상세페이지 MO", "산돌 �
   assert.ok(landing.includes(`>${q}<`), `Suggestion ${q} is shown`);
   assert.ok(resultCount(search(q)) > 0, `Suggestion ${q} returns results`);
 }
-// NAS path parsing and version detection
+// NAS path parsing and version detection (new naming rule)
+const sampleFolder = "260120_15832_색채학 과정_산돌-AI_김다은";
 assert.deepEqual(
-  parseNasPath("\\\\NAS\\디자인\\05_평생\\2026\\색채학\\"),
-  { service: "05_평생", year: "2026", project: "색채학" },
-  "Windows NAS path with share prefix",
+  (({ service, year, project, requestNo, designer, resources }) => ({ service, year, project, requestNo, designer, resources }))(
+    parseNasPath(`\\\\NAS\\디자인\\05_평생\\2026\\${sampleFolder}\\`),
+  ),
+  { service: "05_평생", year: "2026", project: "색채학 과정", requestNo: "15832", designer: "김다은", resources: ["산돌", "AI"] },
+  "Windows NAS path with new project folder",
 );
-assert.deepEqual(
-  parseNasPath("/08_인쇄광고물(시디)/2026/지하철광고/파일.png"),
-  { service: "08_인쇄광고물(시디)", year: "2026", project: "지하철광고" },
-  "Path with file name",
-);
+assert.equal(parseNasPath("/09_마케팅/261026_27702_가을 프로모션_산돌-AI_박정은/").year, "2026", "Year from folder date when no year folder");
 assert.equal(
-  findSameWork(
-    assets,
-    "\\\\NAS\\디자인\\05_평생\\2026\\색채학\\",
-    "2026_색채학_상세페이지PC_피그마-산돌_양현보_v04.png",
-  )?.id,
+  findSameWork(assets, `/05_평생/2026/${sampleFolder}/`, "15832_상세_PC_v04.png")?.id,
   "asset-1",
-  "Same folder + same project/type/device is a new version even if tools or designer changed",
+  "Same folder + same type/device is a new version",
 );
 assert.equal(
-  findSameWork(assets, "/05_평생/2026/색채학/", "2026_색채학_상세페이지MO_피그마_김다은_v03.png")?.id,
+  findSameWork(assets, `/05_평생/2026/${sampleFolder}/`, "15832_상세_MO_v03.png")?.id,
   "asset-2",
   "MO version is tracked separately from PC",
 );
 assert.equal(
-  findSameWork(assets, "/05_평생/2026/색채학/", "2026_색채학_서브배너PC_포토샵_박지원_v01.png"),
+  findSameWork(assets, `/05_평생/2026/${sampleFolder}/`, "15832_배너-서브_PC_v01.png"),
   undefined,
   "A different banner in the same project is a new work",
 );
+// Real folder names used before the rule (legacy) are still readable
+const legacy = [
+  ["260102_평생교육이용권 홍보페이지(11340)_산돌,게티,기타라이선스_방수림", "11340", "평생교육이용권 홍보페이지", "산돌-게티-기타", "방수림"],
+  ["260108_메인모바일 강사 배너 4종(김기영,이순권,윤관식,김현웅)(12036)_산돌,게티_방수림", "12036", "메인모바일 강사 배너 4종", "산돌-게티", "방수림"],
+  ["260805_[평생교육원] 미국변호사 상품 상세페이지_산돌,GPT_박정은", "", "미국변호사 상품 상세페이지", "산돌-AI", "박정은"],
+  ["260810_[교육운영팀] 신협중앙회 9월 추천과정 팝업_산돌게티_양현보", "", "신협중앙회 9월 추천과정 팝업", "산돌-게티", "양현보"],
+] as const;
+for (const [name, req, proj, res, des] of legacy) {
+  const f = parseProjectFolder(name);
+  assert.equal(f.requestNo, req, name);
+  assert.equal(f.project, proj, name);
+  assert.equal(f.resources.join("-"), res, name);
+  assert.equal(f.designer, des, name);
+  assert.equal(f.followsRule, false);
+}
+assert.equal(
+  buildFolderName(parseProjectFolder(legacy[0][0])),
+  "260102_11340_평생교육이용권 홍보페이지_산돌-게티-기타_방수림",
+  "Legacy name converts to the new rule",
+);
+assert.deepEqual(
+  (({ id, type, label, device, version, followsRule }) => ({ id, type, label, device, version, followsRule }))(parseDeliverable("21076_배너-메인_PC_v01.png")),
+  { id: "21076", type: "배너", label: "메인", device: "PC", version: "v01", followsRule: true },
+);
+assert.equal(parseDeliverable("27651_PPT_v02.pptx").type, "PPT");
+assert.equal(parseDeliverable("21076_상세_v01.png").followsRule, false, "PC/MO required for pages");
 assert.deepEqual(guessType("2026_색채학_상세페이지MO_피그마_김다은_v01.png"), { type: "상세페이지", device: "MO" });
 assert.deepEqual(guessType("2026_HRD_제안서_AI_김다은_v02.pptx"), { type: "PPT", device: undefined });
 assert.equal(normalizeTool("Photoshop"), "포토샵");
@@ -195,5 +217,5 @@ const uploadHtml = renderToStaticMarkup(
 assert.ok(uploadHtml.includes("NAS 프로젝트 폴더"), "Upload asks for the NAS path");
 
 console.log(
-  "PASS: search, 7 views, 15 samples, fixed landing blocks, suggestions, services, NAS path, PC/MO, versions",
+  "PASS: search, 7 views, 15 samples, naming rule + legacy names, fixed landing blocks, suggestions, services, NAS path, PC/MO, versions",
 );

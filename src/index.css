@@ -3453,3 +3453,394 @@ mark {
     height: 64px;
   }
 }
+
+/* 업로드: 요청번호·리소스·네이밍 안내 */
+.pkg-head {
+  grid-template-columns: auto 180px 90px minmax(0, 1fr) 110px;
+}
+.pkg-resources {
+  grid-column: 2 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #8f867e;
+}
+.pkg-resources > div {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.pkg-resources button {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13px;
+  color: #5f5f5f;
+  background: #fff;
+}
+.pkg-resources button.on {
+  background: #191919;
+  border-color: #191919;
+  color: #fff;
+}
+.pkg-naming {
+  grid-column: 2 / -1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #9a6700;
+  background: #fffaeb;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.pkg-file {
+  font-size: 11px;
+  color: #a19a93;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: -4px;
+}
+.pkg-hint {
+  color: #9a6700;
+  text-decoration: underline dotted;
+  cursor: help;
+}
+@media (max-width: 700px) {
+  .pkg-head {
+    grid-template-columns: 1fr 1fr;
+  }
+  .pkg-resources,
+  .pkg-naming {
+    grid-column: 1 / -1;
+    flex-wrap: wrap;
+  }
+}
+
+/* ───────── 네이밍 규칙 ───────── */
+.naming-v2 {
+  padding-bottom: 96px;
+}
+.rule-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.rule-card {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+  padding: 24px;
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  min-width: 0;
+}
+.rule-kicker {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--blue);
+}
+.rule-pattern {
+  display: block;
+  margin-top: 8px;
+  font-family: inherit;
+  font-size: 18px;
+  color: #a19a93;
+  overflow-wrap: anywhere;
+}
+.rule-pattern b {
+  color: #191919;
+  font-weight: 700;
+}
+.rule-notes {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #5f5f5f;
+}
+.builder {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+  display: grid;
+  gap: 12px;
+}
+.builder-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+}
+.builder-row label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #8f867e;
+  width: 110px;
+}
+.builder-row label.grow {
+  flex: 1 1 180px;
+  width: auto;
+}
+.builder-row input,
+.builder-row select {
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0 10px;
+  font-size: 14px;
+  background: #fff;
+  min-width: 0;
+}
+.builder-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  font-weight: 600;
+  color: #8f867e;
+  min-height: 40px;
+}
+.builder-chips span {
+  margin-right: 4px;
+}
+.builder-chips button {
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13px;
+  color: #5f5f5f;
+  background: #fff;
+}
+.builder-chips button.on {
+  background: #191919;
+  border-color: #191919;
+  color: #fff;
+}
+.built-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f7f3ef;
+  border-radius: 10px;
+  padding: 10px 10px 10px 14px;
+}
+.built-name code {
+  flex: 1;
+  min-width: 0;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.built-name .btn {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+  flex: none;
+}
+.name-checker {
+  margin-top: 48px;
+}
+.name-checker .section-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.name-checker h2 {
+  font-size: 20px;
+}
+.name-checker textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.8;
+  background: #fff;
+  resize: vertical;
+}
+.check-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.check-list li {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  padding: 12px 14px;
+  display: grid;
+  gap: 6px;
+}
+.check-list li.warn {
+  border-color: #f0d68a;
+}
+.check-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.check-list li.ok .check-head svg {
+  color: #1f9d55;
+}
+.check-list li.warn .check-head svg {
+  color: #d97706;
+}
+.check-kind {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: #ece7e1;
+  color: #5f5f5f;
+  flex: none;
+}
+.check-head code,
+.check-suggest code {
+  font-family: inherit;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.check-read {
+  font-size: 12px;
+  color: #5f5f5f;
+}
+.check-issues {
+  font-size: 12px;
+  color: #9a6700;
+}
+.check-suggest {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: #f5f8ff;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+.check-suggest > span {
+  color: var(--blue);
+  font-weight: 600;
+}
+.check-suggest code {
+  font-weight: 600;
+}
+.check-suggest .text-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-size: 12px;
+}
+@media (max-width: 900px) {
+  .rule-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 폴더 업로드 · 패키지 구성 */
+.dropzone-empty {
+  cursor: default;
+}
+.dropzone-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.dropzone-actions .btn {
+  min-height: 44px;
+  gap: 6px;
+}
+.folder-note {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  font-size: 13px;
+  color: #5f5f5f;
+}
+.folder-note svg {
+  color: var(--blue);
+}
+.pkg-contents {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+  padding: 14px 16px;
+  margin: 0 0 12px;
+  min-width: 0;
+}
+.pkg-contents legend {
+  float: left;
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.pkg-contents legend span {
+  font-size: 12px;
+  font-weight: 400;
+  color: #8f867e;
+}
+.pkg-contents > div {
+  clear: both;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pkg-contents label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #5f5f5f;
+}
+.pkg-contents label input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--blue);
+}
+.pkg-contents label.on {
+  border-color: var(--blue);
+  color: #191919;
+  font-weight: 600;
+}
+.pkg-contents label.locked {
+  cursor: default;
+  background: #f5f8ff;
+}
+.pkg-contents label em {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--blue);
+}

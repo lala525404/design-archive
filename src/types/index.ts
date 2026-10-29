@@ -39,6 +39,14 @@ export interface DesignAsset {
   service: string;
   /** 프로젝트(패키지) 이름. 같은 프로젝트의 상세·배너·팝업이 함께 묶인다 */
   project: string;
+  /** 업무 요청번호 (없으면 빈 값) */
+  requestNo?: string;
+  /** 프로젝트 폴더 날짜 YYMMDD */
+  projectDate?: string;
+  /** 리소스(라이선스) 코드: 산돌, 게티, AI, 기타 */
+  resources?: string[];
+  /** 이 프로젝트(패키지)에 들어 있는 작업 유형. 업로드 때 체크한 값 */
+  packageTypes?: AssetType[];
   /** PC/MO 버전이 따로 있는 작업 */
   device?: 'PC' | 'MO';
   /** 교수 정보는 추후 추가 (지금은 검색에만 쓰임) */

@@ -7,15 +7,17 @@ import {
   VersionEntry,
 } from '../types';
 import { serviceName } from '../lib/taxonomy';
+import { buildDeliverableName, buildFolderName } from '../lib/naming';
 
 interface Seed {
   id: string;
   title: string;
   service: string;
   year: number;
-  project: string;
   type: AssetType;
   device?: 'PC' | 'MO';
+  /** 프로젝트 폴더: 날짜_요청번호_프로젝트명_리소스_담당디자이너 */
+  folder: ProjectFolder;
   /** 같은 프로젝트에 같은 유형이 여러 개일 때 구분 (예: 메인, 02) */
   label?: string;
   tools: string[];
@@ -31,32 +33,51 @@ interface Seed {
   versions?: Omit<VersionEntry, 'filePath' | 'fileName' | 'designer'>[];
 }
 
-/** NAS 규칙: /서비스폴더/연도/프로젝트/  ·  연도_프로젝트_유형(PC|MO)_도구_디자이너_버전.확장자 */
-export const buildFileName = (
-  year: number,
-  project: string,
-  type: string,
-  device: string | undefined,
-  label: string | undefined,
-  tools: string[],
-  designer: string,
-  version: string,
-) =>
-  `${year}_${project}_${label ?? ''}${type}${device ?? ''}_${tools.join('-')}_${designer}_${version}.${type === 'PPT' ? 'pptx' : 'png'}`;
+interface ProjectFolder {
+  date: string;
+  requestNo: string;
+  name: string;
+  resources: string[];
+  lead: string;
+}
+
+/** 샘플 프로젝트 폴더 (새 네이밍 규칙) */
+const P = {
+  색채학: { date: '260120', requestNo: '15832', name: '색채학 과정', resources: ['산돌', 'AI'], lead: '김다은' },
+  IT스타터: { date: '261014', requestNo: '27410', name: 'IT 스타터 과정', resources: ['산돌', '게티', 'AI'], lead: '양현보' },
+  제안서: { date: '260202', requestNo: '16021', name: 'HRD 고객사 교육 제안서', resources: ['산돌', 'AI'], lead: '김다은' },
+  온보딩: { date: '260710', requestNo: '20988', name: '신규 입사자 온보딩', resources: ['AI'], lead: '방수림' },
+  리더십: { date: '251230', requestNo: '14455', name: '리더십 과정', resources: ['산돌'], lead: '양현보' },
+  직무연수: { date: '261027', requestNo: '27980', name: '교원 직무연수 홍보', resources: ['산돌', '게티'], lead: '방수림' },
+  연말행사: { date: '260120', requestNo: '', name: '전사 연말 행사', resources: [], lead: '김다은' },
+  지하철광고: { date: '260828', requestNo: '23310', name: '지하철 역사 광고', resources: ['게티'], lead: '박지원' },
+  가을프로모션: { date: '261026', requestNo: '27702', name: '가을 프로모션', resources: ['산돌', 'AI'], lead: '박정은' },
+} satisfies Record<string, ProjectFolder>;
 
 function make(seed: Seed): DesignAsset {
-  const filePath = `/${seed.service}/${seed.year}/${seed.project}/`;
+  const f = seed.folder;
+  const folderName = buildFolderName({ ...f, project: f.name, designer: f.lead });
+  const filePath = `/${seed.service}/${seed.year}/${folderName}/`;
   const nameFor = (version: string) =>
-    buildFileName(seed.year, seed.project, seed.type, seed.device, seed.label, seed.tools, seed.designer, version);
-  const hasSandoll = seed.tools.includes('산돌');
+    buildDeliverableName({
+      id: f.requestNo || f.date,
+      type: seed.type,
+      label: seed.label,
+      device: seed.device,
+      version,
+    });
+  const hasSandoll = f.resources.includes('산돌');
   return {
     id: seed.id,
     title: seed.title,
     service: seed.service,
-    project: seed.project,
+    project: f.name,
+    requestNo: f.requestNo,
+    projectDate: f.date,
+    resources: f.resources,
     device: seed.device,
     professor: seed.professor ?? '',
-    course: seed.project,
+    course: f.name,
     type: seed.type,
     year: seed.year,
     tools: seed.tools,
@@ -68,10 +89,11 @@ function make(seed: Seed): DesignAsset {
       new Set([
         `#${seed.year}`,
         `#${serviceName(seed.service)}`,
-        `#${seed.project}`,
+        `#${f.name.replace(/\s/g, '')}`,
         `#${seed.type}`,
         ...(seed.device ? [`#${seed.device}`] : []),
-        ...seed.tools.map((t) => `#${t}`),
+        ...f.resources.map((r) => `#${r}`),
+        ...seed.tools.filter((t) => !f.resources.includes(t)).map((t) => `#${t}`),
         `#${seed.designer}`,
         ...(seed.professor ? [`#${seed.professor}`] : []),
       ]),
@@ -96,14 +118,14 @@ function make(seed: Seed): DesignAsset {
   };
 }
 
-export const INITIAL_ASSETS: DesignAsset[] = [
+const SEEDED: DesignAsset[] = [
   // 05_평생 · 색채학 — 한 과정에서 나온 패키지 (상세 PC/MO, 배너, 팝업, 카드뉴스)
   make({
     id: 'asset-1',
     title: '색채학 과정 상세페이지',
     service: '05_평생',
     year: 2026,
-    project: '색채학',
+    folder: P.색채학,
     type: '상세페이지',
     device: 'PC',
     tools: ['피그마', 'AI', '산돌'],
@@ -125,7 +147,7 @@ export const INITIAL_ASSETS: DesignAsset[] = [
     title: '색채학 과정 상세페이지',
     service: '05_평생',
     year: 2026,
-    project: '색채학',
+    folder: P.색채학,
     type: '상세페이지',
     device: 'MO',
     tools: ['피그마', '산돌'],
@@ -142,7 +164,7 @@ export const INITIAL_ASSETS: DesignAsset[] = [
     title: '색채학 과정 메인 배너',
     service: '05_평생',
     year: 2026,
-    project: '색채학',
+    folder: P.색채학,
     type: '배너',
     device: 'PC',
     label: '메인',
@@ -160,8 +182,9 @@ export const INITIAL_ASSETS: DesignAsset[] = [
     title: '색채학 모집 팝업',
     service: '05_평생',
     year: 2026,
-    project: '색채학',
+    folder: P.색채학,
     type: '팝업',
+    device: 'PC',
     tools: ['포토샵'],
     designer: '박지원',
     version: 'v01',
@@ -176,7 +199,7 @@ export const INITIAL_ASSETS: DesignAsset[] = [
     title: '이동건 교수 소개 카드뉴스',
     service: '05_평생',
     year: 2026,
-    project: '색채학',
+    folder: P.색채학,
     type: '카드뉴스',
     tools: ['피그마', 'AI'],
     designer: '방수림',
@@ -194,7 +217,7 @@ export const INITIAL_ASSETS: DesignAsset[] = [
     title: 'IT 스타터 과정 풀페이지',
     service: '02_아이티뱅크',
     year: 2026,
-    project: 'IT스타터',
+    folder: P.IT스타터,
     type: '풀페이지',
     device: 'PC',
     tools: ['피그마', 'AI', '산돌'],
@@ -212,7 +235,7 @@ export const INITIAL_ASSETS: DesignAsset[] = [
     title: 'IT 스타터 과정 풀페이지',
     service: '02_아이티뱅크',
     year: 2026,
-    project: 'IT스타터',
+    folder: P.IT스타터,
     type: '풀페이지',
     device: 'MO',
     tools: ['피그마', 'AI'],
@@ -228,7 +251,7 @@ export const INITIAL_ASSETS: DesignAsset[] = [
     title: 'IT 스타터 검색광고 배너',
     service: '02_아이티뱅크',
     year: 2026,
-    project: 'IT스타터',
+    folder: P.IT스타터,
     type: '배너',
     device: 'MO',
     label: '검색광고',
@@ -247,7 +270,7 @@ export const INITIAL_ASSETS: DesignAsset[] = [
     title: 'HRD 고객사 교육 제안서',
     service: '03_HRD고객사',
     year: 2026,
-    project: '고객사제안서',
+    folder: P.제안서,
     type: 'PPT',
     tools: ['AI', '산돌'],
     designer: '김다은',
@@ -264,7 +287,7 @@ export const INITIAL_ASSETS: DesignAsset[] = [
     title: '신규 입사자 온보딩 카드뉴스',
     service: '04_HRD내부구축',
     year: 2026,
-    project: '온보딩',
+    folder: P.온보딩,
     type: '카드뉴스',
     tools: ['피그마', 'AI'],
     designer: '방수림',
@@ -281,7 +304,7 @@ export const INITIAL_ASSETS: DesignAsset[] = [
     title: '리더십 과정 상세페이지',
     service: '06_미래경영',
     year: 2025,
-    project: '리더십',
+    folder: P.리더십,
     type: '상세페이지',
     device: 'PC',
     tools: ['포토샵', '산돌'],
@@ -301,7 +324,7 @@ export const INITIAL_ASSETS: DesignAsset[] = [
     title: '교원 직무연수 홍보 포스터',
     service: '01_교원',
     year: 2026,
-    project: '직무연수',
+    folder: P.직무연수,
     type: '포스터',
     tools: ['일러스트', '산돌'],
     designer: '방수림',
@@ -320,7 +343,7 @@ export const INITIAL_ASSETS: DesignAsset[] = [
     title: '전사 연말 행사 발표 자료',
     service: '07_전사',
     year: 2026,
-    project: '연말행사',
+    folder: P.연말행사,
     type: 'PPT',
     tools: ['피그마'],
     designer: '김다은',
@@ -337,7 +360,7 @@ export const INITIAL_ASSETS: DesignAsset[] = [
     title: '지하철 역사 광고 포스터',
     service: '08_인쇄광고물(시디)',
     year: 2026,
-    project: '지하철광고',
+    folder: P.지하철광고,
     type: '포스터',
     tools: ['일러스트'],
     designer: '박지원',
@@ -354,7 +377,7 @@ export const INITIAL_ASSETS: DesignAsset[] = [
     title: '가을 프로모션 유튜브 썸네일',
     service: '09_마케팅',
     year: 2026,
-    project: '가을프로모션',
+    folder: P.가을프로모션,
     type: '썸네일',
     tools: ['피그마', 'AI'],
     designer: '박정은',
@@ -365,6 +388,19 @@ export const INITIAL_ASSETS: DesignAsset[] = [
     fileSize: '1.2 MB',
   }),
 ];
+
+/** 같은 프로젝트 파일들의 유형을 모아 패키지 구성으로 저장 */
+function withPackageTypes(list: DesignAsset[]): DesignAsset[] {
+  const byProject = new Map<string, Set<AssetType>>();
+  const key = (a: DesignAsset) => `${a.service}/${a.year}/${a.project}`;
+  list.forEach((a) => {
+    if (!byProject.has(key(a))) byProject.set(key(a), new Set());
+    byProject.get(key(a))!.add(a.type);
+  });
+  return list.map((a) => ({ ...a, packageTypes: [...byProject.get(key(a))!] }));
+}
+
+export const INITIAL_ASSETS: DesignAsset[] = withPackageTypes(SEEDED);
 
 export const INITIAL_SAN_DOLL_FONTS: SandollFontItem[] = [
   {

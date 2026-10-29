@@ -4,6 +4,7 @@ import {
   ArrowRight,
   Check,
   FolderOpen,
+  FolderUp,
   History,
   ImagePlus,
   Plus,
@@ -29,10 +30,12 @@ import {
   DESIGNERS,
   DEVICE_TYPES,
   SERVICES,
-  guessType,
-  normalizeTool,
+  RESOURCES,
+  TOOLS,
   serviceName,
 } from "../lib/taxonomy";
+import { parseDeliverable, parseProjectFolder } from "../lib/naming";
+import { guessType } from "../lib/taxonomy";
 
 export interface UploadResult {
   added: DesignAsset[];
@@ -50,6 +53,37 @@ interface PickedFile {
   name: string;
   size: string;
   url?: string;
+  /** 폴더째 올렸을 때 패키지 폴더 안에서의 경로 (예: 배너/MO/파일.png) */
+  relPath?: string;
+}
+
+/** 아카이브에 올릴 결과물만 받는다. 원본(PSD·AI 등)과 시스템 파일은 건너뛴다 */
+const isDeliverable = (name: string) =>
+  !/^\./.test(name) &&
+  !/^(thumbs\.db|desktop\.ini)$/i.test(name) &&
+  /\.(png|jpe?g|gif|webp|svg|pdf|pptx?|key)$/i.test(name);
+
+/** 드래그한 폴더를 끝까지 열어 파일 목록을 만든다 */
+async function readEntry(entry: any, prefix = ""): Promise<{ file: File; path: string }[]> {
+  if (entry.isFile) {
+    const file: File = await new Promise((res, rej) => entry.file(res, rej));
+    return [{ file, path: prefix + file.name }];
+  }
+  if (entry.isDirectory) {
+    const reader = entry.createReader();
+    const entries: any[] = [];
+    // readEntries는 한 번에 일부만 돌려줘서 빌 때까지 반복
+    for (;;) {
+      const batch: any[] = await new Promise((res, rej) => reader.readEntries(res, rej));
+      if (!batch.length) break;
+      entries.push(...batch);
+    }
+    const nested = await Promise.all(
+      entries.map((e) => readEntry(e, `${prefix}${entry.name}/`)),
+    );
+    return nested.flat();
+  }
+  return [];
 }
 interface Item {
   key: string;
@@ -61,46 +95,50 @@ interface Item {
   designer: string;
   version: string;
   colors: string[];
+  issues: string[];
 }
 
 const SAMPLE = {
-  path: "\\\\NAS\\디자인\\05_평생\\2026\\색채학\\",
+  path: "\\\\NAS\\디자인\\05_평생\\2026\\260120_15832_색채학 과정_산돌-AI_김다은\\",
   files: [
-    "2026_색채학_상세페이지PC_피그마-AI-산돌_김다은_v04.png",
-    "2026_색채학_상세페이지MO_피그마-산돌_김다은_v03.png",
-    "2026_색채학_서브배너PC_포토샵_박지원_v01.png",
-    "2026_색채학_팝업_포토샵_박지원_v02.png",
+    "15832_상세_PC_v04.png",
+    "15832_상세_MO_v03.png",
+    "15832_배너-서브_PC_v01.png",
+    "15832_팝업_PC_v02.png",
   ],
 };
 
 const fileKey = () => Math.random().toString(36).slice(2, 9);
 const sizeText = (bytes: number) => `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 
-/** 파일명 하나에서 유형·PC/MO·도구·디자이너·버전을 읽는다 */
-function readFileName(name: string, project: string) {
-  const stem = name.replace(/\.[^/.]+$/, "");
-  const tokens = stem.split("_");
-  const { type, device } = guessType(name);
-  // 연도_프로젝트_유형_도구_디자이너_버전 (6칸) · 예전 규칙 연도_작업명_도구_디자이너_버전 (5칸)
-  const toolToken = tokens.length >= 6 ? tokens[3] : tokens.length === 5 ? tokens[2] : "";
-  const tools = Array.from(
-    new Set(toolToken.split("-").filter(Boolean).map(normalizeTool)),
-  );
-  const designerToken = tokens.find((t) => DESIGNERS.includes(t));
-  const version = tokens.find((t) => /^v\d+$/i.test(t)) ?? "v01";
-  // "서브배너PC" → "서브"
-  const label = (tokens[2] ?? "")
-    .replace(/(PC|MO)$/i, "")
-    .replace(type || "@@", "")
-    .trim();
-  const title = [project, label, type || "작업"].filter(Boolean).join(" ");
+/** 파일명 하나에서 유형·PC/MO·버전을 읽는다 (새 규칙 우선, 아니면 키워드로 추정) */
+function readFileName(
+  name: string,
+  project: string,
+  lead: string,
+  resources: string[],
+  relPath = "",
+) {
+  const info = parseDeliverable(name);
+  // 파일명으로 모르면 하위 폴더 이름(배너/, MO/ 등)으로 보충
+  const folders = relPath.split("/").slice(0, -1).join("/");
+  if (!info.type && folders) {
+    const g = guessType(folders);
+    if (g.type) info.type = g.type;
+  }
+  if (!info.device && info.type && DEVICE_TYPES.includes(info.type)) {
+    if (/(^|\/)(mo|mobile|모바일)(\/|$)/i.test(folders)) info.device = "MO";
+    else if (/(^|\/)pc(\/|$)/i.test(folders)) info.device = "PC";
+  }
+  const title = [project, info.label, info.type || "작업"].filter(Boolean).join(" ");
   return {
-    type,
-    device,
-    tools,
-    designer: designerToken ?? CURRENT_DESIGNER,
-    version: version.toLowerCase(),
+    type: info.type,
+    device: info.device,
+    tools: resources.filter((r) => TOOLS.includes(r)),
+    designer: lead || CURRENT_DESIGNER,
+    version: info.version,
     title,
+    issues: info.issues,
   };
 }
 
@@ -145,6 +183,9 @@ export const UploadView: React.FC<UploadViewProps> = ({
   const [files, setFiles] = useState<PickedFile[]>([]);
   const [nasPath, setNasPath] = useState("");
   const [dragging, setDragging] = useState(false);
+  const [packageFolder, setPackageFolder] = useState("");
+  const [skipped, setSkipped] = useState(0);
+  const folderInput = useRef<HTMLInputElement>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
@@ -153,6 +194,10 @@ export const UploadView: React.FC<UploadViewProps> = ({
   const [service, setService] = useState("");
   const [year, setYear] = useState("");
   const [project, setProject] = useState("");
+  const [requestNo, setRequestNo] = useState("");
+  const [projectDate, setProjectDate] = useState("");
+  const [resources, setResources] = useState<string[]>([]);
+  const [folderIssues, setFolderIssues] = useState<string[]>([]);
   const [folder, setFolder] = useState("");
   const [items, setItems] = useState<Item[]>([]);
   const [extraTags, setExtraTags] = useState<string[]>([]);
@@ -160,22 +205,51 @@ export const UploadView: React.FC<UploadViewProps> = ({
   const [changeReason, setChangeReason] = useState<ChangeReason | "">("");
   const [changeNote, setChangeNote] = useState("");
   const [fontConfirmed, setFontConfirmed] = useState(false);
+  const [packageTypes, setPackageTypes] = useState<AssetType[]>([]);
 
-  const addFiles = (list: FileList | null) => {
-    if (!list?.length) return;
-    const next: PickedFile[] = Array.from(list).map((f) => ({
+  const addFiles = (list: { file: File; path?: string }[]) => {
+    if (!list.length) return;
+    const keep = list.filter(({ file }) => isDeliverable(file.name));
+    setSkipped((n) => n + (list.length - keep.length));
+    // 폴더째 올렸으면 맨 위 폴더 = 프로젝트 폴더
+    const top = list.find((x) => x.path?.includes("/"))?.path?.split("/")[0];
+    if (top) setPackageFolder(top);
+    const next: PickedFile[] = keep.map(({ file, path }) => ({
       key: fileKey(),
-      name: f.name,
-      size: sizeText(f.size),
-      url: f.type.startsWith("image/") ? URL.createObjectURL(f) : undefined,
+      name: file.name,
+      size: sizeText(file.size),
+      url: file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined,
+      relPath: path && path.includes("/") ? path.split("/").slice(1).join("/") : undefined,
     }));
     setFiles((prev) => [...prev, ...next]);
-    setError("");
+    setError(keep.length ? "" : "올릴 수 있는 결과물(이미지·PDF·PPT)이 없어요.");
+  };
+
+  const onDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    const items = Array.from(e.dataTransfer.items ?? []);
+    const entries = items
+      .map((it) => (it as any).webkitGetAsEntry?.())
+      .filter(Boolean);
+    if (entries.some((en: any) => en.isDirectory)) {
+      const all = (await Promise.all(entries.map((en: any) => readEntry(en)))).flat();
+      addFiles(all);
+    } else {
+      addFiles(Array.from(e.dataTransfer.files).map((file) => ({ file })));
+    }
   };
 
   const runAnalysis = async () => {
     let picked = files;
     let path = nasPath.trim();
+    // 폴더째 올렸고 경로에 프로젝트 폴더가 없으면 붙여서 읽는다
+    if (packageFolder) {
+      const lastSeg = path.split(/[\\/]/).filter(Boolean).pop() ?? "";
+      if (!path) path = packageFolder;
+      else if (!parseProjectFolder(lastSeg).date && lastSeg !== packageFolder)
+        path = `${path.replace(/[\\/]+$/, "")}/${packageFolder}`;
+    }
     // 경로에 파일명까지 붙어 있고 파일을 안 올렸으면, 그 파일 하나로 등록
     const last = path.split(/[\\/]/).pop() ?? "";
     if (/\.[a-z0-9]{2,5}$/i.test(last)) {
@@ -196,7 +270,7 @@ export const UploadView: React.FC<UploadViewProps> = ({
     const proj = parsed.project;
     const next: Item[] = await Promise.all(
       picked.map(async (f) => {
-        const info = readFileName(f.name, proj);
+        const info = readFileName(f.name, proj, parsed.designer, parsed.resources, f.relPath);
         const colors = f.url ? await readImageColors(f.url).catch(() => []) : [];
         return { key: f.key, file: f, colors, ...info };
       }),
@@ -205,8 +279,18 @@ export const UploadView: React.FC<UploadViewProps> = ({
     setService(parsed.service);
     setYear(parsed.year || String(new Date().getFullYear()));
     setProject(proj);
+    setRequestNo(parsed.requestNo);
+    setProjectDate(parsed.date);
+    setResources(parsed.resources);
+    setFolderIssues(parsed.issues);
+    setPackageTypes(
+      Array.from(new Set(next.map((it) => it.type).filter(Boolean))) as AssetType[],
+    );
     setFolder(/[\\/]$/.test(path) ? path : `${path}/`);
-    setItems(next);
+    // 상세 → 풀페이지 → 배너 … 순서, 같은 유형이면 PC 먼저
+    const order = (it: Item) =>
+      (it.type ? ASSET_TYPES.indexOf(it.type) : 99) * 10 + (it.device === "MO" ? 1 : 0);
+    setItems([...next].sort((a, b) => order(a) - order(b)));
     setExtraTags([]);
     setChangeReason("");
     setChangeNote("");
@@ -240,9 +324,28 @@ export const UploadView: React.FC<UploadViewProps> = ({
   const existingInProject = assets.filter(
     (a) => a.service === service && a.project === project && String(a.year) === year,
   );
-  const usesSandoll =
-    items.some((it) => it.tools.includes("산돌")) || nasPath.includes("산돌");
-  const commonTags = [year, serviceName(service), project]
+  const usesSandoll = resources.includes("산돌");
+  const typeCounts = items.reduce<Record<string, number>>((acc, it) => {
+    if (it.type) acc[it.type] = (acc[it.type] ?? 0) + 1;
+    return acc;
+  }, {});
+  // 파일이 있는 유형은 항상 체크된 상태로 유지
+  const checkedTypes = Array.from(
+    new Set([...packageTypes, ...(Object.keys(typeCounts) as AssetType[])]),
+  );
+  const mergedPackage = Array.from(
+    new Set([
+      ...checkedTypes,
+      ...existingInProject.flatMap((a) => a.packageTypes ?? [a.type]),
+    ]),
+  ) as AssetType[];
+  const commonTags = [
+    year,
+    serviceName(service),
+    project.replace(/\s/g, ""),
+    ...(requestNo ? [requestNo] : []),
+    ...resources,
+  ]
     .filter(Boolean)
     .map((t) => `#${t}`);
   const missing = [
@@ -266,13 +369,13 @@ export const UploadView: React.FC<UploadViewProps> = ({
     const updated: DesignAsset[] = [];
     items.forEach((it, i) => {
       const m = matches[i];
-      const itemSandoll = it.tools.includes("산돌");
+      const itemSandoll = usesSandoll;
       const tags = Array.from(
         new Set([
           ...commonTags,
           `#${it.type}`,
           ...(it.device ? [`#${it.device}`] : []),
-          ...it.tools.map((t) => `#${t}`),
+          ...it.tools.filter((t) => !resources.includes(t)).map((t) => `#${t}`),
           `#${it.designer}`,
           ...it.colors.map((c) => `#${c}`),
           ...extraTags,
@@ -303,11 +406,17 @@ export const UploadView: React.FC<UploadViewProps> = ({
             : "산돌 서체 사용이 감지되었습니다. 관리자 확인이 필요합니다."
           : undefined,
         uploadDate: today,
+        packageTypes: mergedPackage,
         ...(it.file.url ? { imageUrl: it.file.url } : {}),
         ...(it.file.size ? { fileSize: it.file.size } : {}),
       };
       if (m.existing) {
-        updated.push({ ...m.existing, ...common, versions: [...getVersions(m.existing), entry] });
+        updated.push({
+          ...m.existing,
+          ...common,
+          resources,
+          versions: [...getVersions(m.existing), entry],
+        });
       } else {
         added.push({
           id: `asset-${Date.now()}-${i}`,
@@ -315,6 +424,9 @@ export const UploadView: React.FC<UploadViewProps> = ({
           service,
           project: project.trim(),
           course: project.trim(),
+          requestNo,
+          projectDate,
+          resources,
           professor: "",
           device: it.device,
           type: it.type as AssetType,
@@ -326,6 +438,11 @@ export const UploadView: React.FC<UploadViewProps> = ({
           versions: [entry],
         });
       }
+    });
+    // 같은 프로젝트의 기존 파일들도 패키지 구성을 함께 갱신
+    existingInProject.forEach((a) => {
+      if (!updated.some((u) => u.id === a.id))
+        updated.push({ ...a, packageTypes: mergedPackage });
     });
     onSubmit({ added, updated, project: project.trim() });
   };
@@ -351,11 +468,7 @@ export const UploadView: React.FC<UploadViewProps> = ({
               setDragging(true);
             }}
             onDragLeave={() => setDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragging(false);
-              addFiles(e.dataTransfer.files);
-            }}
+            onDrop={onDrop}
           >
             <input
               ref={fileInput}
@@ -364,7 +477,23 @@ export const UploadView: React.FC<UploadViewProps> = ({
               accept="image/*,.pdf,.ppt,.pptx"
               hidden
               onChange={(e) => {
-                addFiles(e.target.files);
+                addFiles(Array.from(e.target.files ?? []).map((file) => ({ file })));
+                e.target.value = "";
+              }}
+            />
+            <input
+              ref={folderInput}
+              type="file"
+              multiple
+              hidden
+              {...({ webkitdirectory: "", directory: "" } as any)}
+              onChange={(e) => {
+                addFiles(
+                  Array.from(e.target.files ?? []).map((file) => ({
+                    file,
+                    path: (file as any).webkitRelativePath as string,
+                  })),
+                );
                 e.target.value = "";
               }}
             />
@@ -395,28 +524,51 @@ export const UploadView: React.FC<UploadViewProps> = ({
                   <Plus size={20} />
                   파일 추가
                 </button>
+                <button
+                  type="button"
+                  className="picked picked-add"
+                  onClick={() => folderInput.current?.click()}
+                >
+                  <FolderUp size={20} />
+                  폴더 추가
+                </button>
               </div>
             ) : (
-              <button
-                type="button"
-                className="dropzone-empty"
-                onClick={() => fileInput.current?.click()}
-              >
+              <div className="dropzone-empty">
                 <ImagePlus size={34} strokeWidth={1.4} />
-                <strong>작업 파일을 한 번에 끌어 놓으세요</strong>
+                <strong>프로젝트 폴더나 파일을 끌어 놓으세요</strong>
                 <span>
-                  상세페이지 PC·MO, 배너, 팝업, PPT를 여러 개 같이 올려도 되고
-                  하나만 올려도 돼요
+                  폴더째 올리면 안의 상세·배너·팝업·PPT를 모두 읽어요. 하나만 올려도 돼요.
                 </span>
-              </button>
+                <div className="dropzone-actions">
+                  <button type="button" className="btn btn-primary" onClick={() => folderInput.current?.click()}>
+                    <FolderUp size={16} />
+                    폴더 선택
+                  </button>
+                  <button type="button" className="btn" onClick={() => fileInput.current?.click()}>
+                    <ImagePlus size={16} />
+                    파일 선택
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 
+          {(packageFolder || skipped > 0) && (
+            <p className="folder-note">
+              {packageFolder && (
+                <>
+                  <FolderOpen size={14} /> <b>{packageFolder}</b> 폴더 · 결과물 {files.length}개
+                </>
+              )}
+              {skipped > 0 && <span> · 원본·시스템 파일 {skipped}개는 건너뛰었어요</span>}
+            </p>
+          )}
           <label className="field quick-path">
             NAS 프로젝트 폴더
             <input
               value={nasPath}
-              placeholder="\\NAS\디자인\05_평생\2026\색채학"
+              placeholder="\\NAS\디자인\05_평생\2026\260714_21076_프로젝트명_산돌-게티_김다은"
               onChange={(e) => setNasPath(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") runAnalysis();
@@ -424,13 +576,15 @@ export const UploadView: React.FC<UploadViewProps> = ({
             />
           </label>
           <p className="quick-help">
-            폴더에서 서비스·연도·프로젝트를, 파일명에서 유형·PC/MO·도구·디자이너·버전을
-            자동으로 채워요.{" "}
+            폴더 이름에서 서비스·날짜·요청번호·프로젝트·리소스·디자이너를, 파일 이름에서
+            유형·PC/MO·버전을 자동으로 채워요. 예전 이름도 최대한 읽어요.{" "}
             <button
               type="button"
               className="link-button"
               onClick={() => {
                 setNasPath(SAMPLE.path);
+                setPackageFolder("");
+                setSkipped(0);
                 setFiles(SAMPLE.files.map((name) => ({ key: fileKey(), name, size: "" })));
               }}
             >
@@ -496,12 +650,78 @@ export const UploadView: React.FC<UploadViewProps> = ({
                 onChange={(e) => setProject(e.target.value)}
               />
             </label>
+            <label>
+              요청번호
+              <input
+                value={requestNo}
+                placeholder="없음"
+                inputMode="numeric"
+                onChange={(e) => setRequestNo(e.target.value.replace(/\D/g, "").slice(0, 5))}
+              />
+            </label>
+            <div className="pkg-resources" role="group" aria-label="리소스">
+              <span>리소스</span>
+              <div>
+                {RESOURCES.map((r) => (
+                  <button
+                    type="button"
+                    key={r}
+                    className={resources.includes(r) ? "on" : ""}
+                    aria-pressed={resources.includes(r)}
+                    onClick={() =>
+                      setResources(
+                        resources.includes(r)
+                          ? resources.filter((x) => x !== r)
+                          : [...resources, r],
+                      )
+                    }
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {folderIssues.length > 0 && (
+              <p className="pkg-naming">
+                <TriangleAlert size={13} />
+                폴더 이름이 새 규칙과 달라서 추정해서 채웠어요 · {folderIssues[0]}
+              </p>
+            )}
             <p className="pkg-note">
               {existingInProject.length
                 ? `기존 '${project}' 프로젝트에 추가돼요 · 지금 ${existingInProject.length}개 작업`
                 : "새 프로젝트로 등록돼요"}
             </p>
           </div>
+
+          <fieldset className="pkg-contents">
+            <legend>
+              패키지 구성
+              <span>파일 이름으로 체크했어요. 함께 만든 게 더 있으면 체크해주세요.</span>
+            </legend>
+            <div>
+              {ASSET_TYPES.map((t) => {
+                const n = typeCounts[t] ?? 0;
+                const on = checkedTypes.includes(t);
+                return (
+                  <label key={t} className={`${on ? "on" : ""} ${n ? "locked" : ""}`}>
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      disabled={n > 0}
+                      onChange={() =>
+                        setPackageTypes(
+                          on ? packageTypes.filter((x) => x !== t) : [...packageTypes, t],
+                        )
+                      }
+                    />
+                    {t}
+                    {n > 0 && <em>{n}</em>}
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
 
           {versionCount > 0 && (
             <div className="quick-card">
@@ -634,6 +854,9 @@ export const UploadView: React.FC<UploadViewProps> = ({
                         ))}
                       </select>
                     </div>
+                    <p className="pkg-file" title={it.file.name}>
+                      {it.file.name}
+                    </p>
                     <p className="pkg-meta">
                       {m.existing ? (
                         <span className="pkg-version">
@@ -643,10 +866,16 @@ export const UploadView: React.FC<UploadViewProps> = ({
                         <span className="pkg-new">새 작업 · {m.finalVersion}</span>
                       )}
                       <span>{it.tools.length ? it.tools.join(" · ") : "도구 정보 없음"}</span>
-                      {!it.type && (
+                      {!it.type ? (
                         <span className="pkg-warn">
                           <TriangleAlert size={12} /> 유형을 골라주세요
                         </span>
+                      ) : (
+                        it.issues.length > 0 && (
+                          <span className="pkg-hint" title={it.issues.join(" · ")}>
+                            파일명 규칙과 달라요
+                          </span>
+                        )
                       )}
                     </p>
                   </div>

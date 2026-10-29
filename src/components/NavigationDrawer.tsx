@@ -58,7 +58,7 @@ export function NavigationDrawer({
               ...(currentRole !== "user" ? [["upload", "자산 등록"]] : []),
               ["prompt", "프롬프트 만들기"],
               ["license", "라이선스 확인"],
-              ...(currentRole === "admin" ? [["naming", "파일명 규칙"]] : []),
+              ...(currentRole !== "user" ? [["naming", "네이밍 규칙"]] : []),
             ] as const
           ).map(([v, label]) => (
             <button key={v} onClick={() => nav(v as any)}>

@@ -19,6 +19,7 @@ import { getVersions } from "../lib/versions";
 import {
   ASSET_TYPES,
   DESIGNERS,
+  RESOURCES,
   SERVICES,
   TOOLS,
   serviceName,
@@ -54,6 +55,8 @@ export const SearchView: React.FC<SearchViewProps> = ({
   // Filter States
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const [selectedResources, setSelectedResources] = useState<string[]>([]);
+  const [selectedPackage, setSelectedPackage] = useState<string[]>([]);
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
   const [selectedSandoll, setSelectedSandoll] = useState<
@@ -89,6 +92,8 @@ export const SearchView: React.FC<SearchViewProps> = ({
   const handleClearFilters = () => {
     setSelectedTypes([]);
     setSelectedServices([]);
+    setSelectedResources([]);
+    setSelectedPackage([]);
     setSelectedYears([]);
     setSelectedTools([]);
     setSelectedSandoll("all");
@@ -98,6 +103,8 @@ export const SearchView: React.FC<SearchViewProps> = ({
   const hasActiveFilters =
     selectedTypes.length > 0 ||
     selectedServices.length > 0 ||
+    selectedResources.length > 0 ||
+    selectedPackage.length > 0 ||
     selectedYears.length > 0 ||
     selectedTools.length > 0 ||
     selectedSandoll !== "all" ||
@@ -119,6 +126,9 @@ export const SearchView: React.FC<SearchViewProps> = ({
             asset.service,
             serviceName(asset.service),
             asset.device ?? "",
+            asset.requestNo ?? "",
+            asset.projectDate ?? "",
+            ...(asset.resources ?? []),
             asset.type,
             ...asset.tools,
             asset.designer,
@@ -146,6 +156,19 @@ export const SearchView: React.FC<SearchViewProps> = ({
         if (
           selectedServices.length > 0 &&
           !selectedServices.includes(asset.service)
+        )
+          return false;
+        // 선택한 유형을 모두 포함한 프로젝트의 파일만
+        if (
+          selectedPackage.length > 0 &&
+          !selectedPackage.every((t) =>
+            (asset.packageTypes ?? [asset.type]).includes(t as any),
+          )
+        )
+          return false;
+        if (
+          selectedResources.length > 0 &&
+          !selectedResources.some((r) => asset.resources?.includes(r))
         )
           return false;
         if (selectedYears.length > 0 && !selectedYears.includes(asset.year))
@@ -200,6 +223,8 @@ export const SearchView: React.FC<SearchViewProps> = ({
     searchQuery,
     selectedTypes,
     selectedServices,
+    selectedResources,
+    selectedPackage,
     selectedYears,
     selectedTools,
     selectedSandoll,
@@ -233,6 +258,8 @@ export const SearchView: React.FC<SearchViewProps> = ({
   const count =
     selectedTypes.length +
     selectedServices.length +
+    selectedResources.length +
+    selectedPackage.length +
     selectedYears.length +
     selectedTools.length +
     selectedDesigners.length +
@@ -376,6 +403,20 @@ export const SearchView: React.FC<SearchViewProps> = ({
               countBy((a) => a.tools),
             )}
             {filterGroup(
+              "프로젝트 구성 (모두 포함)",
+              allTypes,
+              selectedPackage,
+              setSelectedPackage,
+              countBy((a) => a.packageTypes ?? [a.type]),
+            )}
+            {filterGroup(
+              "리소스 (라이선스)",
+              RESOURCES,
+              selectedResources,
+              setSelectedResources,
+              countBy((a) => a.resources ?? []),
+            )}
+            {filterGroup(
               "연도",
               allYears,
               selectedYears,
@@ -464,6 +505,8 @@ export const SearchView: React.FC<SearchViewProps> = ({
           {[
             ...selectedTypes,
             ...selectedServices.map(serviceName),
+            ...selectedResources,
+            ...selectedPackage.map((t) => `${t} 포함 프로젝트`),
             ...selectedYears,
             ...selectedTools,
             ...selectedDesigners,

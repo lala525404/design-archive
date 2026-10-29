@@ -36,6 +36,36 @@ export const CURRENT_DESIGNER = "박정은";
 
 export const TOOLS = ["AI", "산돌", "포토샵", "일러스트", "피그마"];
 
+/** 폴더명에 적는 리소스(라이선스) 코드. 없으면 "없음" */
+export const RESOURCES = ["산돌", "게티", "AI", "기타"];
+
+/** 예전 표기 → 리소스 코드 */
+export function normalizeResources(raw: string): string[] {
+  const text = raw.toLowerCase();
+  const found: string[] = [];
+  if (/산돌|sandoll/.test(text)) found.push("산돌");
+  if (/게티|getty/.test(text)) found.push("게티");
+  if (/(^|[^a-z])ai([^a-z]|$)|gpt|미드저니|midjourney|생성형/.test(text)) found.push("AI");
+  if (/기타/.test(text)) found.push("기타");
+  return found;
+}
+
+/** 파일명에 쓰는 유형 코드 (짧게) */
+export const TYPE_CODES: Record<string, AssetType> = {
+  상세: "상세페이지",
+  상세페이지: "상세페이지",
+  풀페이지: "풀페이지",
+  배너: "배너",
+  팝업: "팝업",
+  카드뉴스: "카드뉴스",
+  포스터: "포스터",
+  썸네일: "썸네일",
+  PPT: "PPT",
+  ppt: "PPT",
+};
+export const typeCode = (type: AssetType) =>
+  type === "상세페이지" ? "상세" : type;
+
 /** 파일명에 섞여 쓰이는 표기를 도구 이름 하나로 맞춘다 */
 const TOOL_ALIASES: Record<string, string> = {
   ai: "AI",

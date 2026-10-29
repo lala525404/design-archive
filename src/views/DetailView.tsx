@@ -100,6 +100,7 @@ export function DetailView({
         <section className="detail-info">
           <p className="detail-eyebrow">
             {serviceName(asset.service)} · {asset.project} 프로젝트
+            {asset.requestNo && ` · 요청 ${asset.requestNo}`}
           </p>
           <h1>
             {asset.title}
@@ -242,6 +243,9 @@ export function DetailView({
               {[
                 ["서비스", asset.service],
                 ["프로젝트", asset.project],
+                ["요청번호", asset.requestNo || "없음"],
+                ["리소스", asset.resources?.length ? asset.resources.join(" · ") : "없음"],
+                ["패키지 구성", (asset.packageTypes ?? [asset.type]).join(" · ")],
                 ["작업 유형", `${asset.type}${asset.device ? ` · ${asset.device}` : ""}`],
                 ["제작 연도", `${asset.year}년`],
                 ["등록일", asset.uploadDate],
