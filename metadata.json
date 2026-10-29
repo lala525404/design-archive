@@ -1,0 +1,6 @@
+{
+  "name": "디자인 자산 아카이브",
+  "description": "회사에서 제작한 상세페이지, 배너, 카드뉴스 등 디자인 작업물을 검색하고 재활용하기 위한 내부 디자인 아카이브 서비스입니다.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

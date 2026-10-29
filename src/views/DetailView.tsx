@@ -1,0 +1,247 @@
+import React, { useState } from "react";
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  Copy,
+  Check,
+  Search,
+  Sparkles,
+  Download,
+  Edit3,
+} from "lucide-react";
+import { DesignAsset, UserRole } from "../types";
+import { DesignThumbnail } from "../components/DesignThumbnail";
+import { Disclosure, Status } from "../components/Chrome";
+interface Props {
+  asset: DesignAsset;
+  onBack: () => void;
+  onSimilarSearch: (q: string) => void;
+  onOpenPromptStudio: (a: DesignAsset) => void;
+  onUpdateAsset: (a: DesignAsset) => void;
+  onOpenMenu: () => void;
+  userRole: UserRole;
+  allAssets: DesignAsset[];
+  onSelectAsset: (id: string) => void;
+}
+export function DetailView({
+  asset,
+  onBack,
+  onSimilarSearch,
+  onOpenPromptStudio,
+  onUpdateAsset,
+  userRole,
+  allAssets,
+  onSelectAsset,
+}: Props) {
+  const [copied, setCopied] = useState(false),
+    [message, setMessage] = useState(""),
+    [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({
+    title: asset.title,
+    summary: asset.summary,
+    designer: asset.designer,
+    version: asset.version,
+  });
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(asset.filePath);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setMessage("복사하지 못했어요. 원본 경로를 직접 선택해 복사해주세요.");
+    }
+  };
+  const related = allAssets.filter(
+    (a) =>
+      a.id !== asset.id &&
+      (a.professor === asset.professor || a.course === asset.course),
+  );
+  return (
+    <main className="page-shell detail-page">
+      <div className="detail-top">
+        <button className="back-link" onClick={onBack}>
+          <ArrowLeft size={16} />
+          검색 결과
+        </button>
+        <span className="muted">
+          {asset.type} / {asset.version}
+        </span>
+      </div>
+      <div className="detail-layout">
+        <section className="preview-panel">
+          <DesignThumbnail asset={asset} />
+          <div className="preview-foot">
+            <span>샘플 미리보기</span>
+            <span>
+              {asset.dimensions} · {asset.fileSize}
+            </span>
+          </div>
+        </section>
+        <section className="detail-info">
+          <p className="detail-eyebrow">
+            {asset.course} · {asset.professor} 교수
+          </p>
+          <h1>{asset.title}</h1>
+          <p className="detail-summary">{asset.summary}</p>
+          <dl className="essential-meta">
+            <div>
+              <dt>디자이너</dt>
+              <dd>{asset.designer}</dd>
+            </div>
+            <div>
+              <dt>사용 도구</dt>
+              <dd>{asset.tools.join(" · ")}</dd>
+            </div>
+            <div>
+              <dt>라이선스</dt>
+              <dd>
+                <Status value={asset.licenseStatus} />
+              </dd>
+            </div>
+          </dl>
+          {asset.licenseStatus !== "verified" && (
+            <p className="license-note">{asset.licenseNote}</p>
+          )}
+          <div className="detail-primary">
+            <button className="btn btn-primary" onClick={copy}>
+              {copied ? <Check size={17} /> : <Copy size={17} />}{" "}
+              {copied ? "복사 완료" : "원본 경로 복사"}
+              <ArrowUpRight size={17} />
+            </button>
+            <button className="btn" onClick={() => onOpenPromptStudio(asset)}>
+              <Sparkles size={17} />
+              프롬프트 만들기
+            </button>
+          </div>
+          <div className="detail-secondary">
+            <button
+              className="text-button"
+              onClick={() => onSimilarSearch(asset.course)}
+            >
+              <Search size={15} />
+              비슷한 작업
+            </button>
+            <button
+              className="text-button"
+              onClick={() =>
+                setMessage(
+                  "샘플 데이터에는 원본 파일이 연결되어 있지 않아요. 원본 경로를 복사해 파일을 확인해주세요.",
+                )
+              }
+            >
+              <Download size={15} />
+              원본 다운로드
+            </button>
+            {userRole !== "user" && (
+              <button
+                className="text-button"
+                onClick={() => setEditing(!editing)}
+              >
+                <Edit3 size={15} />
+                {editing ? "수정 취소" : "정보 수정"}
+              </button>
+            )}
+          </div>
+          <p role="status" className="inline-feedback">
+            {message}
+          </p>
+          {editing && (
+            <form
+              className="edit-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                onUpdateAsset({ ...asset, ...form });
+                setEditing(false);
+              }}
+            >
+              {(["title", "summary", "designer", "version"] as const).map(
+                (key, i) => (
+                  <label className="field" key={key}>
+                    {["작업명", "작업 설명", "디자이너", "버전"][i]}
+                    {key === "summary" ? (
+                      <textarea
+                        value={form[key]}
+                        onChange={(e) =>
+                          setForm({ ...form, [key]: e.target.value })
+                        }
+                      />
+                    ) : (
+                      <input
+                        required
+                        value={form[key]}
+                        onChange={(e) =>
+                          setForm({ ...form, [key]: e.target.value })
+                        }
+                      />
+                    )}
+                  </label>
+                ),
+              )}
+              <button className="btn btn-primary">저장</button>
+            </form>
+          )}
+          <Disclosure title="파일 정보">
+            <dl className="file-meta">
+              {[
+                ["제작 연도", `${asset.year}년`],
+                ["등록일", asset.uploadDate],
+                ["버전", asset.version],
+                ["파일명", asset.fileName],
+                ["원본 경로", asset.filePath],
+              ].map(([k, v]) => (
+                <div key={k}>
+                  <dt>{k}</dt>
+                  <dd>{v}</dd>
+                </div>
+              ))}
+            </dl>
+          </Disclosure>
+          <Disclosure title="라이선스 상세">
+            <p>{asset.hasSandoll ? "산돌 폰트 사용" : "산돌 폰트 미사용"}</p>
+            <p>{asset.licenseNote || "등록된 추가 설명이 없습니다."}</p>
+          </Disclosure>
+          <Disclosure title={`관련 태그 ${asset.hashtags.length}`}>
+            <div className="tag-list">
+              {asset.hashtags.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => onSimilarSearch(t.replace("#", ""))}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </Disclosure>
+        </section>
+      </div>
+      {related.length > 0 && (
+        <section className="related-section">
+          <div className="section-heading">
+            <h2>함께 보면 좋은 작업</h2>
+            <button
+              className="text-button"
+              onClick={() => onSimilarSearch(asset.course)}
+            >
+              전체 보기
+              <ArrowUpRight size={15} />
+            </button>
+          </div>
+          <div className="related-grid">
+            {related.slice(0, 4).map((a) => (
+              <button
+                className="related-item"
+                key={a.id}
+                onClick={() => onSelectAsset(a.id)}
+              >
+                <div>
+                  <DesignThumbnail asset={a} />
+                </div>
+                <span>{a.title}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+    </main>
+  );
+}
