@@ -113,3 +113,7 @@ export function guessType(fileName: string): {
   const device: "PC" | "MO" | undefined = isMo ? "MO" : isPc ? "PC" : undefined;
   return { type, device: type && DEVICE_TYPES.includes(type) ? device : undefined };
 }
+
+/** 화면 표시용 리소스 목록: 기타는 실제 이름을 붙인다 */
+export const resourceLabels = (resources: string[] = [], etc?: string) =>
+  resources.map((r) => (r === "기타" && etc ? `기타(${etc})` : r));

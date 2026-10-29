@@ -22,6 +22,7 @@ import {
   RESOURCES,
   SERVICES,
   serviceName,
+  resourceLabels,
 } from "../lib/taxonomy";
 import { groupProjects, projectKey, typeSummary } from "../lib/projects";
 import { getVersions, nextVersion, withVersion } from "../lib/versions";
@@ -113,7 +114,11 @@ export function ProjectView({
           </div>
           <div>
             <dt>리소스</dt>
-            <dd>{project.resources.length ? project.resources.join(" · ") : "없음"}</dd>
+            <dd>
+              {project.resources.length
+                ? resourceLabels(project.resources, project.files.find((f) => f.resourceEtc)?.resourceEtc).join(" · ")
+                : "없음"}
+            </dd>
           </div>
           <div>
             <dt>최근 수정</dt>
@@ -249,6 +254,7 @@ function ProjectEditor({
   const [year, setYear] = useState(String(first.year));
   const [requestNo, setRequestNo] = useState(first.requestNo ?? "");
   const [resources, setResources] = useState<string[]>(first.resources ?? []);
+  const [resourceEtc, setResourceEtc] = useState(first.resourceEtc ?? "");
   const fileTypes = new Set(files.map((f) => f.type));
   const [pkg, setPkg] = useState<AssetType[]>(packageTypes);
 
@@ -267,6 +273,7 @@ function ProjectEditor({
             year: parseInt(year) || f.year,
             requestNo,
             resources,
+            resourceEtc: resources.includes("기타") ? resourceEtc.trim() || undefined : undefined,
             hasSandoll: resources.includes("산돌"),
             packageTypes: Array.from(new Set([...pkg, ...fileTypes])) as AssetType[],
           })),
@@ -317,6 +324,16 @@ function ProjectEditor({
           </button>
         ))}
       </div>
+      {resources.includes("기타") && (
+        <label className={`etc-resource ${!resourceEtc.trim() ? "needs" : ""}`}>
+          기타 리소스 이름·출처
+          <input
+            value={resourceEtc}
+            placeholder="예: 언스플래시 이미지, 프리픽 아이콘"
+            onChange={(e) => setResourceEtc(e.target.value)}
+          />
+        </label>
+      )}
       <div className="pkg-contents-chips">
         {ASSET_TYPES.map((t) => {
           const locked = fileTypes.has(t);

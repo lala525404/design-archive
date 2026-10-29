@@ -48,6 +48,8 @@ export interface DesignAsset {
   projectDate?: string;
   /** 리소스(라이선스) 코드: 산돌, 게티, AI, 기타 */
   resources?: string[];
+  /** '기타' 리소스의 실제 이름/출처 (예: 언스플래시, 프리픽) */
+  resourceEtc?: string;
   /** 이 프로젝트(패키지)에 들어 있는 작업 유형. 업로드 때 체크한 값 */
   packageTypes?: AssetType[];
   /** PC/MO 버전이 따로 있는 작업 */

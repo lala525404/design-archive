@@ -13,7 +13,7 @@ import { AssetType, DesignAsset, UserRole } from "../types";
 import { DesignThumbnail } from "../components/DesignThumbnail";
 import { Disclosure, Status } from "../components/Chrome";
 import { getVersions } from "../lib/versions";
-import { ASSET_TYPES, DEVICE_TYPES, serviceName } from "../lib/taxonomy";
+import { ASSET_TYPES, DEVICE_TYPES, serviceName, resourceLabels } from "../lib/taxonomy";
 import { projectKey } from "../lib/projects";
 interface Props {
   asset: DesignAsset;
@@ -289,7 +289,7 @@ export function DetailView({
                 ["서비스", asset.service],
                 ["프로젝트", asset.project],
                 ["요청번호", asset.requestNo || "없음"],
-                ["리소스", asset.resources?.length ? asset.resources.join(" · ") : "없음"],
+                ["리소스", asset.resources?.length ? resourceLabels(asset.resources, asset.resourceEtc).join(" · ") : "없음"],
                 ["패키지 구성", (asset.packageTypes ?? [asset.type]).join(" · ")],
                 ["작업 유형", `${asset.type}${asset.device ? ` · ${asset.device}` : ""}`],
                 ["제작 연도", `${asset.year}년`],

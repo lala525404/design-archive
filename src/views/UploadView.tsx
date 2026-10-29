@@ -182,6 +182,8 @@ async function readImageColors(url: string): Promise<string[]> {
 }
 
 const PAID_RESOURCES = ["산돌", "게티"];
+/** 사용 범위 확인이 필요한 리소스 (기타는 출처 확인) */
+const CHECK_RESOURCES = ["산돌", "게티", "기타"];
 
 export const UploadView: React.FC<UploadViewProps> = ({
   assets = [],
@@ -215,6 +217,7 @@ export const UploadView: React.FC<UploadViewProps> = ({
   const [projectDate, setProjectDate] = useState("");
   const [lead, setLead] = useState(CURRENT_DESIGNER);
   const [resources, setResources] = useState<string[]>([]);
+  const [resourceEtc, setResourceEtc] = useState("");
   const [folderIssues, setFolderIssues] = useState<string[]>([]);
   const [folder, setFolder] = useState("");
   const [items, setItems] = useState<Item[]>([]);
@@ -227,6 +230,7 @@ export const UploadView: React.FC<UploadViewProps> = ({
   // 태그
   const [extraTags, setExtraTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
+  const [tagsOk, setTagsOk] = useState(false);
 
   const addFiles = (list: { file: File; path?: string }[]) => {
     if (!list.length) return;
@@ -313,6 +317,7 @@ export const UploadView: React.FC<UploadViewProps> = ({
     setProjectDate(existing?.projectDate ?? parsed.date);
     setLead(leadName);
     setResources(res);
+    setResourceEtc(existing?.resourceEtc ?? "");
     setFolderIssues(existing ? [] : parsed.issues);
     setPackageTypes(
       Array.from(new Set(next.map((it) => it.type).filter(Boolean))) as AssetType[],
@@ -325,6 +330,7 @@ export const UploadView: React.FC<UploadViewProps> = ({
     setChangeNote("");
     setLicenseOk({});
     setExtraTags([]);
+    setTagsOk(false);
     setAnalyzing(false);
     setStep(1);
   };
@@ -366,14 +372,16 @@ export const UploadView: React.FC<UploadViewProps> = ({
   const mergedPackage = Array.from(
     new Set([...checkedTypes, ...existingInProject.flatMap((a) => a.packageTypes ?? [a.type])]),
   ) as AssetType[];
-  const paid = resources.filter((r) => PAID_RESOURCES.includes(r));
+  const paid = resources.filter((r) => CHECK_RESOURCES.includes(r));
+  const etcName = resources.includes("기타") ? resourceEtc.trim() : "";
   const unconfirmed = paid.filter((r) => !licenseOk[r]);
   const commonTags = [
     year,
     serviceName(service),
     title.replace(/\s/g, ""),
     ...(requestNo ? [requestNo] : []),
-    ...resources,
+    ...resources.filter((r) => r !== "기타"),
+    ...(etcName ? [etcName.replace(/\s/g, "")] : []),
   ]
     .filter(Boolean)
     .map((t) => `#${t}`);
@@ -390,6 +398,9 @@ export const UploadView: React.FC<UploadViewProps> = ({
     ...(versionCount
       ? [{ label: "수정 이유", ok: Boolean(changeReason), required: true }]
       : []),
+    ...(resources.includes("기타")
+      ? [{ label: "기타 리소스 이름", ok: Boolean(etcName), required: true }]
+      : []),
     ...(paid.length
       ? [
           {
@@ -399,6 +410,7 @@ export const UploadView: React.FC<UploadViewProps> = ({
           },
         ]
       : []),
+    { label: "태그 확인", ok: tagsOk, required: true },
   ];
   const blocking = checks.filter((c) => c.required && !c.ok);
 
@@ -407,15 +419,16 @@ export const UploadView: React.FC<UploadViewProps> = ({
 
   const submit = () => {
     if (blocking.length) {
-      setError(`${blocking.map((c) => c.label.replace(/ \(.*\)/, "")).join(", ")}을(를) 확인해주세요.`);
+      setError(`아직 확인이 필요해요: ${blocking.map((c) => c.label.replace(/ \(.*\)/, "")).join(", ")}`);
       return;
     }
     const today = new Date().toISOString().split("T")[0];
+    const label = (r: string) => (r === "기타" ? `기타(${etcName})` : r);
     const licenseStatus: DesignAsset["licenseStatus"] = unconfirmed.length ? "needs_review" : "verified";
     const licenseNote = paid.length
       ? unconfirmed.length
-        ? `${unconfirmed.join("·")} 라이선스 범위를 관리자가 확인해야 합니다.`
-        : `업로더가 ${paid.join("·")} 라이선스 범위 안에서 사용했다고 확인했습니다.`
+        ? `${unconfirmed.map(label).join("·")} 라이선스 범위를 관리자가 확인해야 합니다.`
+        : `업로더가 ${paid.map(label).join("·")} 라이선스 범위 안에서 사용했다고 확인했습니다.`
       : undefined;
     const projectFields = {
       service,
@@ -425,6 +438,7 @@ export const UploadView: React.FC<UploadViewProps> = ({
       requestNo,
       projectDate,
       resources,
+      resourceEtc: etcName || undefined,
       packageTypes: mergedPackage,
     };
     const added: DesignAsset[] = [];
@@ -989,6 +1003,18 @@ export const UploadView: React.FC<UploadViewProps> = ({
               ))}
               {!resources.length && <span className="review-hint">사용한 리소스 없음</span>}
             </div>
+            {resources.includes("기타") && (
+              <label className={`etc-resource ${!etcName ? "needs" : ""}`}>
+                기타 리소스 이름·출처
+                <input
+                  value={resourceEtc}
+                  autoFocus={!resourceEtc}
+                  disabled={isRevision}
+                  placeholder="예: 언스플래시 이미지, 프리픽 아이콘, 눈누 무료폰트"
+                  onChange={(e) => setResourceEtc(e.target.value)}
+                />
+              </label>
+            )}
             {paid.map((r) => (
               <label key={r} className={`license-check ${licenseOk[r] ? "is-ok" : ""}`}>
                 <input
@@ -997,52 +1023,88 @@ export const UploadView: React.FC<UploadViewProps> = ({
                   onChange={(e) => setLicenseOk({ ...licenseOk, [r]: e.target.checked })}
                 />
                 <span>
-                  <b>{r}</b>
+                  <b>{r === "기타" ? `기타${etcName ? `(${etcName})` : ""}` : r}</b>
                   {r === "산돌"
                     ? " 서체를 회사 라이선스 범위(웹·인쇄 용도) 안에서 사용했어요"
-                    : " 이미지를 구매한 라이선스 범위 안에서 사용했어요"}
+                    : r === "게티"
+                      ? " 이미지를 구매한 라이선스 범위 안에서 사용했어요"
+                      : " 리소스의 출처와 상업적 이용 가능 여부를 확인했어요"}
                 </span>
               </label>
             ))}
           </section>
 
           {/* 6. 태그 */}
-          <section className="review-block">
+          <section className={`review-block review-block--tags ${tagsOk ? "is-ok" : ""}`}>
             <header>
               <span className="review-no">{(isRevision ? 4 : 5) + (versionCount ? 1 : 0)}</span>
               <h2>태그</h2>
-              <span className="review-hint">유형·PC/MO·디자이너·이미지 색 태그는 파일마다 자동으로 붙어요.</span>
+              <span className="review-hint">검색은 이 태그로 찾아요. 빠진 키워드가 없는지 한 번 더 확인해주세요.</span>
+              <em className="is-key">검색 키워드</em>
             </header>
-            <div className="tag-list editable">
-              {commonTags.map((t) => (
-                <span key={t}>{t}</span>
-              ))}
-              {extraTags.map((t) => (
-                <span key={t}>
-                  {t}
-                  <button onClick={() => setExtraTags(extraTags.filter((x) => x !== t))} aria-label={`${t} 삭제`}>
-                    <X size={12} />
-                  </button>
-                </span>
-              ))}
-              <form
-                className="tag-add"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const v = newTag.trim().replace(/^#/, "");
-                  if (v && !extraTags.includes(`#${v}`)) setExtraTags([...extraTags, `#${v}`]);
-                  setNewTag("");
-                }}
-              >
-                <Plus size={12} />
-                <input
-                  value={newTag}
-                  placeholder="태그 추가"
-                  aria-label="추가할 태그"
-                  onChange={(e) => setNewTag(e.target.value)}
-                />
-              </form>
+            <div className="tag-group">
+              <span className="tag-group-label">프로젝트 공통</span>
+              <div className="tag-list editable tag-list--key">
+                {commonTags.map((t) => (
+                  <span key={t}>{t}</span>
+                ))}
+                {extraTags.map((t) => (
+                  <span key={t} className="is-added">
+                    {t}
+                    <button
+                      onClick={() => {
+                        setExtraTags(extraTags.filter((x) => x !== t));
+                        setTagsOk(false);
+                      }}
+                      aria-label={`${t} 삭제`}
+                    >
+                      <X size={12} />
+                    </button>
+                  </span>
+                ))}
+                <form
+                  className="tag-add"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const v = newTag.trim().replace(/^#/, "").replace(/\s/g, "");
+                    if (v && !extraTags.includes(`#${v}`)) setExtraTags([...extraTags, `#${v}`]);
+                    setNewTag("");
+                  }}
+                >
+                  <Plus size={13} />
+                  <input
+                    value={newTag}
+                    placeholder="키워드 추가 후 Enter"
+                    aria-label="추가할 태그"
+                    onChange={(e) => setNewTag(e.target.value)}
+                  />
+                </form>
+              </div>
             </div>
+            <div className="tag-group">
+              <span className="tag-group-label">파일마다 자동</span>
+              <div className="tag-list tag-list--auto">
+                {Array.from(
+                  new Set(
+                    items.flatMap((it) => [
+                      `#${it.type}`,
+                      ...(it.device ? [`#${it.device}`] : []),
+                      `#${it.designer}`,
+                      ...it.colors.map((c) => `#${c}`),
+                    ]),
+                  ),
+                ).map((t) => (
+                  <span key={t}>{t}</span>
+                ))}
+              </div>
+            </div>
+            <p className="review-hint">
+              예: 행사명, 캠페인명, 시즌(가을·연말), 타깃(직장인·학부모), 강사·교수명처럼 나중에 검색할 말을 추가하면 찾기 쉬워요.
+            </p>
+            <label className={`tag-confirm ${tagsOk ? "is-ok" : ""}`}>
+              <input type="checkbox" checked={tagsOk} onChange={(e) => setTagsOk(e.target.checked)} />
+              <span>태그를 확인했어요</span>
+            </label>
           </section>
 
           {/* 확인 목록 + 등록 */}
@@ -1056,7 +1118,7 @@ export const UploadView: React.FC<UploadViewProps> = ({
               ))}
             </ul>
             <p role="alert" className="inline-feedback">
-              {error}
+              {error.startsWith("아직 확인이") && !blocking.length ? "" : error}
             </p>
             <div className="wizard-footer">
               <button className="btn" onClick={() => setStep(0)}>
