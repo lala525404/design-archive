@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ArrowRight, Menu } from "lucide-react";
+import { ArrowRight, Menu, Plus } from "lucide-react";
 import { DesignAsset } from "../types";
 import { ShapeGallery } from "../components/ShapeGallery";
 import { SearchBox } from "../components/Chrome";
@@ -35,6 +35,17 @@ export function LandingView({
             onChange={setQuery}
             onSubmit={() => onSearch(query.trim())}
           />
+          {canUpload && (
+            <button
+              type="button"
+              className="landing-register"
+              onClick={() => onNavigate?.("upload")}
+              aria-label="디자인 등록하기"
+            >
+              <Plus size={20} />
+              <span>등록하기</span>
+            </button>
+          )}
         </div>
         <button
           className="landing-menu"

@@ -71,6 +71,13 @@ export default function App() {
     showToast(`"${newAsset.title}" 등록 완료`);
   };
 
+  const handleUploadVersion = (updated: DesignAsset) => {
+    setAssets(assets.map((a) => (a.id === updated.id ? updated : a)));
+    setSelectedAssetId(updated.id);
+    setView("detail");
+    showToast(`"${updated.title}" ${updated.version} 등록 완료`);
+  };
+
   const handleUpdateAsset = (updated: DesignAsset) => {
     setAssets(assets.map((a) => (a.id === updated.id ? updated : a)));
     showToast("수정 내용을 저장했어요.");
@@ -160,8 +167,10 @@ export default function App() {
 
       {view === "upload" && (
         <UploadView
+          assets={assets}
           onBack={() => setView("landing")}
           onUploadSuccess={handleUploadSuccess}
+          onUploadVersion={handleUploadVersion}
         />
       )}
 

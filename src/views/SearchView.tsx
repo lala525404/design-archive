@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { DesignAsset, ViewMode, GroupMode, SortOption } from "../types";
 import { SearchBox, PageTitle, Status } from "../components/Chrome";
+import { getVersions } from "../lib/versions";
 import { DesignThumbnail } from "../components/DesignThumbnail";
 
 interface SearchViewProps {
@@ -118,6 +119,12 @@ export const SearchView: React.FC<SearchViewProps> = ({
             asset.fileName,
             asset.filePath,
             ...(asset.hasSandoll ? ["산돌 사용"] : []),
+            ...getVersions(asset).flatMap((v) => [
+              v.version,
+              v.reason,
+              v.note ?? "",
+              v.fileName,
+            ]),
           ]
             .join(" ")
             .toLowerCase();
@@ -488,6 +495,8 @@ export const SearchView: React.FC<SearchViewProps> = ({
                     <div>
                       <p className="asset-meta">
                         {asset.course} · {asset.type}
+                        {getVersions(asset).length > 1 &&
+                          ` · ${asset.version} (버전 ${getVersions(asset).length}개)`}
                       </p>
                       <button
                         className="asset-title"

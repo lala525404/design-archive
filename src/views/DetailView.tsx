@@ -12,6 +12,7 @@ import {
 import { DesignAsset, UserRole } from "../types";
 import { DesignThumbnail } from "../components/DesignThumbnail";
 import { Disclosure, Status } from "../components/Chrome";
+import { getVersions } from "../lib/versions";
 interface Props {
   asset: DesignAsset;
   onBack: () => void;
@@ -51,6 +52,17 @@ export function DetailView({
       setMessage("복사하지 못했어요. 원본 경로를 직접 선택해 복사해주세요.");
     }
   };
+  const versions = getVersions(asset);
+  const [copiedVersion, setCopiedVersion] = useState("");
+  const copyVersionPath = async (path: string, version: string) => {
+    try {
+      await navigator.clipboard.writeText(path);
+      setCopiedVersion(version);
+      setTimeout(() => setCopiedVersion(""), 2000);
+    } catch {
+      setMessage("복사하지 못했어요. 경로를 직접 선택해 복사해주세요.");
+    }
+  };
   const related = allAssets.filter(
     (a) =>
       a.id !== asset.id &&
@@ -65,6 +77,7 @@ export function DetailView({
         </button>
         <span className="muted">
           {asset.type} / {asset.version}
+          {versions.length > 1 && ` · 버전 ${versions.length}개`}
         </span>
       </div>
       <div className="detail-layout">
@@ -184,6 +197,36 @@ export function DetailView({
               <button className="btn btn-primary">저장</button>
             </form>
           )}
+          <Disclosure title={`버전 기록 ${versions.length}`} open={versions.length > 1}>
+            <ol className="version-list">
+              {[...versions].reverse().map((v, i) => (
+                <li key={v.version + v.uploadDate} className={i === 0 ? "is-current" : ""}>
+                  <div className="version-line">
+                    <strong>{v.version}</strong>
+                    {i === 0 && <span className="version-current">현재</span>}
+                    <span className="version-reason">{v.reason}</span>
+                    <span className="version-date">{v.uploadDate}</span>
+                  </div>
+                  {v.note && <p className="version-note">{v.note}</p>}
+                  <div className="version-foot">
+                    <span>{v.designer}</span>
+                    {v.originalKept ? (
+                      <button
+                        type="button"
+                        className="text-button"
+                        onClick={() => copyVersionPath(`${v.filePath}${v.fileName}`, v.version)}
+                      >
+                        {copiedVersion === v.version ? <Check size={13} /> : <Copy size={13} />}
+                        {copiedVersion === v.version ? "복사 완료" : "파일 경로 복사"}
+                      </button>
+                    ) : (
+                      <span className="version-gone">NAS 원본 정리됨 · 기록만 보관</span>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </Disclosure>
           <Disclosure title="파일 정보">
             <dl className="file-meta">
               {[

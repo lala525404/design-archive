@@ -12,6 +12,12 @@ import { UploadView } from "../src/views/UploadView";
 import { PromptStudioView } from "../src/views/PromptStudioView";
 import { LicenseManagementView } from "../src/views/LicenseManagementView";
 import { NamingRuleView } from "../src/views/NamingRuleView";
+import {
+  findSameWork,
+  nextVersion,
+  parseNasPath,
+  withVersion,
+} from "../src/lib/versions";
 const noop = () => {};
 const search = (query: string, records = assets) =>
   renderToStaticMarkup(
@@ -133,6 +139,34 @@ for (const q of ["이동건", "색채학 상세페이지", "산돌 사용", "GPT
   assert.ok(landing.includes(`>${q}<`), `Suggestion ${q} is shown`);
   assert.ok(resultCount(search(q)) > 0, `Suggestion ${q} returns results`);
 }
+// NAS path parsing and version detection
+assert.deepEqual(
+  parseNasPath("\\\\NAS\\디자인\\2026\\이동건\\색채학\\상세페이지\\"),
+  { year: "2026", professor: "이동건", course: "색채학", type: "상세페이지" },
+  "Windows NAS path with share prefix",
+);
+assert.equal(
+  findSameWork(
+    assets,
+    "/2026/이동건/색채학/상세페이지/",
+    "2026_색채학상세페이지_Figma-GPT-산돌_김디자인_v04.png",
+  )?.id,
+  "asset-1",
+  "Same folder + same work name is detected as a new version",
+);
+assert.equal(
+  findSameWork(assets, "/2026/이동건/색채학/상세페이지/", "2026_다른작업_Figma_김디자인_v01.png"),
+  undefined,
+  "Different work name is a separate work",
+);
+assert.equal(nextVersion("v03"), "v04");
+assert.equal(withVersion("a_b_c_d_v03.png", "v04"), "a_b_c_d_v04.png");
+assert.equal(resultCount(search("장소 변경")), 1, "Version change reasons are searchable");
+const uploadHtml = renderToStaticMarkup(
+  <UploadView assets={assets} onBack={noop} onUploadSuccess={noop} />,
+);
+assert.ok(uploadHtml.includes("NAS 경로"), "Upload asks for the NAS path");
+
 console.log(
-  "PASS: search, 7 views, 9 samples, fixed landing blocks, suggestions",
+  "PASS: search, 7 views, 9 samples, fixed landing blocks, suggestions, NAS path, versions",
 );

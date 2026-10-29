@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Upload,
   ArrowLeft,
@@ -12,18 +12,32 @@ import {
   FileText,
   FolderOpen,
   Hash,
+  History,
 } from "lucide-react";
 import { PageTitle, Disclosure } from "../components/Chrome";
-import { DesignAsset, LicenseStatus } from "../types";
+import { ChangeReason, DesignAsset, LicenseStatus } from "../types";
+import {
+  CHANGE_REASONS,
+  findSameWork,
+  getVersions,
+  nextVersion,
+  parseNasPath,
+  versionNumber,
+  withVersion,
+} from "../lib/versions";
 
 interface UploadViewProps {
+  assets?: DesignAsset[];
   onBack: () => void;
   onUploadSuccess: (newAsset: DesignAsset) => void;
+  onUploadVersion?: (updated: DesignAsset) => void;
 }
 
 export const UploadView: React.FC<UploadViewProps> = ({
+  assets = [],
   onBack,
   onUploadSuccess,
+  onUploadVersion,
 }) => {
   const [step, setStep] = useState(0);
   const [newTool, setNewTool] = useState("");
@@ -69,6 +83,36 @@ export const UploadView: React.FC<UploadViewProps> = ({
     useState<LicenseStatus>("verified");
   const [licenseAgreed, setLicenseAgreed] = useState(false);
 
+  // 같은 작업의 새 버전인지 확인 (같은 NAS 폴더 + 같은 작업명)
+  const [registerMode, setRegisterMode] = useState<"version" | "new">(
+    "version",
+  );
+  const [changeReason, setChangeReason] = useState<ChangeReason | "">("");
+  const [changeNote, setChangeNote] = useState("");
+  const sameWork = useMemo(
+    () => findSameWork(assets, filePath, fileName),
+    [assets, filePath, fileName],
+  );
+  const latest = sameWork ? getVersions(sameWork).at(-1) : undefined;
+  const asNewVersion = Boolean(sameWork && registerMode === "version");
+  const versionTaken = Boolean(
+    latest && versionNumber(version) <= versionNumber(latest.version),
+  );
+  const finalVersion =
+    asNewVersion && versionTaken && latest ? nextVersion(latest.version) : version;
+  const finalFileName =
+    finalVersion !== version ? withVersion(fileName, finalVersion) : fileName;
+
+  // NAS 경로가 바뀌면 경로에서 읽을 수 있는 정보를 바로 갱신
+  const applyPath = (path: string) => {
+    setFilePath(path);
+    const parsed = parseNasPath(path);
+    if (parsed.year) setYear(parsed.year);
+    if (parsed.professor) setProfessor(parsed.professor);
+    if (parsed.course) setCourse(parsed.course);
+    if (parsed.type) setWorkType(parsed.type);
+  };
+
   // File Drag & Drop Simulation
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -93,12 +137,14 @@ export const UploadView: React.FC<UploadViewProps> = ({
   const triggerAnalysis = (name: string, path: string) => {
     const uncertain: string[] = [];
 
-    // Path pattern: /연도/교수명/과정명/작업유형/
-    const pathParts = path.split("/").filter(Boolean);
-    let extractedYear = pathParts[0] || "2026";
-    let extractedProf = pathParts[1] || "이동건";
-    let extractedCourse = pathParts[2] || "색채학";
-    let extractedType = pathParts[3] || "상세페이지";
+    // NAS 경로: (공유폴더)/연도/교수명/과정명/작업유형/
+    const fromPath = parseNasPath(path);
+    let extractedYear = fromPath.year || "2026";
+    let extractedProf = fromPath.professor;
+    let extractedCourse = fromPath.course;
+    let extractedType = fromPath.type || "상세페이지";
+    if (!fromPath.professor) uncertain.push("교수명");
+    if (!fromPath.course) uncertain.push("과정명");
 
     // Filename pattern: 2026_색채학상세페이지_Figma-GPT-산돌_김디자인_v03.png
     const cleanName = name.replace(/\.[^/.]+$/, "");
@@ -196,11 +242,59 @@ export const UploadView: React.FC<UploadViewProps> = ({
     if (
       !title.trim() ||
       !professor.trim() ||
-      !course.trim() ||
+      !filePath.trim() ||
       !designer.trim()
     ) {
-      setError("작업명, 교수명, 과정명, 디자이너를 입력해주세요.");
+      setError("작업명, NAS 경로, 교수명, 디자이너를 입력해주세요.");
       setStep(1);
+      return;
+    }
+    if (asNewVersion && !changeReason) {
+      setError("새 버전을 만든 이유를 골라주세요.");
+      setStep(1);
+      return;
+    }
+    const licenseStatus: LicenseStatus =
+      sandollUsage === "needs_check"
+        ? "needs_review"
+        : sandollUsage === "not_used"
+          ? "verified"
+          : matchedLicenseStatus;
+    const licenseNote =
+      sandollUsage === "needs_check"
+        ? "업로더의 서체 확인이 필요합니다."
+        : sandollUsage === "used"
+          ? "업로더가 선택한 산돌 라이선스 상태입니다."
+          : undefined;
+    const today = new Date().toISOString().split("T")[0];
+    const entry = {
+      version: finalVersion,
+      fileName: finalFileName,
+      filePath,
+      uploadDate: today,
+      designer,
+      reason: (asNewVersion ? changeReason : "최초 제작") as ChangeReason,
+      note: changeNote.trim() || undefined,
+      originalKept: true,
+    };
+
+    if (asNewVersion && sameWork && onUploadVersion) {
+      onUploadVersion({
+        ...sameWork,
+        version: finalVersion,
+        fileName: finalFileName,
+        filePath,
+        designer,
+        tools,
+        hashtags,
+        year: parseInt(year) || sameWork.year,
+        hasSandoll: sandollUsage === "used",
+        licenseStatus,
+        licenseNote,
+        uploadDate: today,
+        fileSize,
+        versions: [...getVersions(sameWork), entry],
+      });
       return;
     }
     const newAsset: DesignAsset = {
@@ -217,24 +311,15 @@ export const UploadView: React.FC<UploadViewProps> = ({
       fileName,
       hashtags,
       hasSandoll: sandollUsage === "used",
-      licenseStatus:
-        sandollUsage === "needs_check"
-          ? "needs_review"
-          : sandollUsage === "not_used"
-            ? "verified"
-            : matchedLicenseStatus,
-      licenseNote:
-        sandollUsage === "needs_check"
-          ? "업로더의 서체 확인이 필요합니다."
-          : sandollUsage === "used"
-            ? "업로더가 선택한 산돌 라이선스 상태입니다."
-            : undefined,
-      uploadDate: new Date().toISOString().split("T")[0],
+      licenseStatus,
+      licenseNote,
+      uploadDate: today,
       bgColor: "#FFE59A",
       accentColor: "#246BFD",
       summary: `${professor} 교수의 ${course} ${workType} 작업물입니다. (업로더: ${designer})`,
       dimensions: "1080 x 7800 px",
       fileSize,
+      versions: [{ ...entry, version, fileName }],
     };
 
     onUploadSuccess(newAsset);
@@ -284,7 +369,14 @@ export const UploadView: React.FC<UploadViewProps> = ({
             <span className="btn">파일 선택</span>
           </div>
           <div className="field-stack">
-            {field("원본 경로", filePath, setFilePath)}
+            <label className="field">
+              NAS 경로
+              <input
+                value={filePath}
+                placeholder="예: \\NAS\디자인\2026\이동건\색채학\상세페이지"
+                onChange={(e) => applyPath(e.target.value)}
+              />
+            </label>
             <label className="field">
               파일명
               <div className="inline-input">
@@ -301,7 +393,7 @@ export const UploadView: React.FC<UploadViewProps> = ({
               </div>
             </label>
             <span className="muted">
-              {fileSize} · 파일명과 경로에서 작업 정보를 가져옵니다.
+              {fileSize} · NAS 경로와 파일명에서 작업 정보를 가져옵니다.
             </span>
           </div>
         </section>
@@ -309,13 +401,102 @@ export const UploadView: React.FC<UploadViewProps> = ({
       {step === 1 && (
         <section className="upload-step">
           <h2>작업 정보를 확인하세요</h2>
+          {sameWork && latest && (
+            <div className="version-match">
+              <div className="version-match-head">
+                <History size={18} />
+                <div>
+                  <strong>이미 등록된 작업이에요</strong>
+                  <p>
+                    {sameWork.title} · 현재 {latest.version} · 버전{" "}
+                    {getVersions(sameWork).length}개
+                  </p>
+                </div>
+              </div>
+              <div className="choice-row" role="radiogroup" aria-label="등록 방식">
+                <button
+                  type="button"
+                  className={`btn ${registerMode === "version" ? "selected" : ""}`}
+                  aria-pressed={registerMode === "version"}
+                  onClick={() => setRegisterMode("version")}
+                >
+                  새 버전으로 등록 ({nextVersion(latest.version)})
+                </button>
+                <button
+                  type="button"
+                  className={`btn ${registerMode === "new" ? "selected" : ""}`}
+                  aria-pressed={registerMode === "new"}
+                  onClick={() => setRegisterMode("new")}
+                >
+                  별도 작업으로 등록
+                </button>
+              </div>
+              {asNewVersion && (
+                <>
+                  <div className="field">
+                    바뀐 이유
+                    <div className="choice-row reason-row">
+                      {CHANGE_REASONS.map((r) => (
+                        <button
+                          type="button"
+                          key={r}
+                          className={`btn ${changeReason === r ? "selected" : ""}`}
+                          aria-pressed={changeReason === r}
+                          onClick={() => {
+                            setChangeReason(r);
+                            setError("");
+                          }}
+                        >
+                          {r}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <label className="field">
+                    변경 내용
+                    <input
+                      value={changeNote}
+                      placeholder="예: 개강일 3월 10일 → 3월 17일, 강남캠퍼스 → 종로캠퍼스"
+                      onChange={(e) => setChangeNote(e.target.value)}
+                    />
+                  </label>
+                  {versionTaken && (
+                    <p className="version-hint">
+                      파일명의 버전({version})은 이미 등록되어 있어{" "}
+                      <strong>{finalVersion}</strong>로 등록해요. NAS에도{" "}
+                      <code>{finalFileName}</code> 이름으로 저장해주세요.
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+          <label className="field nas-field">
+            NAS 경로
+            <input
+              value={filePath}
+              placeholder="예: \\NAS\디자인\2026\이동건\색채학\상세페이지"
+              onChange={(e) => applyPath(e.target.value)}
+            />
+            <span className="path-parsed">
+              {[
+                ["연도", year],
+                ["교수", professor],
+                ["과정", course],
+                ["유형", workType],
+              ].map(([k, v]) => (
+                <span key={k} className={v ? "" : "is-missing"}>
+                  {k} <b>{v || "확인 필요"}</b>
+                </span>
+              ))}
+            </span>
+          </label>
           <div className="form-grid">
             {field("작업명", title, setTitle)}
-            {field("과정명", course, setCourse)}
             {field("교수명", professor, setProfessor)}
             {field("디자이너", designer, setDesigner)}
             {field("제작 연도", year, setYear)}
-            {field("버전", version, setVersion)}
+            {field("버전", asNewVersion ? finalVersion : version, setVersion)}
             <label className="field">
               작업 유형
               <select
@@ -479,8 +660,16 @@ export const UploadView: React.FC<UploadViewProps> = ({
             <dl className="file-meta">
               {[
                 ["작업명", title],
-                ["원본 경로", filePath],
-                ["파일명", fileName],
+                ["NAS 경로", filePath],
+                ["파일명", asNewVersion ? finalFileName : fileName],
+                ...(asNewVersion
+                  ? [
+                      [
+                        "버전",
+                        `${latest?.version} → ${finalVersion} · ${changeReason || "이유 미선택"}`,
+                      ],
+                    ]
+                  : []),
                 ["사용 도구", tools.join(", ")],
               ].map(([k, v]) => (
                 <div key={k}>
