@@ -1,121 +1,36 @@
 import {
-  Color,
   DirectionalLight,
-  ExtrudeGeometry,
-  HemisphereLight,
-  Mesh,
-  MeshStandardMaterial,
+  Group,
+  NeutralToneMapping,
+  Object3D,
+  PMREMGenerator,
   PerspectiveCamera,
   Plane,
   Raycaster,
   Scene,
-  Shape,
+  Texture,
   Vector2,
   Vector3,
   WebGLRenderer,
 } from "three";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { ModelDef, buildModel, disposeModel } from "./models3d";
 
 /*
- * 첫 화면의 입체 블록.
- * - 쉴 때는 바닥선 위 고정 자리에 반듯하게 서 있다 (2D 배치와 같은 좌표)
- * - 잡으면 앞으로 들려 올라와 손을 따라오고, 놓으면 스프링처럼 제자리로 돌아간다
- * - 블록끼리 부딪히는 계산은 하지 않는다. 아무것도 움직이지 않으면 다시 그리지 않는다
+ * 첫 화면의 3D 오브젝트.
+ * - 쉴 때는 바닥선 위 정해진 자리에 3/4 각도로 앉아 있다
+ * - 잡으면 앞으로 들려 올라와 손을 따라오고 기울어지며, 놓으면 스프링처럼 제자리로 돌아간다
+ * - 오브젝트끼리 부딪히는 계산은 하지 않는다. 아무것도 움직이지 않으면 다시 그리지 않는다
  */
 
-export type BlockKind = "hexagon" | "square" | "clover" | "circle";
-export interface BlockDef {
+export interface BlockDef extends ModelDef {
   id: string;
-  kind: BlockKind;
-  color: string;
   label: string;
 }
 interface Home {
-  x: number; // px, 스테이지 왼쪽 기준 중심
+  x: number; // px, 캔버스 왼쪽 기준 중심
   y: number; // px, 바닥선 기준 중심 (위가 +)
 }
-
-// ── 도형 (한 변 1 기준, 중심이 원점) ──────────────────────────
-function roundedPolygon(points: [number, number][], radius: number) {
-  const s = new Shape();
-  const n = points.length;
-  for (let i = 0; i < n; i++) {
-    const p = new Vector2(...points[i]);
-    const prev = new Vector2(...points[(i - 1 + n) % n]);
-    const next = new Vector2(...points[(i + 1) % n]);
-    const a = p.clone().add(prev.clone().sub(p).setLength(radius));
-    const b = p.clone().add(next.clone().sub(p).setLength(radius));
-    if (i === 0) s.moveTo(a.x, a.y);
-    else s.lineTo(a.x, a.y);
-    s.quadraticCurveTo(p.x, p.y, b.x, b.y);
-  }
-  s.closePath();
-  return s;
-}
-
-function shapeFor(kind: BlockKind): { shape: Shape; height: number } {
-  if (kind === "hexagon") {
-    // 위아래가 평평한 육각형, 높이 0.88
-    const h = 0.44;
-    return {
-      shape: roundedPolygon(
-        [
-          [-0.25, h],
-          [0.25, h],
-          [0.5, 0],
-          [0.25, -h],
-          [-0.25, -h],
-          [-0.5, 0],
-        ],
-        0.07,
-      ),
-      height: 0.88,
-    };
-  }
-  if (kind === "square") {
-    return {
-      shape: roundedPolygon(
-        [
-          [-0.5, 0.5],
-          [0.5, 0.5],
-          [0.5, -0.5],
-          [-0.5, -0.5],
-        ],
-        0.16,
-      ),
-      height: 1,
-    };
-  }
-  if (kind === "circle") {
-    const s = new Shape();
-    s.absarc(0, 0, 0.5, 0, Math.PI * 2, false);
-    return { shape: s, height: 1 };
-  }
-  // 클로버: 원 네 개의 바깥 윤곽
-  const r = 0.27,
-    a = 0.23,
-    gap = Math.sqrt(r * r - a * a);
-  const centers = [
-    new Vector2(a, a),
-    new Vector2(a, -a),
-    new Vector2(-a, -a),
-    new Vector2(-a, a),
-  ];
-  const meet = (i: number, j: number) => {
-    const m = centers[i].clone().add(centers[j]).multiplyScalar(0.5);
-    return m.clone().add(m.clone().normalize().multiplyScalar(gap));
-  };
-  const s = new Shape();
-  centers.forEach((c, i) => {
-    const from = meet((i + 3) % 4, i).sub(c);
-    const to = meet(i, (i + 1) % 4).sub(c);
-    s.absarc(c.x, c.y, r, Math.atan2(from.y, from.x), Math.atan2(to.y, to.x), true);
-  });
-  return { shape: s, height: 1 };
-}
-
-const DEPTH = 0.2;
-
-// ── 스프링 ───────────────────────────────────────────────
 interface State {
   pos: Vector3;
   vel: Vector3;
@@ -126,11 +41,10 @@ interface State {
 export class Blocks3D {
   private renderer: WebGLRenderer;
   private scene = new Scene();
-  private camera = new PerspectiveCamera(13, 1, 1, 100000);
-  private meshes: Mesh[] = [];
+  private camera = new PerspectiveCamera(16, 1, 1, 100000);
+  private objects: Group[] = [];
   private states: State[] = [];
   private homes: Home[] = [];
-  private heights: number[] = [];
   private width = 0;
   private height = 0;
   private unit = 100;
@@ -146,6 +60,10 @@ export class Blocks3D {
   private raycaster = new Raycaster();
   private disposed = false;
   private entrance: number[] = [];
+  private envTexture: Texture;
+  private readySent = false;
+  /** 등장 시작 시각 (느린 기기에서도 등장 순서가 밀리지 않게 실제 시간 기준) */
+  private entranceStart = 0;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -159,45 +77,35 @@ export class Blocks3D {
     animateIn: boolean,
   ) {
     this.renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+    this.renderer.toneMapping = NeutralToneMapping;
+    this.renderer.toneMappingExposure = 1.08;
 
-    this.scene.add(new HemisphereLight(0xffffff, 0xd9d2ca, 1.9));
-    const key = new DirectionalLight(0xffffff, 1.5);
-    key.position.set(-0.6, 1, 1.2);
+    // 부드러운 스튜디오 반사
+    const pmrem = new PMREMGenerator(this.renderer);
+    this.envTexture = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    this.scene.environment = this.envTexture;
+    pmrem.dispose();
+    const key = new DirectionalLight(0xffffff, 0.9);
+    key.position.set(-0.6, 1, 0.8);
     this.scene.add(key);
-    const rim = new DirectionalLight(0xffffff, 0.35);
-    rim.position.set(1, -0.3, 0.6);
-    this.scene.add(rim);
+    const fill = new DirectionalLight(0xdfe6ff, 0.4);
+    fill.position.set(0.8, -0.2, 0.6);
+    this.scene.add(fill);
 
     defs.forEach((def, i) => {
-      const { shape, height } = shapeFor(def.kind);
-      const geo = new ExtrudeGeometry(shape, {
-        depth: DEPTH,
-        bevelEnabled: true,
-        bevelThickness: 0.05,
-        bevelSize: 0.04,
-        bevelSegments: 4,
-        curveSegments: 40,
-      });
-      // 앞면이 z=0에 오게 → 쉴 때 2D 배치와 크기가 정확히 같다
-      geo.translate(0, 0, -DEPTH - 0.05);
-      const mat = new MeshStandardMaterial({
-        color: new Color(def.color),
-        roughness: 0.78,
-        metalness: 0,
-      });
-      const mesh = new Mesh(geo, mat);
-      mesh.userData.index = i;
-      this.scene.add(mesh);
-      this.meshes.push(mesh);
-      this.heights.push(height);
+      const obj = buildModel(def);
+      obj.userData.index = i;
+      this.scene.add(obj);
+      this.objects.push(obj);
       this.states.push({
         pos: new Vector3(),
         vel: new Vector3(),
-        rot: new Vector3(),
+        rot: new Vector3(...def.rest),
         rotVel: new Vector3(),
       });
-      this.entrance.push(animateIn ? i * 70 : -1);
+      this.entrance.push(animateIn ? i * 80 : -1);
+      this.entranceStart = 0;
     });
 
     canvas.addEventListener("pointerdown", this.onDown);
@@ -208,7 +116,7 @@ export class Blocks3D {
     document.addEventListener("visibilitychange", this.wake);
   }
 
-  /** 스테이지 크기에 맞춰 카메라와 블록 자리를 다시 잡는다 */
+  /** 스테이지 크기에 맞춰 카메라와 자리를 다시 잡는다 */
   resize(width: number) {
     const { unit, homes, height } = this.layout(width);
     this.width = width;
@@ -217,18 +125,16 @@ export class Blocks3D {
     this.homes = homes;
     this.renderer.setSize(width, height, false);
     this.camera.aspect = width / height;
-    // z=0 평면에서 1px = 1단위가 되도록 거리 계산
+    // z=0 평면에서 1px = 1단위
     this.camera.position.set(0, 0, height / 2 / Math.tan((this.camera.fov * Math.PI) / 360));
-    this.camera.near = 1;
     this.camera.far = this.camera.position.z * 3;
     this.camera.updateProjectionMatrix();
-    this.meshes.forEach((m, i) => {
-      m.scale.setScalar(unit);
-      const home = this.homeWorld(i);
+    this.objects.forEach((o, i) => {
+      o.scale.setScalar(unit);
       const st = this.states[i];
-      if (this.entrance[i] >= 0) {
-        st.pos.set(home.x, home.y + unit * 0.9, 0);
-      } else st.pos.copy(home);
+      const home = this.homeWorld(i);
+      if (this.entrance[i] >= 0) st.pos.set(home.x, home.y + unit * 1.1, 0);
+      else st.pos.copy(home);
     });
     this.wake();
   }
@@ -236,6 +142,9 @@ export class Blocks3D {
   private homeWorld(i: number) {
     const h = this.homes[i];
     return new Vector3(h.x - this.width / 2, h.y - this.height / 2, 0);
+  }
+  private restRot(i: number) {
+    return new Vector3(...this.defs[i].rest);
   }
 
   // ── 포인터 ──────────────────────────────────────────
@@ -248,10 +157,12 @@ export class Blocks3D {
   }
   private pick(e: PointerEvent) {
     this.raycaster.setFromCamera(this.ndc(e), this.camera);
-    const hit = this.raycaster.intersectObjects(this.meshes, false)[0];
-    return hit ? (hit.object.userData.index as number) : -1;
+    const hit = this.raycaster.intersectObjects(this.objects, true)[0];
+    if (!hit) return -1;
+    let o: Object3D | null = hit.object;
+    while (o && o.userData.index === undefined) o = o.parent;
+    return o ? (o.userData.index as number) : -1;
   }
-  /** 화면 좌표를 z 깊이 평면 위의 점으로 */
   private toPlane(e: PointerEvent, z: number) {
     this.raycaster.setFromCamera(this.ndc(e), this.camera);
     const p = new Vector3();
@@ -270,22 +181,24 @@ export class Blocks3D {
 
   private onMove = (e: PointerEvent) => {
     const d = this.down;
+    const lift = this.unit * 0.9;
     if (d) {
       if (!d.moved && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6) {
         d.moved = true;
         this.dragging = d.index;
-        const lift = this.unit * 0.9;
         const p = this.toPlane(e, lift);
         this.grabOffset.copy(this.states[d.index].pos).setZ(lift).sub(p);
         this.canvas.style.cursor = "grabbing";
         this.callbacks.onHover(null);
       }
       if (this.dragging >= 0) {
-        const lift = this.unit * 0.9;
         this.dragTarget.copy(this.toPlane(e, lift)).add(this.grabOffset).setZ(lift);
         const now = performance.now();
         const dt = Math.max(8, now - this.lastPointer.t);
-        this.pointerVel.set((e.clientX - this.lastPointer.x) / dt, (e.clientY - this.lastPointer.y) / dt);
+        this.pointerVel.set(
+          (e.clientX - this.lastPointer.x) / dt,
+          (e.clientY - this.lastPointer.y) / dt,
+        );
         this.lastPointer = { x: e.clientX, y: e.clientY, t: now };
         this.wake();
       }
@@ -309,11 +222,12 @@ export class Blocks3D {
       this.callbacks.onActivate(this.defs[d.index].id);
       return;
     }
-    // 던진 방향으로 살짝 튕기며 제자리로
+    // 던진 방향으로 살짝 튕기며 제자리로, 빙글 돌면서
     const st = this.states[d.index];
     st.vel.x += this.pointerVel.x * 600;
     st.vel.y -= this.pointerVel.y * 600;
-    st.rotVel.z -= this.pointerVel.x * 0.6;
+    st.rotVel.y += this.pointerVel.x * 6;
+    st.rotVel.x += this.pointerVel.y * 6;
     this.dragging = -1;
     this.canvas.style.cursor = this.pick(e) >= 0 ? "grab" : "";
     this.wake();
@@ -335,13 +249,11 @@ export class Blocks3D {
 
   private emitHover() {
     if (this.hover < 0) return this.callbacks.onHover(null);
-    const i = this.hover;
-    const home = this.homes[i];
+    const home = this.homes[this.hover];
     this.callbacks.onHover({
-      label: this.defs[i].label,
+      label: this.defs[this.hover].label,
       x: home.x,
-      // 바닥선에서 블록 윗면 위까지 거리 (px)
-      y: home.y + (this.heights[i] * this.unit) / 2 + 10,
+      y: home.y + this.unit * 0.5 + 12,
     });
   }
 
@@ -359,57 +271,53 @@ export class Blocks3D {
     let moving = false;
 
     this.states.forEach((st, i) => {
-      const mesh = this.meshes[i];
-      const home = this.homeWorld(i);
-      // 등장: 순서대로 위에서 내려와 앉는다
+      const obj = this.objects[i];
       if (this.entrance[i] >= 0) {
-        this.entrance[i] -= dt * 1000;
-        if (this.entrance[i] > 0) {
-          mesh.visible = false;
+        if (!this.entranceStart) this.entranceStart = now;
+        if (now - this.entranceStart < this.entrance[i]) {
+          obj.visible = false;
           moving = true;
           return;
         }
         this.entrance[i] = -1;
       }
-      mesh.visible = true;
+      obj.visible = true;
 
-      const target = new Vector3();
-      const targetRot = new Vector3();
-      let stiffness = 170,
-        damping = 24;
+      const target = this.homeWorld(i);
+      const targetRot = this.restRot(i);
+      let stiffness = 160,
+        damping = 20;
       if (i === this.dragging) {
         target.copy(this.dragTarget);
         stiffness = 520;
         damping = 34;
-        // 움직이는 방향으로 기울어진다
-        targetRot.set(
-          Math.max(-0.6, Math.min(0.6, this.pointerVel.y * 0.9)),
-          Math.max(-0.6, Math.min(0.6, this.pointerVel.x * 0.9)),
-          Math.max(-0.4, Math.min(0.4, -this.pointerVel.x * 0.35)),
-        );
+        targetRot.x += Math.max(-0.7, Math.min(0.7, this.pointerVel.y * 1.1));
+        targetRot.y += Math.max(-0.7, Math.min(0.7, this.pointerVel.x * 1.1));
+        targetRot.z += Math.max(-0.4, Math.min(0.4, -this.pointerVel.x * 0.4));
         this.pointerVel.multiplyScalar(0.9);
-      } else {
-        target.copy(home);
-        if (i === this.hover && this.dragging < 0) {
-          target.y += 6;
-          target.z += this.unit * 0.12;
-          targetRot.set(-0.12, 0.18, 0);
-        }
+      } else if (i === this.hover && this.dragging < 0) {
+        target.y += 8;
+        target.z += this.unit * 0.15;
+        targetRot.y += 0.35;
       }
 
-      // 위치 스프링
-      const force = target.clone().sub(st.pos).multiplyScalar(stiffness).sub(st.vel.clone().multiplyScalar(damping));
+      const force = target
+        .clone()
+        .sub(st.pos)
+        .multiplyScalar(stiffness)
+        .sub(st.vel.clone().multiplyScalar(damping));
       st.vel.addScaledVector(force, dt);
       st.pos.addScaledVector(st.vel, dt);
-      // 회전 스프링
-      const rforce = targetRot.clone().sub(st.rot).multiplyScalar(stiffness * 0.8).sub(st.rotVel.clone().multiplyScalar(damping * 0.8));
+      const rforce = targetRot
+        .clone()
+        .sub(st.rot)
+        .multiplyScalar(stiffness * 0.7)
+        .sub(st.rotVel.clone().multiplyScalar(damping * 0.75));
       st.rotVel.addScaledVector(rforce, dt);
       st.rot.addScaledVector(st.rotVel, dt);
 
-      mesh.position.copy(st.pos);
-      mesh.rotation.set(st.rot.x, st.rot.y, st.rot.z);
-      // 잡은 블록이 다른 블록 앞에 그려지게
-      mesh.renderOrder = i === this.dragging ? 1 : 0;
+      obj.position.copy(st.pos);
+      obj.rotation.set(st.rot.x, st.rot.y, st.rot.z);
 
       const still =
         st.pos.distanceTo(target) < 0.3 &&
@@ -431,7 +339,6 @@ export class Blocks3D {
     }
     if (moving || this.dragging >= 0) this.wake();
   };
-  private readySent = false;
 
   dispose() {
     this.disposed = true;
@@ -442,10 +349,8 @@ export class Blocks3D {
     this.canvas.removeEventListener("pointercancel", this.onCancel);
     this.canvas.removeEventListener("pointerleave", this.onLeave);
     document.removeEventListener("visibilitychange", this.wake);
-    this.meshes.forEach((m) => {
-      m.geometry.dispose();
-      (m.material as MeshStandardMaterial).dispose();
-    });
+    this.objects.forEach(disposeModel);
+    this.envTexture.dispose();
     this.renderer.dispose();
   }
 }

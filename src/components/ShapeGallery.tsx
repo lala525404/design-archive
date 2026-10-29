@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { DesignAsset } from "../types";
+import type { ModelDef } from "../lib/models3d";
 
 interface Props {
   assets: DesignAsset[];
@@ -33,6 +34,17 @@ const ROW: Block[] = [
   { id: "palette", kind: "circle", color: "#6E9BF7", label: "컬러 레퍼런스" },
 ];
 const ALL_BLOCKS: Block[] = [...COLUMNS.flat(), ...ROW];
+/** 3D로 보여줄 오브젝트 (자리는 평면 도형과 같다) */
+const MODELS: Record<string, ModelDef> = {
+  "course-recent": { kind: "swirl", color: "#5B7CFA", rest: [0.35, 0.4, 0] },
+  "course-list": { kind: "knobCube", color: "#9A8CF7", rest: [0.45, 0.62, 0] },
+  "banner-recent": { kind: "cross", color: "#F7A6C1", rest: [0.45, 0.7, 0.2] },
+  "banner-list": { kind: "bundle", color: "#F5C94F", rest: [0.35, 0.5, 0.05] },
+  license: { kind: "fuzzRings", color: "#5FD49A", rest: [0.18, 0, 0.05] },
+  cards: { kind: "zigzag", color: "#FF6A1A", rest: [0.5, -0.55, 0.12] },
+  palette: { kind: "glassDonut", color: "#7B8FF7", rest: [0.95, 0, 0.25] },
+};
+
 /** 블록이 기울어도 잘리지 않게 캔버스를 좌우로 조금 넓힌다 (px) */
 const PAD = 32;
 
@@ -116,7 +128,7 @@ export function ShapeGallery({
         const stage = stageRef.current,
           canvas = canvasRef.current;
         if (cancelled || !stage || !canvas || !canUseWebGL()) return;
-        const defs = ALL_BLOCKS.map((b) => ({ id: b.id, kind: b.kind, color: b.color, label: b.label }));
+        const defs = ALL_BLOCKS.map((b) => ({ id: b.id, label: b.label, ...MODELS[b.id] }));
         // 평면 도형 자리를 그대로 재서 입체 블록의 집으로 쓴다 (offset은 등장 애니메이션 영향 없음)
         const layout = (width: number) => {
           const els = ALL_BLOCKS.map(
@@ -144,6 +156,8 @@ export function ShapeGallery({
           performance.now() - startedAt < 450,
         );
         engine.resize(stage.clientWidth + PAD * 2);
+        // ?debug3d 로 열면 성능 확인용으로 노출
+        if (location.search.includes("debug3d")) (window as any).__blocks = engine;
         observer = new ResizeObserver(() => engine?.resize(stage.clientWidth + PAD * 2));
         observer.observe(stage);
       })
