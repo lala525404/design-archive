@@ -4980,3 +4980,306 @@ mark {
   margin: 0;
   accent-color: var(--blue);
 }
+
+/* ── 프로젝트 파일 카드: 호버 액션 ── */
+.project-file-open {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+}
+.project-file-title {
+  padding: 0;
+  text-align: left;
+  font-family: inherit;
+}
+.project-file-title:hover {
+  color: var(--blue);
+}
+.file-version-badge {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  padding: 3px 8px;
+  border-radius: 980px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.92);
+  color: #6e6e73;
+  pointer-events: none;
+}
+.file-version-badge.has-history {
+  background: var(--blue);
+  color: #fff;
+}
+.file-hover-actions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 28px 10px 10px;
+  background: linear-gradient(to top, rgba(29, 29, 31, 0.45), rgba(29, 29, 31, 0));
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.18s, transform 0.18s;
+  pointer-events: none;
+}
+.project-file-thumb:hover .file-hover-actions,
+.project-file-thumb:focus-within .file-hover-actions {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+@media (hover: none) {
+  .file-hover-actions {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
+}
+.file-hover-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 980px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.95);
+  color: #1d1d1f;
+  white-space: nowrap;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.file-hover-actions button:hover {
+  background: #fff;
+  color: var(--blue);
+}
+.file-hover-actions button.is-primary {
+  background: var(--blue);
+  color: #fff;
+}
+.file-hover-actions button.is-primary:hover {
+  background: #0077ed;
+  color: #fff;
+}
+.file-history-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--blue);
+}
+.file-history-link:hover {
+  text-decoration: underline;
+}
+@media (max-width: 1100px) {
+  .file-hover-actions button {
+    padding: 0 8px;
+    font-size: 11px;
+  }
+}
+
+/* ── 버전 관리: 한 줄씩 접히는 목록 ── */
+.version-manager > header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.version-manager .seg {
+  background: #fff;
+  border-radius: 980px;
+}
+.version-manager .seg button {
+  padding: 0 14px;
+  font-weight: 600;
+}
+.version-manager .seg button.on {
+  border-radius: 980px;
+}
+.version-empty {
+  font-size: 14px;
+  color: #6e6e73;
+  padding: 18px;
+  background: #fff;
+  border-radius: 14px;
+}
+.vrows {
+  display: grid;
+  gap: 8px;
+}
+.vrow {
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+}
+.vrow.is-open {
+  box-shadow: 0 0 0 1.5px var(--blue);
+}
+.vrow-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px 10px 10px;
+}
+.vrow-main {
+  flex: 1 1 260px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  text-align: left;
+  font-weight: 400;
+}
+.vrow-thumb {
+  flex: 0 0 auto;
+  width: 64px;
+  height: 48px;
+  border-radius: 9px;
+  overflow: hidden;
+  background: #f5f5f7;
+}
+.vrow-text {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.vrow-text strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1d1d1f;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vrow-text strong em {
+  font-style: normal;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: #f5f5f7;
+  color: #6e6e73;
+}
+.vrow-text > span {
+  font-size: 12px;
+  color: #86868b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vrow-main:hover strong {
+  color: var(--blue);
+}
+.vrow-chevron {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: #86868b;
+  transition: transform 0.2s, background 0.2s;
+}
+.vrow-chevron:hover {
+  background: #f5f5f7;
+}
+.vrow.is-open .vrow-chevron {
+  transform: rotate(180deg);
+  color: var(--blue);
+}
+.version-nodes.is-mini {
+  flex: 0 1 auto;
+  padding: 0;
+  max-width: 50%;
+}
+.version-nodes.is-mini li {
+  min-width: 46px;
+}
+.version-nodes.is-mini li::before,
+.version-nodes.is-mini li::after {
+  top: 8px;
+}
+.version-nodes.is-mini button {
+  gap: 2px;
+  padding: 0 3px;
+}
+.version-nodes.is-mini .node-dot {
+  width: 18px;
+  height: 18px;
+  border-width: 2px;
+}
+.version-nodes.is-mini .node-version {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6e6e73;
+}
+.version-nodes.is-mini li.is-current .node-version,
+.version-nodes.is-mini li.is-picked .node-version {
+  color: var(--blue);
+}
+.vrow .version-detail {
+  margin: 0 14px;
+  padding: 14px 0 16px;
+}
+.vrow-actions {
+  display: flex;
+  gap: 16px;
+  padding-top: 4px;
+}
+.vrow-actions .text-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--blue);
+  padding: 0;
+}
+@media (max-width: 700px) {
+  .vrow-head {
+    flex-wrap: wrap;
+  }
+  .version-nodes.is-mini {
+    order: 3;
+    max-width: none;
+    width: 100%;
+    padding-left: 76px;
+  }
+}
+
+@media (max-width: 700px) {
+  .vrow-main {
+    flex: 1 1 0;
+  }
+  .version-nodes.is-mini {
+    padding-left: 0;
+  }
+  .file-hover-actions {
+    gap: 4px;
+    padding: 20px 6px 6px;
+  }
+  .file-hover-actions button {
+    width: 32px;
+    padding: 0;
+    justify-content: center;
+  }
+  .file-hover-actions button span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+}

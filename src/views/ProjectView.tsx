@@ -1,8 +1,10 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Check,
+  ChevronDown,
   Copy,
+  Eye,
   FolderOpen,
   GitBranch,
   History,
@@ -60,6 +62,11 @@ export function ProjectView({
   const [showVersions, setShowVersions] = useState(() =>
     versioned.some((f) => getVersions(f).length >= 3),
   );
+  // 버전 관리: 기본은 수정된 작업만, 한 번에 하나만 펼친다
+  const [vFilter, setVFilter] = useState<"changed" | "all">(versioned.length ? "changed" : "all");
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const managerRef = useRef<HTMLElement>(null);
 
   if (!project)
     return (
@@ -89,6 +96,29 @@ export function ProjectView({
       /* 직접 선택해서 복사 */
     }
   };
+  const copyFile = async (f: DesignAsset) => {
+    const sep = /[\\/]$/.test(f.filePath) ? "" : f.filePath.includes("\\") ? "\\" : "/";
+    try {
+      await navigator.clipboard.writeText(`${f.filePath}${sep}${f.fileName}`);
+    } catch {
+      /* 무시 */
+    }
+    setCopiedId(f.id);
+    setTimeout(() => setCopiedId((id) => (id === f.id ? null : id)), 1600);
+  };
+  const openVersions = (id: string) => {
+    setShowVersions(true);
+    if (!versioned.some((f) => f.id === id)) setVFilter("all");
+    setOpenId(id);
+    setTimeout(() => managerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  };
+  const byRecent = (list: DesignAsset[]) =>
+    [...list].sort((a, b) => {
+      const la = getVersions(a).at(-1)?.uploadDate ?? a.uploadDate;
+      const lb = getVersions(b).at(-1)?.uploadDate ?? b.uploadDate;
+      return lb.localeCompare(la);
+    });
+  const managerList = vFilter === "changed" ? byRecent(versioned) : project.files;
 
   return (
     <main className="page-shell project-page">
@@ -177,23 +207,51 @@ export function ProjectView({
       )}
 
       {showVersions && (
-        <section className="version-manager" aria-label="버전 관리">
+        <section className="version-manager" aria-label="버전 관리" ref={managerRef}>
           <header>
-            <h2>
-              <History size={18} /> 버전 흐름
-            </h2>
-            <p>점을 누르면 그 버전의 작업물을 볼 수 있어요. 필요하면 예전 버전으로 되돌릴 수 있어요.</p>
+            <div>
+              <h2>
+                <History size={18} /> 버전 관리
+              </h2>
+              <p>작업마다 어떤 수정본이 쌓였는지 보여줘요. 줄을 누르면 버전별 작업물을 보고 되돌릴 수 있어요.</p>
+            </div>
+            <div className="seg" role="group" aria-label="보기">
+              <button
+                type="button"
+                className={vFilter === "changed" ? "on" : ""}
+                aria-pressed={vFilter === "changed"}
+                onClick={() => setVFilter("changed")}
+              >
+                수정된 작업 {versioned.length}
+              </button>
+              <button
+                type="button"
+                className={vFilter === "all" ? "on" : ""}
+                aria-pressed={vFilter === "all"}
+                onClick={() => setVFilter("all")}
+              >
+                전체 {project.files.length}
+              </button>
+            </div>
           </header>
-          {project.files.map((f) => (
-            <VersionFlow
-              key={f.id}
-              asset={f}
-              canEdit={canUpload}
-              onOpen={() => onSelectAsset(f.id)}
-              onRevise={() => onReviseFile?.(f.id, folderPath)}
-              onRollback={(updated, message) => onUpdateAssets?.([updated], message)}
-            />
-          ))}
+          {managerList.length === 0 ? (
+            <p className="version-empty">아직 수정본이 올라온 작업이 없어요. 썸네일의 "새 버전"으로 올릴 수 있어요.</p>
+          ) : (
+            <div className="vrows">
+              {managerList.map((f) => (
+                <VersionRow
+                  key={f.id}
+                  asset={f}
+                  open={openId === f.id}
+                  onToggle={(next) => setOpenId(next ? f.id : null)}
+                  canEdit={canUpload}
+                  onOpen={() => onSelectAsset(f.id)}
+                  onRevise={() => onReviseFile?.(f.id, folderPath)}
+                  onRollback={(updated, message) => onUpdateAssets?.([updated], message)}
+                />
+              ))}
+            </div>
+          )}
         </section>
       )}
 
@@ -204,27 +262,65 @@ export function ProjectView({
             <span>{sec.files.length}</span>
           </h2>
           <div className="project-files">
-            {sec.files.map((f) => (
-              <button key={f.id} className="project-file" onClick={() => onSelectAsset(f.id)}>
-                <div className="project-file-thumb">
-                  <DesignThumbnail asset={f} />
-                  {f.licenseStatus !== "verified" && (
-                    <span className="image-status">
-                      <Status value={f.licenseStatus} />
-                    </span>
-                  )}
+            {sec.files.map((f) => {
+              const count = getVersions(f).length;
+              return (
+                <div key={f.id} className="project-file">
+                  <div className="project-file-thumb">
+                    <button
+                      type="button"
+                      className="project-file-open"
+                      onClick={() => onSelectAsset(f.id)}
+                      aria-label={`${f.title} 자세히 보기`}
+                    >
+                      <DesignThumbnail asset={f} />
+                    </button>
+                    {f.licenseStatus !== "verified" && (
+                      <span className="image-status">
+                        <Status value={f.licenseStatus} />
+                      </span>
+                    )}
+                    <span className={`file-version-badge ${count > 1 ? "has-history" : ""}`}>{f.version}</span>
+                    <div className="file-hover-actions">
+                      <button type="button" onClick={() => onSelectAsset(f.id)}>
+                        <Eye size={14} />
+                        <span>자세히</span>
+                      </button>
+                      <button type="button" onClick={() => copyFile(f)}>
+                        {copiedId === f.id ? <Check size={14} /> : <Copy size={14} />}
+                        <span>{copiedId === f.id ? "복사됨" : "경로 복사"}</span>
+                      </button>
+                      {canUpload && onReviseFile && (
+                        <button
+                          type="button"
+                          className="is-primary"
+                          onClick={() => onReviseFile(f.id, folderPath)}
+                        >
+                          <Upload size={14} />
+                          <span>새 버전</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <button type="button" className="project-file-title" onClick={() => onSelectAsset(f.id)}>
+                    {f.title}
+                    {f.device && <em>{f.device}</em>}
+                  </button>
+                  <span className="project-file-meta">
+                    {count > 1 ? (
+                      <button type="button" className="file-history-link" onClick={() => openVersions(f.id)}>
+                        <History size={12} />
+                        버전 {count}개
+                      </button>
+                    ) : (
+                      "최초 버전"
+                    )}
+                    {" · "}
+                    {f.designer} · {f.uploadDate}
+                  </span>
                 </div>
-                <span className="project-file-title">
-                  {f.title}
-                  {f.device && <em>{f.device}</em>}
-                </span>
-                <span className="project-file-meta">
-                  {f.version}
-                  {getVersions(f).length > 1 && ` (버전 ${getVersions(f).length}개)`} · {f.designer} ·{" "}
-                  {f.uploadDate}
-                </span>
-              </button>
-            ))}
+              );
+            })}
           </div>
         </section>
       ))}
@@ -364,15 +460,19 @@ function ProjectEditor({
   );
 }
 
-/** 파일 하나의 버전 흐름 (노드) + 고른 버전 보기 + 되돌리기 */
-function VersionFlow({
+/** 작업 하나의 버전 줄: 접힌 상태는 한 줄(썸네일·노드), 펼치면 버전별 작업물·되돌리기 */
+function VersionRow({
   asset,
+  open,
+  onToggle,
   canEdit,
   onOpen,
   onRevise,
   onRollback,
 }: {
   asset: DesignAsset;
+  open: boolean;
+  onToggle: (open: boolean) => void;
   canEdit: boolean;
   onOpen: () => void;
   onRevise: () => void;
@@ -382,7 +482,8 @@ function VersionFlow({
   const [picked, setPicked] = useState(versions.length - 1);
   const [confirming, setConfirming] = useState(false);
   const v = versions[Math.min(picked, versions.length - 1)];
-  const isCurrent = picked === versions.length - 1;
+  const isCurrent = picked >= versions.length - 1;
+  const last = versions[versions.length - 1];
   const preview: DesignAsset = {
     ...asset,
     version: v.version,
@@ -391,8 +492,7 @@ function VersionFlow({
   };
 
   const rollback = (target: VersionEntry) => {
-    const latest = versions[versions.length - 1];
-    const version = nextVersion(latest.version);
+    const version = nextVersion(last.version);
     const fileName = withVersion(target.fileName, version);
     const entry: VersionEntry = {
       version,
@@ -421,102 +521,132 @@ function VersionFlow({
   };
 
   return (
-    <article className={`version-flow ${versions.length >= 3 ? "is-long" : ""}`}>
-      <div className="version-flow-head">
-        <button type="button" className="version-flow-title" onClick={onOpen}>
-          {asset.title}
-          {asset.device && <em>{asset.device}</em>}
+    <article className={`vrow ${open ? "is-open" : ""}`}>
+      <div className="vrow-head">
+        <button
+          type="button"
+          className="vrow-main"
+          onClick={() => onToggle(!open)}
+          aria-expanded={open}
+        >
+          <span className="vrow-thumb">
+            <DesignThumbnail asset={asset} fit="cover" />
+          </span>
+          <span className="vrow-text">
+            <strong>
+              {asset.title}
+              {asset.device && <em>{asset.device}</em>}
+            </strong>
+            <span>
+              {versions.length > 1
+                ? `${versions[0].version} → ${last.version} · 최근 ${last.reason} · ${last.uploadDate.slice(2).replace(/-/g, ".")}`
+                : `${last.version} · 최초 제작 · ${last.uploadDate.slice(2).replace(/-/g, ".")}`}
+            </span>
+          </span>
         </button>
-        <span className="version-flow-count">버전 {versions.length}개</span>
-        {canEdit && (
-          <button type="button" className="text-button" onClick={onRevise}>
-            <Upload size={14} />
-            수정본 올리기
-          </button>
-        )}
+        <ol className="version-nodes is-mini" aria-label={`${asset.title} 버전`}>
+          {versions.map((ver, i) => (
+            <li
+              key={ver.version + ver.uploadDate}
+              className={`${open && i === picked ? "is-picked" : ""} ${i === versions.length - 1 ? "is-current" : ""} ${ver.reason === "되돌리기" ? "is-revert" : ""}`}
+            >
+              <button
+                type="button"
+                title={`${ver.version} · ${ver.reason} · ${ver.uploadDate}`}
+                onClick={() => {
+                  setPicked(i);
+                  setConfirming(false);
+                  onToggle(true);
+                }}
+                aria-pressed={open && i === picked}
+                aria-label={`${ver.version} ${ver.reason} ${ver.uploadDate}`}
+              >
+                <span className="node-dot">{ver.reason === "되돌리기" ? <RotateCcw size={9} /> : null}</span>
+                <span className="node-version">{ver.version}</span>
+              </button>
+            </li>
+          ))}
+        </ol>
+        <button
+          type="button"
+          className="vrow-chevron"
+          onClick={() => onToggle(!open)}
+          aria-label={open ? "접기" : "펼치기"}
+        >
+          <ChevronDown size={18} />
+        </button>
       </div>
 
-      <ol className="version-nodes" aria-label={`${asset.title} 버전`}>
-        {versions.map((ver, i) => (
-          <li
-            key={ver.version + ver.uploadDate}
-            className={`${i === picked ? "is-picked" : ""} ${i === versions.length - 1 ? "is-current" : ""} ${ver.reason === "되돌리기" ? "is-revert" : ""}`}
-          >
-            <button
-              type="button"
-              onClick={() => {
-                setPicked(i);
-                setConfirming(false);
-              }}
-              aria-pressed={i === picked}
-              aria-label={`${ver.version} ${ver.reason} ${ver.uploadDate}`}
-            >
-              <span className="node-dot">{ver.reason === "되돌리기" ? <RotateCcw size={11} /> : null}</span>
-              <span className="node-version">{ver.version}</span>
-              <span className="node-reason">{ver.reason}</span>
-              <span className="node-date">{ver.uploadDate.slice(2).replace(/-/g, ".")}</span>
-            </button>
-          </li>
-        ))}
-      </ol>
-
-      <div className="version-detail">
-        <div className="version-detail-thumb">
-          <DesignThumbnail asset={preview} />
-          {!v.originalKept && <span className="version-gone-badge">NAS 원본 정리됨</span>}
-        </div>
-        <div className="version-detail-info">
-          <p className="version-detail-head">
-            <strong>{v.version}</strong>
-            {isCurrent ? <span className="version-current">현재</span> : <span className="version-old">이전 버전</span>}
-            <span className="version-reason">{v.reason}</span>
-          </p>
-          {v.note && <p className="version-note">{v.note}</p>}
-          <dl className="file-meta">
-            <div>
-              <dt>올린 날</dt>
-              <dd>{v.uploadDate}</dd>
-            </div>
-            <div>
-              <dt>디자이너</dt>
-              <dd>{v.designer}</dd>
-            </div>
-            <div>
-              <dt>파일</dt>
-              <dd>{v.fileName}</dd>
-            </div>
-          </dl>
-          {!isCurrent && canEdit && (
-            <div className="rollback">
-              {!v.originalKept ? (
-                <p className="rollback-note">NAS 원본이 정리돼서 이 버전으로 되돌릴 수 없어요.</p>
-              ) : confirming ? (
-                <>
-                  <p className="rollback-note">
-                    {v.version} 내용을 새 버전({nextVersion(versions[versions.length - 1].version)})으로
-                    다시 올려요. 기존 기록은 그대로 남아요.
-                  </p>
-                  <div className="rollback-actions">
-                    <button type="button" className="btn" onClick={() => setConfirming(false)}>
-                      <X size={15} />
-                      취소
-                    </button>
-                    <button type="button" className="btn btn-primary" onClick={() => rollback(v)}>
-                      <RotateCcw size={15} />
-                      되돌리기
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <button type="button" className="btn" onClick={() => setConfirming(true)}>
-                  <RotateCcw size={15} />
-                  이 버전으로 되돌리기
+      {open && (
+        <div className="version-detail">
+          <div className="version-detail-thumb">
+            <DesignThumbnail asset={preview} />
+            {!v.originalKept && <span className="version-gone-badge">NAS 원본 정리됨</span>}
+          </div>
+          <div className="version-detail-info">
+            <p className="version-detail-head">
+              <strong>{v.version}</strong>
+              {isCurrent ? <span className="version-current">현재</span> : <span className="version-old">이전 버전</span>}
+              <span className="version-reason">{v.reason}</span>
+            </p>
+            {v.note && <p className="version-note">{v.note}</p>}
+            <dl className="file-meta">
+              <div>
+                <dt>올린 날</dt>
+                <dd>{v.uploadDate}</dd>
+              </div>
+              <div>
+                <dt>디자이너</dt>
+                <dd>{v.designer}</dd>
+              </div>
+              <div>
+                <dt>파일</dt>
+                <dd>{v.fileName}</dd>
+              </div>
+            </dl>
+            {!isCurrent && canEdit && (
+              <div className="rollback">
+                {!v.originalKept ? (
+                  <p className="rollback-note">NAS 원본이 정리돼서 이 버전으로 되돌릴 수 없어요.</p>
+                ) : confirming ? (
+                  <>
+                    <p className="rollback-note">
+                      {v.version} 내용을 새 버전({nextVersion(last.version)})으로 다시 올려요. 기존 기록은 그대로 남아요.
+                    </p>
+                    <div className="rollback-actions">
+                      <button type="button" className="btn" onClick={() => setConfirming(false)}>
+                        <X size={15} />
+                        취소
+                      </button>
+                      <button type="button" className="btn btn-primary" onClick={() => rollback(v)}>
+                        <RotateCcw size={15} />
+                        되돌리기
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <button type="button" className="btn" onClick={() => setConfirming(true)}>
+                    <RotateCcw size={15} />
+                    이 버전으로 되돌리기
+                  </button>
+                )}
+              </div>
+            )}
+            <div className="vrow-actions">
+              <button type="button" className="text-button" onClick={onOpen}>
+                <Eye size={14} />
+                자세히 보기
+              </button>
+              {canEdit && (
+                <button type="button" className="text-button" onClick={onRevise}>
+                  <Upload size={14} />
+                  수정본 올리기
                 </button>
               )}
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
     </article>
   );
 }
