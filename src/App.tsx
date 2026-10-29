@@ -26,6 +26,12 @@ export default function App() {
     "landing" | "search" | "detail" | "project" | "upload" | "prompt" | "license" | "naming"
   >("landing");
   const [selectedProjectKey, setSelectedProjectKey] = useState("");
+  // 업로드 화면을 어떤 목적으로 열었는지 (프로젝트에 파일 추가 / 특정 파일 수정본)
+  const [uploadPreset, setUploadPreset] = useState<{ folder?: string; reviseId?: string }>({});
+  const openUpload = (preset: { folder?: string; reviseId?: string } = {}) => {
+    setUploadPreset(preset);
+    setView("upload");
+  };
 
   // Application state
   const [assets, setAssets] = useState<DesignAsset[]>(INITIAL_ASSETS);
@@ -91,6 +97,12 @@ export default function App() {
     }
   };
 
+  const handleUpdateAssets = (list: DesignAsset[], message: string) => {
+    const byId = new Map(list.map((a) => [a.id, a]));
+    setAssets(assets.map((a) => byId.get(a.id) ?? a));
+    showToast(message);
+  };
+
   const handleUpdateAsset = (updated: DesignAsset) => {
     setAssets(assets.map((a) => (a.id === updated.id ? updated : a)));
     showToast("수정 내용을 저장했어요.");
@@ -121,7 +133,7 @@ export default function App() {
       {view !== "landing" && (
       <Header
         view={view}
-        onNavigate={(v) => setView(v)}
+        onNavigate={(v) => (v === "upload" ? openUpload() : setView(v))}
         onOpenMenu={() => setIsDrawerOpen(true)}
         canUpload={userRole !== "user"}
       />
@@ -146,7 +158,7 @@ export default function App() {
           onOpenMenu={() => setIsDrawerOpen(true)}
           onSelectAsset={handleSelectAsset}
           onNavigateToLicense={() => setView("license")}
-          onNavigate={(v) => setView(v)}
+          onNavigate={(v) => (v === "upload" ? openUpload() : setView(v))}
           onSelectProject={handleSelectProject}
           canUpload={userRole !== "user"}
         />
@@ -158,7 +170,9 @@ export default function App() {
           assets={assets}
           onBack={() => setView("search")}
           onSelectAsset={handleSelectAsset}
-          onAddFiles={() => setView("upload")}
+          onAddFiles={(folder) => openUpload({ folder })}
+          onReviseFile={(id, folder) => openUpload({ folder, reviseId: id })}
+          onUpdateAssets={handleUpdateAssets}
           canUpload={userRole !== "user"}
         />
       )}
@@ -194,7 +208,10 @@ export default function App() {
 
       {view === "upload" && (
         <UploadView
+          key={`${uploadPreset.folder ?? ""}|${uploadPreset.reviseId ?? ""}`}
           assets={assets}
+          presetFolder={uploadPreset.folder}
+          reviseAssetId={uploadPreset.reviseId}
           onBack={() => setView("landing")}
           onSubmit={handleUploadSubmit}
         />
@@ -232,14 +249,14 @@ export default function App() {
         onClose={() => setIsDrawerOpen(false)}
         currentRole={userRole}
         onRoleChange={handleRoleChange}
-        onNavigate={(newView) => setView(newView)}
+        onNavigate={(newView) => (newView === "upload" ? openUpload() : setView(newView))}
         myUploadsCount={myUploadsCount}
       />
 
       {/* Secondary Bottom Navigation Bar */}
       <BottomNav
         currentView={view}
-        onNavigate={(newView) => setView(newView)}
+        onNavigate={(newView) => (newView === "upload" ? openUpload() : setView(newView))}
         onOpenMenu={() => setIsDrawerOpen(true)}
         userRole={userRole}
       />

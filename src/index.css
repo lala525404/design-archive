@@ -4319,3 +4319,540 @@ mark {
 .tile-controls .seg {
   flex: none;
 }
+
+/* ───────── 업로드 확인 (단계별로 펼친 확인) ───────── */
+.upload-context {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: -16px 0 24px;
+  font-size: 14px;
+  color: #6e6e73;
+}
+.upload-context svg {
+  color: var(--blue);
+}
+.upload-context b {
+  color: #1d1d1f;
+}
+.review {
+  max-width: 960px;
+  display: grid;
+  gap: 14px;
+}
+.review-block {
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 20px 22px;
+  display: grid;
+  gap: 14px;
+  background: #fff;
+}
+.review-block.is-needed {
+  border-color: #f2b8b8;
+}
+.review-block > header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.review-block h2 {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.review-no {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  background: #1d1d1f;
+  color: #fff;
+}
+.review-hint {
+  font-size: 13px;
+  color: #86868b;
+}
+.review-block > header em {
+  margin-left: auto;
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 980px;
+  background: #f5f5f7;
+}
+.review-block > header em.is-existing {
+  color: var(--blue);
+}
+.review-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.review-grid .span-2 {
+  grid-column: span 2;
+}
+.review-grid label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6e6e73;
+  min-width: 0;
+}
+.review-grid input,
+.review-grid select {
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0 12px;
+  font-size: 15px;
+  color: #1d1d1f;
+  background: #fff;
+  min-width: 0;
+}
+.review-grid input:disabled,
+.review-grid select:disabled {
+  background: #f5f5f7;
+  color: #6e6e73;
+}
+.review-grid label.needs {
+  color: #d93636;
+}
+.review-grid label.needs input,
+.review-grid label.needs select {
+  border-color: #d93636;
+}
+.review-folder {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #86868b;
+  overflow-wrap: anywhere;
+}
+.pkg-contents-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pkg-contents-chips label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 980px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #6e6e73;
+}
+.pkg-contents-chips input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--blue);
+}
+.pkg-contents-chips label.on {
+  border-color: var(--blue);
+  color: #1d1d1f;
+  font-weight: 600;
+}
+.pkg-contents-chips label.locked {
+  background: #f0f6ff;
+  cursor: default;
+}
+.pkg-contents-chips em {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--blue);
+}
+.review-files {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.review-files > li {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 10px;
+  border-radius: 16px;
+  background: #f5f5f7;
+}
+.review-files > li.needs {
+  background: #fff4f4;
+  box-shadow: 0 0 0 1px #f2b8b8 inset;
+}
+.review-files .tile-thumb {
+  aspect-ratio: 4 / 3;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+.tile-version.is-new {
+  background: #1d1d1f;
+}
+.review-file-fields {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.review-file-title {
+  height: 36px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 0 8px;
+  margin-left: -8px;
+  font-size: 15px;
+  font-weight: 600;
+  background: transparent;
+  color: #1d1d1f;
+  min-width: 0;
+}
+.review-file-title:hover:not(:disabled),
+.review-file-title:focus {
+  border-color: var(--line);
+  background: #fff;
+}
+.review-file-title:disabled {
+  -webkit-text-fill-color: #1d1d1f;
+  opacity: 1;
+}
+.review-files .tile-controls select {
+  flex: 0 1 150px;
+}
+.review-files .tile-controls .review-designer {
+  flex: 0 1 110px;
+  font-weight: 400;
+}
+.review-files .tile-name b {
+  color: #9a6700;
+  font-weight: 400;
+}
+.license-check {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fffaeb;
+  font-size: 14px;
+  color: #1d1d1f;
+  cursor: pointer;
+}
+.license-check.is-ok {
+  background: #f0faf3;
+}
+.license-check input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--blue);
+}
+.review-footer {
+  position: sticky;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.94);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  padding: 14px 0 18px;
+  border-top: 1px solid var(--line);
+  z-index: 5;
+}
+.review-footer .wizard-footer {
+  border-top: 0;
+  padding-top: 8px;
+  margin-top: 0;
+}
+.review-checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+.review-checklist li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.review-checklist li.ok {
+  color: #1f9d55;
+}
+.review-checklist li.todo {
+  color: #d93636;
+  font-weight: 600;
+}
+.review-checklist li.warn {
+  color: #9a6700;
+}
+
+/* 프로젝트 정보 수정 */
+.project-editor {
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 20px 22px;
+  margin: -16px 0 32px;
+  display: grid;
+  gap: 14px;
+}
+.project-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.btn-count {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 980px;
+  background: #f5f5f7;
+  color: #1d1d1f;
+}
+.btn.selected .btn-count {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+/* ───────── 버전 흐름 (노드) ───────── */
+.version-manager {
+  margin: -16px 0 40px;
+  padding: 22px;
+  border-radius: 24px;
+  background: #f5f5f7;
+  display: grid;
+  gap: 14px;
+}
+.version-manager > header h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.version-manager > header p {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #6e6e73;
+}
+.version-flow {
+  background: #fff;
+  border-radius: 18px;
+  padding: 16px 18px;
+  display: grid;
+  gap: 14px;
+}
+.version-flow-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.version-flow-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.version-flow-title:hover {
+  color: var(--blue);
+}
+.version-flow-title em {
+  font-style: normal;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: #f5f5f7;
+  color: #6e6e73;
+}
+.version-flow-count {
+  font-size: 12px;
+  color: #86868b;
+}
+.version-flow-head .text-button {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--blue);
+}
+.version-nodes {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0 0;
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.version-nodes li {
+  position: relative;
+  flex: 0 0 auto;
+  min-width: 96px;
+}
+/* 노드 사이를 잇는 선 */
+.version-nodes li::before {
+  content: "";
+  position: absolute;
+  top: 13px;
+  left: 0;
+  right: 50%;
+  height: 2px;
+  background: #d2d2d7;
+}
+.version-nodes li::after {
+  content: "";
+  position: absolute;
+  top: 13px;
+  left: 50%;
+  right: 0;
+  height: 2px;
+  background: #d2d2d7;
+}
+.version-nodes li:first-child::before,
+.version-nodes li:last-child::after {
+  display: none;
+}
+.version-nodes button {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  padding: 0 6px 4px;
+  font-weight: 400;
+}
+.node-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid #d2d2d7;
+  background: #fff;
+  display: grid;
+  place-items: center;
+  color: #6e6e73;
+  transition: transform 0.15s;
+}
+.version-nodes button:hover .node-dot {
+  transform: scale(1.1);
+}
+.version-nodes li.is-current .node-dot {
+  border-color: var(--blue);
+  background: var(--blue);
+  color: #fff;
+}
+.version-nodes li.is-revert .node-dot {
+  border-color: #9a6700;
+}
+.version-nodes li.is-picked .node-dot {
+  box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.2);
+  border-color: var(--blue);
+}
+.node-version {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1d1d1f;
+}
+.node-reason {
+  font-size: 11px;
+  color: #6e6e73;
+}
+.node-date {
+  font-size: 11px;
+  color: #aeaeb2;
+}
+.version-nodes li.is-picked .node-version {
+  color: var(--blue);
+}
+.version-detail {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.version-detail-thumb {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: 14px;
+  overflow: hidden;
+}
+.version-gone-badge {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 980px;
+  background: rgba(29, 29, 31, 0.75);
+  color: #fff;
+}
+.version-detail-info {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.version-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.version-detail-head strong {
+  font-size: 18px;
+}
+.version-old {
+  font-size: 11px;
+  font-weight: 600;
+  color: #9a6700;
+}
+.rollback {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+.rollback-note {
+  font-size: 13px;
+  color: #6e6e73;
+}
+.rollback-actions {
+  display: flex;
+  gap: 8px;
+}
+@media (max-width: 700px) {
+  .review-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .review-files > li {
+    grid-template-columns: 96px minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 10px;
+  }
+  .review-files .tile-controls {
+    flex-wrap: wrap;
+  }
+  .version-detail {
+    grid-template-columns: 1fr;
+  }
+  .version-manager {
+    padding: 14px;
+  }
+}

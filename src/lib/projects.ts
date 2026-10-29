@@ -1,9 +1,12 @@
 import { AssetType, DesignAsset, LicenseStatus } from "../types";
 import { ASSET_TYPES, DEVICE_TYPES, typeCode } from "./taxonomy";
+import { pathKey } from "./versions";
 
-/** 같은 서비스·연도·프로젝트 폴더면 한 프로젝트(패키지) */
-export const projectKey = (a: Pick<DesignAsset, "service" | "year" | "project">) =>
-  `${a.service}|${a.year}|${a.project}`;
+/**
+ * 같은 NAS 프로젝트 폴더에 있으면 한 프로젝트(패키지).
+ * 제목은 따로 고칠 수 있어서, 묶는 기준은 폴더 경로로 한다.
+ */
+export const projectKey = (a: Pick<DesignAsset, "filePath">) => pathKey(a.filePath);
 
 export interface ProjectSummary {
   key: string;

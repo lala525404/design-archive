@@ -18,7 +18,8 @@ export type ChangeReason =
   | '장소 변경'
   | '문구 수정'
   | '디자인 수정'
-  | '기타';
+  | '기타'
+  | '되돌리기';
 
 /** 같은 작업의 버전 한 개. 원본 파일이 NAS에서 지워져도 기록은 남는다. */
 export interface VersionEntry {
@@ -30,6 +31,8 @@ export interface VersionEntry {
   reason: ChangeReason;
   note?: string;
   originalKept: boolean;
+  /** 그 버전을 올릴 때의 이미지 (있으면 버전별 미리보기) */
+  imageUrl?: string;
 }
 
 export interface DesignAsset {

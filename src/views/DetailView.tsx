@@ -9,11 +9,11 @@ import {
   Download,
   Edit3,
 } from "lucide-react";
-import { DesignAsset, UserRole } from "../types";
+import { AssetType, DesignAsset, UserRole } from "../types";
 import { DesignThumbnail } from "../components/DesignThumbnail";
 import { Disclosure, Status } from "../components/Chrome";
 import { getVersions } from "../lib/versions";
-import { serviceName } from "../lib/taxonomy";
+import { ASSET_TYPES, DEVICE_TYPES, serviceName } from "../lib/taxonomy";
 import { projectKey } from "../lib/projects";
 interface Props {
   asset: DesignAsset;
@@ -46,6 +46,10 @@ export function DetailView({
     summary: asset.summary,
     designer: asset.designer,
     version: asset.version,
+  });
+  const [kind, setKind] = useState<{ type: AssetType; device?: "PC" | "MO" }>({
+    type: asset.type,
+    device: asset.device,
   });
   const copy = async () => {
     try {
@@ -186,7 +190,12 @@ export function DetailView({
               className="edit-form"
               onSubmit={(e) => {
                 e.preventDefault();
-                onUpdateAsset({ ...asset, ...form });
+                onUpdateAsset({
+                  ...asset,
+                  ...form,
+                  type: kind.type,
+                  device: DEVICE_TYPES.includes(kind.type) ? (kind.device ?? "PC") : undefined,
+                });
                 setEditing(false);
               }}
             >
@@ -213,6 +222,34 @@ export function DetailView({
                   </label>
                 ),
               )}
+              <div className="field">
+                작업 유형
+                <div className="tile-controls">
+                  <select
+                    value={kind.type}
+                    onChange={(e) => setKind({ ...kind, type: e.target.value as AssetType })}
+                  >
+                    {ASSET_TYPES.map((t) => (
+                      <option key={t}>{t}</option>
+                    ))}
+                  </select>
+                  {DEVICE_TYPES.includes(kind.type) && (
+                    <div className="seg" role="radiogroup" aria-label="PC 또는 MO">
+                      {(["PC", "MO"] as const).map((d) => (
+                        <button
+                          type="button"
+                          key={d}
+                          className={(kind.device ?? "PC") === d ? "on" : ""}
+                          aria-pressed={(kind.device ?? "PC") === d}
+                          onClick={() => setKind({ ...kind, device: d })}
+                        >
+                          {d}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
               <button className="btn btn-primary">저장</button>
             </form>
           )}

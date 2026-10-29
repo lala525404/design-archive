@@ -5,6 +5,8 @@ import {
   Check,
   FolderOpen,
   FolderUp,
+  CircleCheck,
+  Circle,
   History,
   ImagePlus,
   Plus,
@@ -36,6 +38,7 @@ import {
 } from "../lib/taxonomy";
 import { parseDeliverable, parseProjectFolder } from "../lib/naming";
 import { guessType } from "../lib/taxonomy";
+import { pathKey } from "../lib/versions";
 
 export interface UploadResult {
   added: DesignAsset[];
@@ -46,6 +49,10 @@ interface UploadViewProps {
   assets?: DesignAsset[];
   onBack: () => void;
   onSubmit: (result: UploadResult) => void;
+  /** 프로젝트 화면의 "파일 추가": 이 프로젝트 폴더에 추가 */
+  presetFolder?: string;
+  /** 프로젝트 화면의 "수정본 올리기": 이 파일의 새 버전으로 */
+  reviseAssetId?: string;
 }
 
 interface PickedFile {
@@ -174,46 +181,60 @@ async function readImageColors(url: string): Promise<string[]> {
     .map(([n]) => `${n}톤`);
 }
 
+const PAID_RESOURCES = ["산돌", "게티"];
+
 export const UploadView: React.FC<UploadViewProps> = ({
   assets = [],
   onBack,
   onSubmit,
+  presetFolder,
+  reviseAssetId,
 }) => {
+  const reviseTarget = reviseAssetId ? assets.find((a) => a.id === reviseAssetId) : undefined;
+  const isRevision = Boolean(reviseTarget);
+  const presetProject = presetFolder
+    ? assets.find((a) => pathKey(a.filePath) === pathKey(presetFolder))
+    : undefined;
+
   const [step, setStep] = useState<0 | 1>(0);
   const [files, setFiles] = useState<PickedFile[]>([]);
-  const [nasPath, setNasPath] = useState("");
+  const [nasPath, setNasPath] = useState(presetFolder ?? reviseTarget?.filePath ?? "");
   const [dragging, setDragging] = useState(false);
   const [packageFolder, setPackageFolder] = useState("");
   const [skipped, setSkipped] = useState(0);
-  const folderInput = useRef<HTMLInputElement>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
+  const folderInput = useRef<HTMLInputElement>(null);
 
-  // 프로젝트 공통 정보
+  // 프로젝트 정보
   const [service, setService] = useState("");
   const [year, setYear] = useState("");
-  const [project, setProject] = useState("");
+  const [title, setTitle] = useState("");
   const [requestNo, setRequestNo] = useState("");
   const [projectDate, setProjectDate] = useState("");
+  const [lead, setLead] = useState(CURRENT_DESIGNER);
   const [resources, setResources] = useState<string[]>([]);
   const [folderIssues, setFolderIssues] = useState<string[]>([]);
   const [folder, setFolder] = useState("");
   const [items, setItems] = useState<Item[]>([]);
-  const [extraTags, setExtraTags] = useState<string[]>([]);
-  const [newTag, setNewTag] = useState("");
+  const [packageTypes, setPackageTypes] = useState<AssetType[]>([]);
+  // 수정 내용
   const [changeReason, setChangeReason] = useState<ChangeReason | "">("");
   const [changeNote, setChangeNote] = useState("");
-  const [fontConfirmed, setFontConfirmed] = useState(false);
-  const [packageTypes, setPackageTypes] = useState<AssetType[]>([]);
+  // 라이선스 확인 (리소스별)
+  const [licenseOk, setLicenseOk] = useState<Record<string, boolean>>({});
+  // 태그
+  const [extraTags, setExtraTags] = useState<string[]>([]);
+  const [newTag, setNewTag] = useState("");
 
   const addFiles = (list: { file: File; path?: string }[]) => {
     if (!list.length) return;
-    const keep = list.filter(({ file }) => isDeliverable(file.name));
+    let keep = list.filter(({ file }) => isDeliverable(file.name));
     setSkipped((n) => n + (list.length - keep.length));
-    // 폴더째 올렸으면 맨 위 폴더 = 프로젝트 폴더
+    if (isRevision) keep = keep.slice(0, 1); // 수정본은 파일 하나
     const top = list.find((x) => x.path?.includes("/"))?.path?.split("/")[0];
-    if (top) setPackageFolder(top);
+    if (top && !isRevision) setPackageFolder(top);
     const next: PickedFile[] = keep.map(({ file, path }) => ({
       key: fileKey(),
       name: file.name,
@@ -221,18 +242,17 @@ export const UploadView: React.FC<UploadViewProps> = ({
       url: file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined,
       relPath: path && path.includes("/") ? path.split("/").slice(1).join("/") : undefined,
     }));
-    setFiles((prev) => [...prev, ...next]);
+    setFiles((prev) => (isRevision ? next : [...prev, ...next]));
     setError(keep.length ? "" : "올릴 수 있는 결과물(이미지·PDF·PPT)이 없어요.");
   };
 
   const onDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setDragging(false);
-    const items = Array.from(e.dataTransfer.items ?? []);
-    const entries = items
+    const entries = Array.from(e.dataTransfer.items ?? [])
       .map((it) => (it as any).webkitGetAsEntry?.())
       .filter(Boolean);
-    if (entries.some((en: any) => en.isDirectory)) {
+    if (!isRevision && entries.some((en: any) => en.isDirectory)) {
       const all = (await Promise.all(entries.map((en: any) => readEntry(en)))).flat();
       addFiles(all);
     } else {
@@ -243,68 +263,79 @@ export const UploadView: React.FC<UploadViewProps> = ({
   const runAnalysis = async () => {
     let picked = files;
     let path = nasPath.trim();
-    // 폴더째 올렸고 경로에 프로젝트 폴더가 없으면 붙여서 읽는다
     if (packageFolder) {
       const lastSeg = path.split(/[\\/]/).filter(Boolean).pop() ?? "";
       if (!path) path = packageFolder;
       else if (!parseProjectFolder(lastSeg).date && lastSeg !== packageFolder)
         path = `${path.replace(/[\\/]+$/, "")}/${packageFolder}`;
     }
-    // 경로에 파일명까지 붙어 있고 파일을 안 올렸으면, 그 파일 하나로 등록
     const last = path.split(/[\\/]/).pop() ?? "";
     if (/\.[a-z0-9]{2,5}$/i.test(last)) {
       path = path.slice(0, path.length - last.length);
       if (!picked.length) picked = [{ key: fileKey(), name: last, size: "" }];
     }
-    if (!path) {
-      setError("NAS 프로젝트 폴더 경로를 입력해주세요.");
-      return;
-    }
-    if (!picked.length) {
-      setError("올릴 파일을 하나 이상 선택해주세요.");
-      return;
-    }
+    if (!path) return setError("NAS 프로젝트 폴더 경로를 입력해주세요.");
+    if (!picked.length) return setError("올릴 파일을 하나 이상 선택해주세요.");
     setError("");
     setAnalyzing(true);
+
     const parsed = parseNasPath(path);
-    const proj = parsed.project;
+    const normFolder = /[\\/]$/.test(path) ? path : `${path}/`;
+    // 이미 있는 프로젝트면 그 제목과 정보를 그대로 쓴다 (폴더명 대신)
+    const existing = assets.find((a) => pathKey(a.filePath) === pathKey(normFolder));
+    const leadName = parsed.designer || existing?.designer || CURRENT_DESIGNER;
+    const res = existing?.resources?.length ? existing.resources : parsed.resources;
+
     const next: Item[] = await Promise.all(
       picked.map(async (f) => {
-        const info = readFileName(f.name, proj, parsed.designer, parsed.resources, f.relPath);
+        const info = readFileName(f.name, existing?.project ?? parsed.project, leadName, res, f.relPath);
         const colors = f.url ? await readImageColors(f.url).catch(() => []) : [];
+        if (reviseTarget)
+          return {
+            key: f.key,
+            file: f,
+            colors,
+            ...info,
+            title: reviseTarget.title,
+            type: reviseTarget.type,
+            device: reviseTarget.device,
+            designer: reviseTarget.designer,
+          };
         return { key: f.key, file: f, colors, ...info };
       }),
     );
-    await new Promise((r) => setTimeout(r, 600));
-    setService(parsed.service);
-    setYear(parsed.year || String(new Date().getFullYear()));
-    setProject(proj);
-    setRequestNo(parsed.requestNo);
-    setProjectDate(parsed.date);
-    setResources(parsed.resources);
-    setFolderIssues(parsed.issues);
+    await new Promise((r) => setTimeout(r, 500));
+
+    setService(existing?.service ?? parsed.service);
+    setYear(String(existing?.year ?? (parsed.year || new Date().getFullYear())));
+    setTitle(existing?.project ?? parsed.project);
+    setRequestNo(existing?.requestNo ?? parsed.requestNo);
+    setProjectDate(existing?.projectDate ?? parsed.date);
+    setLead(leadName);
+    setResources(res);
+    setFolderIssues(existing ? [] : parsed.issues);
     setPackageTypes(
       Array.from(new Set(next.map((it) => it.type).filter(Boolean))) as AssetType[],
     );
-    setFolder(/[\\/]$/.test(path) ? path : `${path}/`);
-    // 상세 → 풀페이지 → 배너 … 순서, 같은 유형이면 PC 먼저
+    setFolder(normFolder);
     const order = (it: Item) =>
       (it.type ? ASSET_TYPES.indexOf(it.type) : 99) * 10 + (it.device === "MO" ? 1 : 0);
     setItems([...next].sort((a, b) => order(a) - order(b)));
-    setExtraTags([]);
     setChangeReason("");
     setChangeNote("");
-    setFontConfirmed(false);
+    setLicenseOk({});
+    setExtraTags([]);
     setAnalyzing(false);
     setStep(1);
   };
 
-  // 같은 폴더 + 같은 작업명 파일이 이미 있으면 새 버전
+  // 같은 폴더 + 같은 결과물이면 새 버전. 수정본 모드는 지정한 파일에 붙인다
   const matches = useMemo(
     () =>
       items.map((it) => {
-        const existing = findSameWork(assets, folder, it.file.name);
-        if (!existing) return { existing: undefined, finalVersion: it.version, fileName: it.file.name };
+        const existing = reviseTarget ?? findSameWork(assets, folder, it.file.name);
+        if (!existing)
+          return { existing: undefined, from: "", finalVersion: it.version, fileName: it.file.name };
         const latest = getVersions(existing).at(-1)!;
         const finalVersion =
           versionNumber(it.version) <= versionNumber(latest.version)
@@ -318,57 +349,88 @@ export const UploadView: React.FC<UploadViewProps> = ({
             finalVersion !== it.version ? withVersion(it.file.name, finalVersion) : it.file.name,
         };
       }),
-    [items, assets, folder],
+    [items, assets, folder, reviseTarget],
   );
   const versionCount = matches.filter((m) => m.existing).length;
-  const existingInProject = assets.filter(
-    (a) => a.service === service && a.project === project && String(a.year) === year,
+  const existingInProject = useMemo(
+    () => assets.filter((a) => folder && pathKey(a.filePath) === pathKey(folder)),
+    [assets, folder],
   );
-  const usesSandoll = resources.includes("산돌");
   const typeCounts = items.reduce<Record<string, number>>((acc, it) => {
     if (it.type) acc[it.type] = (acc[it.type] ?? 0) + 1;
     return acc;
   }, {});
-  // 파일이 있는 유형은 항상 체크된 상태로 유지
   const checkedTypes = Array.from(
     new Set([...packageTypes, ...(Object.keys(typeCounts) as AssetType[])]),
   );
   const mergedPackage = Array.from(
-    new Set([
-      ...checkedTypes,
-      ...existingInProject.flatMap((a) => a.packageTypes ?? [a.type]),
-    ]),
+    new Set([...checkedTypes, ...existingInProject.flatMap((a) => a.packageTypes ?? [a.type])]),
   ) as AssetType[];
+  const paid = resources.filter((r) => PAID_RESOURCES.includes(r));
+  const unconfirmed = paid.filter((r) => !licenseOk[r]);
   const commonTags = [
     year,
     serviceName(service),
-    project.replace(/\s/g, ""),
+    title.replace(/\s/g, ""),
     ...(requestNo ? [requestNo] : []),
     ...resources,
   ]
     .filter(Boolean)
     .map((t) => `#${t}`);
-  const missing = [
-    ...(!service ? ["서비스"] : []),
-    ...(!project.trim() ? ["프로젝트명"] : []),
-    ...(items.some((it) => !it.type) ? ["작업 유형"] : []),
+
+  // 등록 전 확인 목록
+  const checks = [
+    { label: "프로젝트 제목", ok: Boolean(title.trim()), required: true },
+    { label: "서비스", ok: Boolean(service), required: true },
+    {
+      label: `파일 유형 (${items.filter((it) => it.type).length}/${items.length})`,
+      ok: items.every((it) => it.type),
+      required: true,
+    },
+    ...(versionCount
+      ? [{ label: "수정 이유", ok: Boolean(changeReason), required: true }]
+      : []),
+    ...(paid.length
+      ? [
+          {
+            label: `라이선스 확인 (${paid.length - unconfirmed.length}/${paid.length})`,
+            ok: unconfirmed.length === 0,
+            required: false,
+          },
+        ]
+      : []),
   ];
+  const blocking = checks.filter((c) => c.required && !c.ok);
 
   const patch = (key: string, p: Partial<Item>) =>
     setItems((prev) => prev.map((it) => (it.key === key ? { ...it, ...p } : it)));
 
   const submit = () => {
-    if (missing.length) {
-      setError(`${missing.join(", ")}을(를) 확인해주세요.`);
+    if (blocking.length) {
+      setError(`${blocking.map((c) => c.label.replace(/ \(.*\)/, "")).join(", ")}을(를) 확인해주세요.`);
       return;
     }
     const today = new Date().toISOString().split("T")[0];
-    const licenseStatus: DesignAsset["licenseStatus"] = fontConfirmed || !usesSandoll ? "verified" : "needs_review";
+    const licenseStatus: DesignAsset["licenseStatus"] = unconfirmed.length ? "needs_review" : "verified";
+    const licenseNote = paid.length
+      ? unconfirmed.length
+        ? `${unconfirmed.join("·")} 라이선스 범위를 관리자가 확인해야 합니다.`
+        : `업로더가 ${paid.join("·")} 라이선스 범위 안에서 사용했다고 확인했습니다.`
+      : undefined;
+    const projectFields = {
+      service,
+      project: title.trim(),
+      course: title.trim(),
+      year: parseInt(year) || new Date().getFullYear(),
+      requestNo,
+      projectDate,
+      resources,
+      packageTypes: mergedPackage,
+    };
     const added: DesignAsset[] = [];
     const updated: DesignAsset[] = [];
     items.forEach((it, i) => {
       const m = matches[i];
-      const itemSandoll = usesSandoll;
       const tags = Array.from(
         new Set([
           ...commonTags,
@@ -386,69 +448,75 @@ export const UploadView: React.FC<UploadViewProps> = ({
         filePath: folder,
         uploadDate: today,
         designer: it.designer,
-        reason: m.existing ? ((changeReason || "기타") as ChangeReason) : "최초 제작",
+        reason: m.existing ? (changeReason as ChangeReason) : "최초 제작",
         note: m.existing ? changeNote.trim() || undefined : undefined,
         originalKept: true,
+        ...(it.file.url ? { imageUrl: it.file.url } : {}),
       };
       const common = {
+        ...projectFields,
+        title: it.title.trim() || m.existing?.title || `${title} ${it.type}`,
+        type: it.type as AssetType,
+        device: it.device,
         version: m.finalVersion,
         fileName: m.fileName,
         filePath: folder,
         designer: it.designer,
-        tools: it.tools,
+        tools: Array.from(new Set([...it.tools, ...resources.filter((r) => TOOLS.includes(r))])),
         hashtags: tags,
-        hasSandoll: itemSandoll,
-        licenseStatus: itemSandoll ? licenseStatus : ("verified" as const),
-        licenseNote: itemSandoll
-          ? fontConfirmed
-            ? "업로더가 회사 라이선스 범위 안에서 사용했다고 확인했습니다."
-            : "산돌 서체 사용이 감지되었습니다. 관리자 확인이 필요합니다."
-          : undefined,
+        hasSandoll: resources.includes("산돌"),
+        licenseStatus: paid.length ? licenseStatus : ("verified" as const),
+        licenseNote,
         uploadDate: today,
-        packageTypes: mergedPackage,
         ...(it.file.url ? { imageUrl: it.file.url } : {}),
         ...(it.file.size ? { fileSize: it.file.size } : {}),
       };
       if (m.existing) {
-        updated.push({
-          ...m.existing,
-          ...common,
-          resources,
-          versions: [...getVersions(m.existing), entry],
-        });
+        updated.push({ ...m.existing, ...common, versions: [...getVersions(m.existing), entry] });
       } else {
         added.push({
           id: `asset-${Date.now()}-${i}`,
-          title: it.title,
-          service,
-          project: project.trim(),
-          course: project.trim(),
-          requestNo,
-          projectDate,
-          resources,
           professor: "",
-          device: it.device,
-          type: it.type as AssetType,
-          year: parseInt(year) || new Date().getFullYear(),
           ...common,
-          bgColor: "#F7F3EF",
-          accentColor: "#246BFD",
-          summary: `${serviceName(service)} ${project} 프로젝트의 ${it.type}${it.device ? ` ${it.device}` : ""} 작업입니다.`,
+          bgColor: "#F5F5F7",
+          accentColor: "#0071E3",
+          summary: `${serviceName(service)} ${title} 프로젝트의 ${it.type}${it.device ? ` ${it.device}` : ""} 작업입니다.`,
           versions: [entry],
         });
       }
     });
-    // 같은 프로젝트의 기존 파일들도 패키지 구성을 함께 갱신
+    // 같은 프로젝트의 다른 파일들도 프로젝트 정보(제목·구성 등)를 맞춘다
     existingInProject.forEach((a) => {
-      if (!updated.some((u) => u.id === a.id))
-        updated.push({ ...a, packageTypes: mergedPackage });
+      if (!updated.some((u) => u.id === a.id)) updated.push({ ...a, ...projectFields });
     });
-    onSubmit({ added, updated, project: project.trim() });
+    onSubmit({ added, updated, project: title.trim() });
   };
+
+  const heading = isRevision
+    ? "수정본 올리기"
+    : presetProject
+      ? "파일 추가"
+      : "자산 등록";
 
   return (
     <main className="page-shell upload-page quick-upload">
-      <PageTitle title="자산 등록" onBack={onBack} />
+      <PageTitle title={heading} onBack={onBack} />
+      {(reviseTarget || presetProject) && (
+        <p className="upload-context">
+          {reviseTarget ? (
+            <>
+              <History size={15} />
+              <b>{reviseTarget.title}</b>
+              {reviseTarget.device && ` ${reviseTarget.device}`} · 현재 {reviseTarget.version} → 올리는 파일이 새 버전이 돼요
+            </>
+          ) : (
+            <>
+              <FolderOpen size={15} />
+              <b>{presetProject!.project}</b> 프로젝트에 파일을 추가해요
+            </>
+          )}
+        </p>
+      )}
       <ol className="quick-steps" aria-label="등록 단계">
         <li className={step === 0 ? "active" : "done"}>
           <span>{step === 0 ? 1 : <Check size={13} />}</span>올리기
@@ -472,7 +540,7 @@ export const UploadView: React.FC<UploadViewProps> = ({
             <input
               ref={fileInput}
               type="file"
-              multiple
+              multiple={!isRevision}
               accept="image/*,.pdf,.ppt,.pptx"
               hidden
               onChange={(e) => {
@@ -515,36 +583,42 @@ export const UploadView: React.FC<UploadViewProps> = ({
                     </button>
                   </div>
                 ))}
-                <button
-                  type="button"
-                  className="picked picked-add"
-                  onClick={() => fileInput.current?.click()}
-                >
-                  <Plus size={20} />
-                  파일 추가
-                </button>
-                <button
-                  type="button"
-                  className="picked picked-add"
-                  onClick={() => folderInput.current?.click()}
-                >
-                  <FolderUp size={20} />
-                  폴더 추가
-                </button>
+                {!isRevision && (
+                  <>
+                    <button type="button" className="picked picked-add" onClick={() => fileInput.current?.click()}>
+                      <Plus size={20} />
+                      파일 추가
+                    </button>
+                    <button type="button" className="picked picked-add" onClick={() => folderInput.current?.click()}>
+                      <FolderUp size={20} />
+                      폴더 추가
+                    </button>
+                  </>
+                )}
               </div>
             ) : (
               <div className="dropzone-empty">
                 <ImagePlus size={34} strokeWidth={1.4} />
-                <strong>프로젝트 폴더나 파일을 끌어 놓으세요</strong>
+                <strong>
+                  {isRevision ? "수정한 파일을 끌어 놓으세요" : "프로젝트 폴더나 파일을 끌어 놓으세요"}
+                </strong>
                 <span>
-                  폴더째 올리면 안의 상세·배너·팝업·PPT를 모두 읽어요. 하나만 올려도 돼요.
+                  {isRevision
+                    ? "파일 이름이 달라도 이 작업의 새 버전으로 붙어요."
+                    : "폴더째 올리면 안의 상세·배너·팝업·PPT를 모두 읽어요. 하나만 올려도 돼요."}
                 </span>
                 <div className="dropzone-actions">
-                  <button type="button" className="btn btn-primary" onClick={() => folderInput.current?.click()}>
-                    <FolderUp size={16} />
-                    폴더 선택
-                  </button>
-                  <button type="button" className="btn" onClick={() => fileInput.current?.click()}>
+                  {!isRevision && (
+                    <button type="button" className="btn btn-primary" onClick={() => folderInput.current?.click()}>
+                      <FolderUp size={16} />
+                      폴더 선택
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className={`btn ${isRevision ? "btn-primary" : ""}`}
+                    onClick={() => fileInput.current?.click()}
+                  >
                     <ImagePlus size={16} />
                     파일 선택
                   </button>
@@ -563,33 +637,41 @@ export const UploadView: React.FC<UploadViewProps> = ({
               {skipped > 0 && <span> · 원본·시스템 파일 {skipped}개는 건너뛰었어요</span>}
             </p>
           )}
-          <label className="field quick-path">
-            NAS 프로젝트 폴더
-            <input
-              value={nasPath}
-              placeholder="\\NAS\디자인\05_평생\2026\260714_21076_프로젝트명_산돌-게티_김다은"
-              onChange={(e) => setNasPath(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") runAnalysis();
-              }}
-            />
-          </label>
-          <p className="quick-help">
-            폴더 이름에서 서비스·날짜·요청번호·프로젝트·리소스·디자이너를, 파일 이름에서
-            유형·PC/MO·버전을 자동으로 채워요. 예전 이름도 최대한 읽어요.{" "}
-            <button
-              type="button"
-              className="link-button"
-              onClick={() => {
-                setNasPath(SAMPLE.path);
-                setPackageFolder("");
-                setSkipped(0);
-                setFiles(SAMPLE.files.map((name) => ({ key: fileKey(), name, size: "" })));
-              }}
-            >
-              샘플 패키지 넣기
-            </button>
-          </p>
+          {isRevision || presetProject ? (
+            <p className="folder-note">
+              <FolderOpen size={14} /> NAS 폴더 <b>{nasPath}</b>
+            </p>
+          ) : (
+            <>
+              <label className="field quick-path">
+                NAS 프로젝트 폴더
+                <input
+                  value={nasPath}
+                  placeholder="\\NAS\디자인\05_평생\2026\260714_21076_프로젝트명_산돌-게티_김다은"
+                  onChange={(e) => setNasPath(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") runAnalysis();
+                  }}
+                />
+              </label>
+              <p className="quick-help">
+                폴더 이름에서 서비스·날짜·요청번호·프로젝트·리소스·디자이너를, 파일 이름에서
+                유형·PC/MO·버전을 자동으로 채워요. 다음 화면에서 모두 확인하고 고칠 수 있어요.{" "}
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={() => {
+                    setNasPath(SAMPLE.path);
+                    setPackageFolder("");
+                    setSkipped(0);
+                    setFiles(SAMPLE.files.map((name) => ({ key: fileKey(), name, size: "" })));
+                  }}
+                >
+                  샘플 패키지 넣기
+                </button>
+              </p>
+            </>
+          )}
 
           <p role="alert" className="inline-feedback">
             {error}
@@ -606,7 +688,7 @@ export const UploadView: React.FC<UploadViewProps> = ({
                 </>
               ) : (
                 <>
-                  자동으로 채우기
+                  다음
                   <ArrowRight size={16} />
                 </>
               )}
@@ -616,247 +698,248 @@ export const UploadView: React.FC<UploadViewProps> = ({
       )}
 
       {step === 1 && (
-        <section className="pkg-review is-simple">
+        <section className="review">
           <p className="quick-status">
             <Sparkles size={15} />
-            {missing.length
-              ? `자동으로 분류했어요. ${missing.join(", ")}만 확인해주세요.`
-              : "자동으로 분류했어요. 맞으면 바로 등록하세요."}
+            자동으로 채웠어요. 아래 내용을 확인하고 등록하세요.
           </p>
 
-          <div className="pkg-summary">
-            <FolderOpen size={20} />
-            <div>
-              <strong>{project.trim() || "프로젝트명 없음"}</strong>
-              <span>
-                {service || "서비스 미지정"} · {year}
-                {requestNo && ` · 요청 ${requestNo}`} · 파일 {items.length}개
-              </span>
+          {/* 1. 프로젝트 */}
+          <section className="review-block">
+            <header>
+              <span className="review-no">1</span>
+              <h2>프로젝트</h2>
+              <em className={existingInProject.length ? "is-existing" : ""}>
+                {existingInProject.length
+                  ? `기존 프로젝트 · 파일 ${existingInProject.length}개`
+                  : "새 프로젝트"}
+              </em>
+            </header>
+            <div className="review-grid">
+              <label className={`span-2 ${!title.trim() ? "needs" : ""}`}>
+                프로젝트 제목
+                <input
+                  value={title}
+                  placeholder="검색과 목록에 보일 이름"
+                  disabled={isRevision}
+                  onChange={(e) => setTitle(e.target.value)}
+                />
+              </label>
+              <label className={!service ? "needs" : ""}>
+                서비스
+                <select value={service} disabled={isRevision} onChange={(e) => setService(e.target.value)}>
+                  <option value="">선택</option>
+                  {SERVICES.map((sv) => (
+                    <option key={sv} value={sv}>
+                      {sv}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                연도
+                <input value={year} disabled={isRevision} onChange={(e) => setYear(e.target.value)} />
+              </label>
+              <label>
+                요청번호
+                <input
+                  value={requestNo}
+                  placeholder="없음"
+                  inputMode="numeric"
+                  disabled={isRevision}
+                  onChange={(e) => setRequestNo(e.target.value.replace(/\D/g, "").slice(0, 5))}
+                />
+              </label>
+              <label>
+                담당 디자이너
+                <select
+                  value={lead}
+                  disabled={isRevision}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    // 담당자를 바꾸면 아직 그대로인 파일 디자이너도 같이 바꾼다
+                    setItems((prev) => prev.map((it) => (it.designer === lead ? { ...it, designer: next } : it)));
+                    setLead(next);
+                  }}
+                >
+                  {DESIGNERS.map((d) => (
+                    <option key={d}>{d}</option>
+                  ))}
+                </select>
+              </label>
             </div>
-            <em className={existingInProject.length ? "is-existing" : ""}>
-              {existingInProject.length
-                ? `기존 프로젝트에 추가 · ${versionCount ? `새 버전 ${versionCount}개` : "새 파일"}`
-                : "새 프로젝트"}
-            </em>
-          </div>
-
-          {(!service || !project.trim()) && (
-            <div className="pkg-required">
-              {!service && (
-                <label>
-                  서비스
-                  <select value={service} onChange={(e) => setService(e.target.value)}>
-                    <option value="">선택</option>
-                    {SERVICES.map((sv) => (
-                      <option key={sv} value={sv}>
-                        {sv}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-              {!project.trim() && (
-                <label>
-                  프로젝트명
-                  <input value={project} onChange={(e) => setProject(e.target.value)} />
-                </label>
-              )}
-            </div>
-          )}
-
-          <fieldset className="pkg-contents">
-            <legend>
-              패키지 구성
-              <span>파일 이름으로 체크했어요. 함께 만든 게 더 있으면 체크해주세요.</span>
-            </legend>
-            <div>
-              {ASSET_TYPES.map((t) => {
-                const n = typeCounts[t] ?? 0;
-                const on = checkedTypes.includes(t);
-                return (
-                  <label key={t} className={`${on ? "on" : ""} ${n ? "locked" : ""}`}>
-                    <input
-                      type="checkbox"
-                      checked={on}
-                      disabled={n > 0}
-                      onChange={() =>
-                        setPackageTypes(
-                          on ? packageTypes.filter((x) => x !== t) : [...packageTypes, t],
-                        )
-                      }
-                    />
-                    {t}
-                    {n > 0 && <em>{n}</em>}
-                  </label>
-                );
-              })}
-            </div>
-          </fieldset>
-
-
-          <ul className="pkg-tiles">
-            {items.map((it, i) => {
-              const m = matches[i];
-              const preview: DesignAsset = {
-                id: `asset-${(i % 6) + 1}`,
-                title: it.title,
-                service,
-                project,
-                device: it.device,
-                professor: "",
-                course: project,
-                type: (it.type || "카드뉴스") as AssetType,
-                year: Number(year) || 2026,
-                tools: it.tools,
-                designer: it.designer,
-                version: m.finalVersion,
-                filePath: folder,
-                fileName: m.fileName,
-                hashtags: [],
-                hasSandoll: false,
-                licenseStatus: "verified",
-                uploadDate: "",
-                bgColor: "",
-                accentColor: "",
-                summary: "",
-                imageUrl: it.file.url,
-              };
-              return (
-                <li key={it.key} className={!it.type ? "needs" : ""}>
-                  <div className="tile-thumb">
-                    <DesignThumbnail asset={preview} />
-                    <button
-                      type="button"
-                      className="tile-remove"
-                      aria-label={`${it.file.name} 빼기`}
-                      onClick={() => setItems(items.filter((x) => x.key !== it.key))}
-                    >
-                      <X size={13} />
-                    </button>
-                    {m.existing && <span className="tile-version">{m.from} → {m.finalVersion}</span>}
-                  </div>
-                  <div className="tile-controls">
-                    <select
-                      value={it.type}
-                      aria-label="작업 유형"
-                      onChange={(e) => {
-                        const type = e.target.value as AssetType;
-                        patch(it.key, {
-                          type,
-                          device: DEVICE_TYPES.includes(type) ? (it.device ?? "PC") : undefined,
-                        });
-                      }}
-                    >
-                      <option value="">유형 선택</option>
-                      {ASSET_TYPES.map((t) => (
-                        <option key={t}>{t}</option>
-                      ))}
-                    </select>
-                    {it.type && DEVICE_TYPES.includes(it.type) && (
-                      <div className="seg" role="radiogroup" aria-label="PC 또는 MO">
-                        {(["PC", "MO"] as const).map((d) => (
-                          <button
-                            type="button"
-                            key={d}
-                            className={it.device === d ? "on" : ""}
-                            aria-pressed={it.device === d}
-                            onClick={() => patch(it.key, { device: d })}
-                          >
-                            {d}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <span className="tile-name" title={it.file.name}>
-                    {it.file.name}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-
-          <details className="pkg-more">
-            <summary>세부 정보 · 자동으로 채웠어요</summary>
-            <div className="pkg-more-body">
-          <div className="pkg-head">
-            <FolderOpen size={18} />
-            <label className={!service ? "needs" : ""}>
-              서비스
-              <select value={service} onChange={(e) => setService(e.target.value)}>
-                <option value="">선택</option>
-                {SERVICES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              연도
-              <input value={year} onChange={(e) => setYear(e.target.value)} />
-            </label>
-            <label className={`pkg-project ${!project.trim() ? "needs" : ""}`}>
-              프로젝트
-              <input
-                value={project}
-                placeholder="프로젝트명"
-                onChange={(e) => setProject(e.target.value)}
-              />
-            </label>
-            <label>
-              요청번호
-              <input
-                value={requestNo}
-                placeholder="없음"
-                inputMode="numeric"
-                onChange={(e) => setRequestNo(e.target.value.replace(/\D/g, "").slice(0, 5))}
-              />
-            </label>
-            <div className="pkg-resources" role="group" aria-label="리소스">
-              <span>리소스</span>
-              <div>
-                {RESOURCES.map((r) => (
-                  <button
-                    type="button"
-                    key={r}
-                    className={resources.includes(r) ? "on" : ""}
-                    aria-pressed={resources.includes(r)}
-                    onClick={() =>
-                      setResources(
-                        resources.includes(r)
-                          ? resources.filter((x) => x !== r)
-                          : [...resources, r],
-                      )
-                    }
-                  >
-                    {r}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <p className="review-folder">
+              <FolderOpen size={14} /> {folder}
+            </p>
             {folderIssues.length > 0 && (
               <p className="pkg-naming">
                 <TriangleAlert size={13} />
                 폴더 이름이 새 규칙과 달라서 추정해서 채웠어요 · {folderIssues[0]}
               </p>
             )}
-            <p className="pkg-note">
-              {existingInProject.length
-                ? `기존 '${project}' 프로젝트에 추가돼요 · 지금 ${existingInProject.length}개 작업`
-                : "새 프로젝트로 등록돼요"}
-            </p>
-          </div>
+          </section>
 
-          {versionCount > 0 && (
-            <div className="quick-card">
-              <div className="quick-card-head">
-                <History size={16} />
-                <span>
-                  <b>{versionCount}개</b>는 이미 있는 작업의 새 버전이에요. 바뀐 이유를
-                  고를 수 있어요 (선택).
-                </span>
+          {/* 2. 패키지 구성 */}
+          {!isRevision && (
+            <section className="review-block">
+              <header>
+                <span className="review-no">2</span>
+                <h2>패키지 구성</h2>
+                <span className="review-hint">파일 이름으로 체크했어요. 함께 만든 게 더 있으면 체크하세요.</span>
+              </header>
+              <div className="pkg-contents-chips">
+                {ASSET_TYPES.map((t) => {
+                  const n = typeCounts[t] ?? 0;
+                  const on = checkedTypes.includes(t);
+                  return (
+                    <label key={t} className={`${on ? "on" : ""} ${n ? "locked" : ""}`}>
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        disabled={n > 0}
+                        onChange={() =>
+                          setPackageTypes(on ? packageTypes.filter((x) => x !== t) : [...packageTypes, t])
+                        }
+                      />
+                      {t}
+                      {n > 0 && <em>{n}</em>}
+                    </label>
+                  );
+                })}
               </div>
+            </section>
+          )}
+
+          {/* 3. 파일 */}
+          <section className="review-block">
+            <header>
+              <span className="review-no">{isRevision ? 2 : 3}</span>
+              <h2>파일 {items.length}개</h2>
+              <span className="review-hint">작업명·유형·PC/MO·디자이너를 확인하세요.</span>
+            </header>
+            <ul className="review-files">
+              {items.map((it, i) => {
+                const m = matches[i];
+                const preview: DesignAsset = {
+                  id: `asset-${(i % 6) + 1}`,
+                  title: it.title,
+                  service,
+                  project: title,
+                  device: it.device,
+                  professor: "",
+                  course: title,
+                  type: (it.type || "카드뉴스") as AssetType,
+                  year: Number(year) || 2026,
+                  tools: it.tools,
+                  designer: it.designer,
+                  version: m.finalVersion,
+                  filePath: folder,
+                  fileName: m.fileName,
+                  hashtags: [],
+                  hasSandoll: false,
+                  licenseStatus: "verified",
+                  uploadDate: "",
+                  bgColor: "",
+                  accentColor: "",
+                  summary: "",
+                  imageUrl: it.file.url,
+                };
+                return (
+                  <li key={it.key} className={!it.type ? "needs" : ""}>
+                    <div className="tile-thumb">
+                      <DesignThumbnail asset={preview} />
+                      {m.existing ? (
+                        <span className="tile-version">
+                          {m.from} → {m.finalVersion}
+                        </span>
+                      ) : (
+                        <span className="tile-version is-new">새 작업 · {m.finalVersion}</span>
+                      )}
+                    </div>
+                    <div className="review-file-fields">
+                      <input
+                        className="review-file-title"
+                        value={m.existing ? m.existing.title : it.title}
+                        disabled={Boolean(m.existing)}
+                        aria-label="작업명"
+                        onChange={(e) => patch(it.key, { title: e.target.value })}
+                      />
+                      <div className="tile-controls">
+                        <select
+                          value={it.type}
+                          aria-label="작업 유형"
+                          disabled={isRevision}
+                          onChange={(e) => {
+                            const type = e.target.value as AssetType;
+                            patch(it.key, {
+                              type,
+                              device: DEVICE_TYPES.includes(type) ? (it.device ?? "PC") : undefined,
+                            });
+                          }}
+                        >
+                          <option value="">유형 선택</option>
+                          {ASSET_TYPES.map((t) => (
+                            <option key={t}>{t}</option>
+                          ))}
+                        </select>
+                        {it.type && DEVICE_TYPES.includes(it.type) && (
+                          <div className="seg" role="radiogroup" aria-label="PC 또는 MO">
+                            {(["PC", "MO"] as const).map((d) => (
+                              <button
+                                type="button"
+                                key={d}
+                                className={it.device === d ? "on" : ""}
+                                aria-pressed={it.device === d}
+                                disabled={isRevision}
+                                onClick={() => patch(it.key, { device: d })}
+                              >
+                                {d}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        <select
+                          className="review-designer"
+                          value={it.designer}
+                          aria-label="디자이너"
+                          onChange={(e) => patch(it.key, { designer: e.target.value })}
+                        >
+                          {DESIGNERS.map((d) => (
+                            <option key={d}>{d}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <span className="tile-name" title={it.file.name}>
+                        {it.file.name}
+                        {it.issues.length > 0 && !isRevision && (
+                          <b title={it.issues.join(" · ")}> · 파일명 규칙과 달라요</b>
+                        )}
+                      </span>
+                    </div>
+                    {!isRevision && (
+                      <button
+                        type="button"
+                        className="pkg-remove"
+                        aria-label={`${it.file.name} 빼기`}
+                        onClick={() => setItems(items.filter((x) => x.key !== it.key))}
+                      >
+                        <X size={16} />
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+
+          {/* 4. 수정 내용 */}
+          {versionCount > 0 && (
+            <section className={`review-block ${!changeReason ? "is-needed" : ""}`}>
+              <header>
+                <span className="review-no">{isRevision ? 3 : 4}</span>
+                <h2>수정 내용</h2>
+                <span className="review-hint">{versionCount}개가 기존 작업의 새 버전이에요.</span>
+              </header>
               <div className="reason-chips" role="radiogroup" aria-label="바뀐 이유">
                 {CHANGE_REASONS.map((r) => (
                   <button
@@ -876,150 +959,60 @@ export const UploadView: React.FC<UploadViewProps> = ({
               <input
                 className="quick-note"
                 value={changeNote}
-                placeholder="무엇이 바뀌었나요? (선택) 예: 개강일 3월 10일 → 3월 17일"
+                placeholder="무엇이 바뀌었나요? 예: 개강일 3월 10일 → 3월 17일"
                 onChange={(e) => setChangeNote(e.target.value)}
               />
+            </section>
+          )}
+
+          {/* 5. 라이선스 */}
+          <section className="review-block">
+            <header>
+              <span className="review-no">{(isRevision ? 3 : 4) + (versionCount ? 1 : 0)}</span>
+              <h2>리소스·라이선스</h2>
+              <span className="review-hint">유료 리소스는 사용 범위를 확인해주세요. 체크하지 않으면 관리자가 확인해요.</span>
+            </header>
+            <div className="builder-chips" role="group" aria-label="사용한 리소스">
+              {RESOURCES.map((r) => (
+                <button
+                  type="button"
+                  key={r}
+                  className={resources.includes(r) ? "on" : ""}
+                  aria-pressed={resources.includes(r)}
+                  disabled={isRevision}
+                  onClick={() =>
+                    setResources(resources.includes(r) ? resources.filter((x) => x !== r) : [...resources, r])
+                  }
+                >
+                  {r}
+                </button>
+              ))}
+              {!resources.length && <span className="review-hint">사용한 리소스 없음</span>}
             </div>
-          )}
+            {paid.map((r) => (
+              <label key={r} className={`license-check ${licenseOk[r] ? "is-ok" : ""}`}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(licenseOk[r])}
+                  onChange={(e) => setLicenseOk({ ...licenseOk, [r]: e.target.checked })}
+                />
+                <span>
+                  <b>{r}</b>
+                  {r === "산돌"
+                    ? " 서체를 회사 라이선스 범위(웹·인쇄 용도) 안에서 사용했어요"
+                    : " 이미지를 구매한 라이선스 범위 안에서 사용했어요"}
+                </span>
+              </label>
+            ))}
+          </section>
 
-          {usesSandoll && (
-            <label className={`quick-card quick-font ${fontConfirmed ? "is-ok" : ""}`}>
-              <input
-                type="checkbox"
-                checked={fontConfirmed}
-                onChange={(e) => setFontConfirmed(e.target.checked)}
-              />
-              <span>
-                <b>산돌 서체가 쓰인 파일이 있어요.</b> 회사 라이선스 범위 안에서
-                사용했다면 체크해주세요. 체크하지 않으면 '확인 필요'로 등록되고 관리자가
-                확인해요.
-              </span>
-            </label>
-          )}
-
-              <p className="pkg-more-label">파일별 작업명·디자이너</p>
-          <ul className="pkg-items">
-            {items.map((it, i) => {
-              const m = matches[i];
-              const preview: DesignAsset = {
-                id: `asset-${(i % 6) + 1}`,
-                title: it.title,
-                service,
-                project,
-                device: it.device,
-                professor: "",
-                course: project,
-                type: (it.type || "카드뉴스") as AssetType,
-                year: Number(year) || 2026,
-                tools: it.tools,
-                designer: it.designer,
-                version: m.finalVersion,
-                filePath: folder,
-                fileName: m.fileName,
-                hashtags: [],
-                hasSandoll: false,
-                licenseStatus: "verified",
-                uploadDate: "",
-                bgColor: "",
-                accentColor: "",
-                summary: "",
-                imageUrl: it.file.url,
-              };
-              return (
-                <li key={it.key} className={!it.type ? "needs" : ""}>
-                  <div className="pkg-thumb">
-                    <DesignThumbnail asset={preview} />
-                  </div>
-                  <div className="pkg-main">
-                    <input
-                      className="pkg-title"
-                      value={m.existing ? m.existing.title : it.title}
-                      disabled={Boolean(m.existing)}
-                      aria-label="작업명"
-                      onChange={(e) => patch(it.key, { title: e.target.value })}
-                    />
-                    <div className="pkg-controls">
-                      <select
-                        value={it.type}
-                        aria-label="작업 유형"
-                        onChange={(e) => {
-                          const type = e.target.value as AssetType;
-                          patch(it.key, {
-                            type,
-                            device: DEVICE_TYPES.includes(type) ? (it.device ?? "PC") : undefined,
-                          });
-                        }}
-                      >
-                        <option value="">유형 선택</option>
-                        {ASSET_TYPES.map((t) => (
-                          <option key={t}>{t}</option>
-                        ))}
-                      </select>
-                      {it.type && DEVICE_TYPES.includes(it.type) && (
-                        <div className="seg" role="radiogroup" aria-label="PC 또는 MO">
-                          {(["PC", "MO"] as const).map((d) => (
-                            <button
-                              type="button"
-                              key={d}
-                              className={it.device === d ? "on" : ""}
-                              aria-pressed={it.device === d}
-                              onClick={() => patch(it.key, { device: d })}
-                            >
-                              {d}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      <select
-                        value={it.designer}
-                        aria-label="디자이너"
-                        onChange={(e) => patch(it.key, { designer: e.target.value })}
-                      >
-                        {DESIGNERS.map((d) => (
-                          <option key={d}>{d}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <p className="pkg-file" title={it.file.name}>
-                      {it.file.name}
-                    </p>
-                    <p className="pkg-meta">
-                      {m.existing ? (
-                        <span className="pkg-version">
-                          <History size={12} /> 새 버전 {m.from} → {m.finalVersion}
-                        </span>
-                      ) : (
-                        <span className="pkg-new">새 작업 · {m.finalVersion}</span>
-                      )}
-                      <span>{it.tools.length ? it.tools.join(" · ") : "도구 정보 없음"}</span>
-                      {!it.type ? (
-                        <span className="pkg-warn">
-                          <TriangleAlert size={12} /> 유형을 골라주세요
-                        </span>
-                      ) : (
-                        it.issues.length > 0 && (
-                          <span className="pkg-hint" title={it.issues.join(" · ")}>
-                            파일명 규칙과 달라요
-                          </span>
-                        )
-                      )}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    className="pkg-remove"
-                    aria-label={`${it.file.name} 빼기`}
-                    onClick={() => setItems(items.filter((x) => x.key !== it.key))}
-                  >
-                    <X size={16} />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-
-          <div className="quick-tags">
-            <span className="field-label">공통 태그 · 파일별 유형·도구·디자이너·색 태그는 자동으로 붙어요</span>
+          {/* 6. 태그 */}
+          <section className="review-block">
+            <header>
+              <span className="review-no">{(isRevision ? 4 : 5) + (versionCount ? 1 : 0)}</span>
+              <h2>태그</h2>
+              <span className="review-hint">유형·PC/MO·디자이너·이미지 색 태그는 파일마다 자동으로 붙어요.</span>
+            </header>
             <div className="tag-list editable">
               {commonTags.map((t) => (
                 <span key={t}>{t}</span>
@@ -1050,23 +1043,35 @@ export const UploadView: React.FC<UploadViewProps> = ({
                 />
               </form>
             </div>
-          </div>
+          </section>
 
+          {/* 확인 목록 + 등록 */}
+          <div className="review-footer">
+            <ul className="review-checklist" aria-label="등록 전 확인">
+              {checks.map((c) => (
+                <li key={c.label} className={c.ok ? "ok" : c.required ? "todo" : "warn"}>
+                  {c.ok ? <CircleCheck size={15} /> : c.required ? <Circle size={15} /> : <TriangleAlert size={15} />}
+                  {c.label}
+                </li>
+              ))}
+            </ul>
+            <p role="alert" className="inline-feedback">
+              {error}
+            </p>
+            <div className="wizard-footer">
+              <button className="btn" onClick={() => setStep(0)}>
+                <ArrowLeft size={16} />
+                다시 올리기
+              </button>
+              <button className="btn btn-primary" onClick={submit} disabled={!items.length}>
+                {isRevision
+                  ? `${matches[0]?.finalVersion ?? ""}로 등록하기`
+                  : items.length > 1
+                    ? `${items.length}개 등록하기`
+                    : "등록하기"}
+                <Check size={16} />
+              </button>
             </div>
-          </details>
-
-          <p role="alert" className="inline-feedback">
-            {error}
-          </p>
-          <div className="wizard-footer">
-            <button className="btn" onClick={() => setStep(0)}>
-              <ArrowLeft size={16} />
-              다시 올리기
-            </button>
-            <button className="btn btn-primary" onClick={submit} disabled={!items.length}>
-              {items.length > 1 ? `${items.length}개 등록하기` : "등록하기"}
-              <Check size={16} />
-            </button>
           </div>
         </section>
       )}
