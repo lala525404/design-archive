@@ -64,6 +64,9 @@ export class Blocks3D {
   private readySent = false;
   /** 등장 시작 시각 (느린 기기에서도 등장 순서가 밀리지 않게 실제 시간 기준) */
   private entranceStart = 0;
+  /** 느린 프레임이 이어지면 해상도를 낮춘다 (저사양 노트북 대비) */
+  private slowFrames = 0;
+  private lowered = false;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -266,7 +269,16 @@ export class Blocks3D {
 
   private tick = (now: number) => {
     this.raf = 0;
-    const dt = Math.min(1 / 30, (now - this.last) / 1000);
+    const frameMs = now - this.last;
+    const dt = Math.min(1 / 30, frameMs / 1000);
+    if (!this.lowered) {
+      this.slowFrames = frameMs > 26 ? this.slowFrames + 1 : 0;
+      if (this.slowFrames > 12) {
+        this.lowered = true;
+        this.renderer.setPixelRatio(1);
+        this.renderer.setSize(this.width, this.height, false);
+      }
+    }
     this.last = now;
     let moving = false;
 
