@@ -34,6 +34,7 @@ const FRAME: Record<string, { w: number; h: number }> = {
   팝업: { w: 360, h: 400 },
   PPT: { w: 640, h: 360 },
   포스터: { w: 300, h: 420 },
+  편집: { w: 600, h: 420 },
   카드뉴스: { w: 400, h: 400 },
   배너: { w: 640, h: 360 },
   썸네일: { w: 640, h: 360 },
@@ -116,6 +117,36 @@ export function DesignThumbnail({ asset, className = "", fit = "contain" }: Prop
           <T x="276" y="394" fontSize="11" textAnchor="end">
             {asset.year}
           </T>
+        </>
+      );
+      break;
+    case "편집":
+      // 펼친 두 페이지 (리플렛·브로슈어)
+      art = (
+        <>
+          <rect width={w} height={h} fill="#FFFFFF" />
+          <rect width="300" height={h} fill={c.bg} />
+          <circle cx="210" cy="300" r="70" fill={c.a} />
+          <T x="28" y="48" fontSize="11" fontWeight="600" opacity=".7">
+            {asset.year} · 편집
+          </T>
+          <T x="28" y="130" fontSize="30" fontWeight="800">
+            {short(course, 7)}
+          </T>
+          <T x="28" y="166" fontSize="18" fontWeight="600">
+            안내 리플렛
+          </T>
+          <line x1="300" y1="0" x2="300" y2={h} stroke="#000" opacity=".08" strokeWidth="2" />
+          <rect x="330" y="44" width="120" height="8" rx="4" fill="#191919" />
+          <rect x="330" y="66" width="240" height="5" rx="2.5" fill="#D9D4CD" />
+          <rect x="330" y="78" width="220" height="5" rx="2.5" fill="#D9D4CD" />
+          <rect x="330" y="90" width="200" height="5" rx="2.5" fill="#D9D4CD" />
+          <rect x="330" y="118" width="116" height="110" rx="10" fill={c.a} />
+          <rect x="454" y="118" width="116" height="110" rx="10" fill="#EFEAE4" />
+          <rect x="330" y="250" width="240" height="5" rx="2.5" fill="#D9D4CD" />
+          <rect x="330" y="262" width="210" height="5" rx="2.5" fill="#D9D4CD" />
+          <rect x="330" y="274" width="230" height="5" rx="2.5" fill="#D9D4CD" />
+          <rect x="330" y="320" width="240" height="64" rx="10" fill={c.b} />
         </>
       );
       break;

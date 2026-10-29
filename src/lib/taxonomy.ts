@@ -24,6 +24,7 @@ export const ASSET_TYPES: AssetType[] = [
   "팝업",
   "카드뉴스",
   "포스터",
+  "편집",
   "썸네일",
   "PPT",
 ];
@@ -31,7 +32,7 @@ export const ASSET_TYPES: AssetType[] = [
 /** PC/MO 버전이 따로 나오는 작업 유형 */
 export const DEVICE_TYPES: AssetType[] = ["상세페이지", "풀페이지", "배너", "팝업"];
 
-export const DESIGNERS = ["양현보", "김다은", "박정은", "박지원", "방수림"];
+export const DESIGNERS = ["이혜진", "양현보", "김다은", "박정은", "박지원", "방수림"];
 export const CURRENT_DESIGNER = "박정은";
 
 export const TOOLS = ["AI", "산돌", "포토샵", "일러스트", "피그마"];
@@ -59,6 +60,7 @@ export const TYPE_CODES: Record<string, AssetType> = {
   팝업: "팝업",
   카드뉴스: "카드뉴스",
   포스터: "포스터",
+  편집: "편집",
   썸네일: "썸네일",
   PPT: "PPT",
   ppt: "PPT",
@@ -103,6 +105,7 @@ export function guessType(fileName: string): {
   else if (/팝업|popup/.test(lower)) type = "팝업";
   else if (/배너|banner/.test(lower)) type = "배너";
   else if (/카드뉴스|card/.test(lower)) type = "카드뉴스";
+  else if (/편집|리플렛|리플릿|브로슈어|책자|leaflet|brochure|booklet/.test(lower)) type = "편집";
   else if (/포스터|poster|인쇄/.test(lower)) type = "포스터";
   else if (/썸네일|thumb/.test(lower)) type = "썸네일";
   const tokens = fileName.replace(/\.[^/.]+$/, "").split(/[_\-\s().]+/);

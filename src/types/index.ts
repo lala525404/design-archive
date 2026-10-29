@@ -9,6 +9,7 @@ export type AssetType =
   | '팝업'
   | '카드뉴스'
   | '포스터'
+  | '편집'
   | '썸네일'
   | 'PPT';
 
