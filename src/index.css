@@ -3844,3 +3844,48 @@ mark {
   font-weight: 600;
   color: var(--blue);
 }
+
+/* ───────── 입체 블록 ───────── */
+.shape-stage {
+  position: relative;
+}
+.blocks-canvas {
+  position: absolute;
+  left: -32px;
+  bottom: 0;
+  width: calc(100% + 64px);
+  height: 0;
+  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+  touch-action: none;
+  transition: opacity 0.2s;
+}
+.shape-gallery.is-3d .blocks-canvas {
+  opacity: 1;
+  pointer-events: auto;
+}
+/* 3D가 뜨면 평면 도형은 감추고, 버튼은 키보드용으로 남긴다 */
+.shape-gallery.is-3d .shape-block svg {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.shape-gallery.is-3d .shape-block:focus-visible svg {
+  opacity: 1;
+}
+.shape-gallery.is-3d .shape-block .shape-label {
+  display: none;
+}
+.blocks-tip {
+  position: absolute;
+  z-index: 3;
+  transform: translateX(-50%);
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: #191919;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+}

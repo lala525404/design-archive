@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { DesignAsset } from "../types";
 
 interface Props {
@@ -32,6 +32,9 @@ const ROW: Block[] = [
   { id: "cards", kind: "circle", color: "#6E9BF7", label: "카드뉴스" },
   { id: "palette", kind: "circle", color: "#6E9BF7", label: "컬러 레퍼런스" },
 ];
+const ALL_BLOCKS: Block[] = [...COLUMNS.flat(), ...ROW];
+/** 블록이 기울어도 잘리지 않게 캔버스를 좌우로 조금 넓힌다 (px) */
+const PAD = 32;
 
 function Shape({ kind, color }: { kind: Kind; color: string }) {
   if (kind === "hexagon")
@@ -94,6 +97,66 @@ export function ShapeGallery({
     if (id === "palette") onNavigateToSearch("색채학");
   };
 
+  const stageRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [mode, setMode] = useState<"2d" | "3d">("2d");
+  const [tip, setTip] = useState<{ label: string; x: number; y: number } | null>(null);
+  const activateRef = useRef(activate);
+  activateRef.current = activate;
+
+  // 입체 블록은 첫 화면을 막지 않게 나중에 불러온다. 못 쓰면 평면 도형 그대로
+  useEffect(() => {
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    let cancelled = false;
+    let engine: { resize: (w: number) => void; dispose: () => void } | null = null;
+    let observer: ResizeObserver | null = null;
+    const startedAt = performance.now();
+    import("../lib/blocks3d")
+      .then(({ Blocks3D, canUseWebGL }) => {
+        const stage = stageRef.current,
+          canvas = canvasRef.current;
+        if (cancelled || !stage || !canvas || !canUseWebGL()) return;
+        const defs = ALL_BLOCKS.map((b) => ({ id: b.id, kind: b.kind, color: b.color, label: b.label }));
+        // 평면 도형 자리를 그대로 재서 입체 블록의 집으로 쓴다 (offset은 등장 애니메이션 영향 없음)
+        const layout = (width: number) => {
+          const els = ALL_BLOCKS.map(
+            (b) => stage.querySelector(`[data-block-id="${b.id}"]`) as HTMLElement,
+          );
+          const unit = els.find((el, i) => ALL_BLOCKS[i].kind === "square")?.offsetWidth ?? 100;
+          const headroom = Math.round(unit * 0.9);
+          const height = stage.clientHeight + headroom;
+          canvas.style.height = `${height}px`;
+          const homes = els.map((el) => ({
+            x: el.offsetLeft + el.offsetWidth / 2 + PAD,
+            y: stage.clientHeight - (el.offsetTop + el.offsetHeight / 2),
+          }));
+          return { unit, homes, height, width };
+        };
+        engine = new Blocks3D(
+          canvas,
+          defs,
+          (w) => layout(w),
+          {
+            onActivate: (id) => activateRef.current(id),
+            onHover: setTip,
+            onReady: () => !cancelled && setMode("3d"),
+          },
+          performance.now() - startedAt < 450,
+        );
+        engine.resize(stage.clientWidth + PAD * 2);
+        observer = new ResizeObserver(() => engine?.resize(stage.clientWidth + PAD * 2));
+        observer.observe(stage);
+      })
+      .catch(() => {
+        /* 불러오기 실패 시 평면 도형 유지 */
+      });
+    return () => {
+      cancelled = true;
+      observer?.disconnect();
+      engine?.dispose();
+    };
+  }, []);
+
   let order = 0;
   const render = (block: Block) => {
     const delay = order++ * 70;
@@ -101,6 +164,7 @@ export function ShapeGallery({
       <button
         key={block.id}
         type="button"
+        data-block-id={block.id}
         className={`shape-block shape-block--${block.kind}`}
         style={{ animationDelay: `${delay}ms` }}
         onClick={() => activate(block.id)}
@@ -115,8 +179,17 @@ export function ShapeGallery({
   // 아래에서 위로 쌓이는 순서로 애니메이션 순번을 매긴다.
   const columns = COLUMNS.map((col) => [...col].reverse());
   return (
-    <section className="shape-gallery" aria-label="디자인 자산 바로가기">
-      <div className="shape-stage">
+    <section
+      className={`shape-gallery ${mode === "3d" ? "is-3d" : ""}`}
+      aria-label="디자인 자산 바로가기"
+    >
+      <div className="shape-stage" ref={stageRef}>
+        <canvas ref={canvasRef} className="blocks-canvas" aria-hidden="true" />
+        {tip && (
+          <span className="blocks-tip" style={{ left: tip.x - PAD, bottom: tip.y }} aria-hidden="true">
+            {tip.label}
+          </span>
+        )}
         <div className="shape-group shape-group--stacks">
           {columns.map((col, i) => (
             <div className="shape-stack" key={i}>
