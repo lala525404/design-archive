@@ -1,78 +1,158 @@
 import React from "react";
-import { ArrowUpRight, Check } from "lucide-react";
 import { DesignAsset } from "../types";
-import { DesignThumbnail } from "./DesignThumbnail";
+
 interface Props {
   assets: DesignAsset[];
   onSelectAsset: (id: string) => void;
   onNavigateToSearch: (q: string) => void;
   onNavigateToLicense: () => void;
 }
+
+type BlockStyle = React.CSSProperties & {
+  "--drop-delay": string;
+  "--drop-turn": string;
+  "--drop-drift": string;
+};
+
+function FallingBlock({
+  shape,
+  color,
+  level = "bottom",
+  delay,
+  turn,
+  label,
+  onClick,
+  children,
+}: {
+  shape: "hexagon" | "rectangle" | "clover" | "circle" | "palette";
+  color?: string;
+  level?: "bottom" | "top";
+  delay: number;
+  turn: number;
+  label: string;
+  onClick: () => void;
+  children?: React.ReactNode;
+}) {
+  return (
+    <button
+      className={`falling-block falling-block--${shape} falling-block--${level}`}
+      style={
+        {
+          backgroundColor: color,
+          "--drop-delay": `${delay}ms`,
+          "--drop-turn": `${turn}deg`,
+          "--drop-drift": `${turn * 1.5}%`,
+        } as BlockStyle
+      }
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function ShapeGallery({
   assets,
   onSelectAsset,
   onNavigateToSearch,
   onNavigateToLicense,
 }: Props) {
-  const get = (type: string) =>
-    assets
+  const openRecent = (type: string) => {
+    const asset = assets
       .filter((a) => a.type === type)
-      .sort((a, b) => b.uploadDate.localeCompare(a.uploadDate))[0] || assets[0];
+      .sort((a, b) => b.uploadDate.localeCompare(a.uploadDate))[0];
+    if (asset) onSelectAsset(asset.id);
+    else onNavigateToSearch(type);
+  };
+
   return (
-    <div className="shape-gallery" aria-label="최근 디자인과 레퍼런스">
-      <button
-        className="gallery-item gallery-hex"
-        onClick={() => onSelectAsset(get("상세페이지").id)}
-      >
-        <div className="shape shape-hex">
-          <DesignThumbnail asset={get("상세페이지")} />
-          <span className="shape-arrow">
-            <ArrowUpRight size={18} />
-          </span>
+    <section className="shape-gallery" aria-label="디자인 도형과 바로가기">
+      <div className="block-stage">
+        <div className="block-cluster">
+          <div className="block-column">
+            <FallingBlock
+              shape="rectangle"
+              color="#B7E1D1"
+              delay={0}
+              turn={-9}
+              label="상세페이지 작업 찾기"
+              onClick={() => onNavigateToSearch("상세페이지")}
+            />
+            <FallingBlock
+              shape="hexagon"
+              color="#A9D3FF"
+              level="top"
+              delay={760}
+              turn={12}
+              label="최근 과정 작업 보기"
+              onClick={() => openRecent("상세페이지")}
+            />
+            <span className="block-caption">과정 작업</span>
+          </div>
+          <div className="block-column">
+            <FallingBlock
+              shape="rectangle"
+              color="#FFB5B8"
+              delay={150}
+              turn={11}
+              label="홍보 배너 찾기"
+              onClick={() => onNavigateToSearch("배너")}
+            />
+            <FallingBlock
+              shape="hexagon"
+              color="#246BFD"
+              level="top"
+              delay={1030}
+              turn={-12}
+              label="최근 홍보 디자인 보기"
+              onClick={() => openRecent("배너")}
+            />
+            <span className="block-caption">홍보 디자인</span>
+          </div>
         </div>
-        <span className="shape-label">최근 과정 작업</span>
-      </button>
-      <button
-        className="gallery-item gallery-rect"
-        onClick={() => onSelectAsset(get("배너").id)}
-      >
-        <div className="shape shape-rect">
-          <DesignThumbnail asset={get("배너")} />
-          <span className="shape-arrow">
-            <ArrowUpRight size={18} />
-          </span>
+        <div className="block-column block-column--clover">
+          <FallingBlock
+            shape="clover"
+            color="#FFE59A"
+            delay={310}
+            turn={-17}
+            label="산돌 라이선스 확인"
+            onClick={onNavigateToLicense}
+          />
+          <span className="block-caption">라이선스</span>
         </div>
-        <span className="shape-label">홍보 디자인</span>
-      </button>
-      <button
-        className="gallery-item gallery-clover"
-        onClick={onNavigateToLicense}
-      >
-        <div className="shape shape-clover">
-          <Check size={42} strokeWidth={1.2} />
+        <div className="block-column block-column--circle">
+          <FallingBlock
+            shape="circle"
+            color="#246BFD"
+            delay={470}
+            turn={16}
+            label="최근 카드뉴스 보기"
+            onClick={() => openRecent("카드뉴스")}
+          />
+          <span className="block-caption">카드뉴스</span>
         </div>
-        <span className="shape-label">라이선스 확인</span>
-      </button>
-      <button
-        className="gallery-item gallery-circle"
-        onClick={() => onSelectAsset(get("카드뉴스").id)}
-      >
-        <div className="shape shape-circle">
-          <DesignThumbnail asset={get("카드뉴스")} />
+        <div className="block-column block-column--palette">
+          <FallingBlock
+            shape="palette"
+            delay={630}
+            turn={-10}
+            label="색채학 컬러 레퍼런스 찾기"
+            onClick={() => onNavigateToSearch("색채학")}
+          >
+            {["#A9D3FF", "#B7E1D1", "#FFE59A", "#FFB5B8"].map((color) => (
+              <i
+                key={color}
+                style={{ backgroundColor: color }}
+                aria-hidden="true"
+              />
+            ))}
+          </FallingBlock>
+          <span className="block-caption">컬러 참고</span>
         </div>
-        <span className="shape-label">교수 소개 · 카드뉴스</span>
-      </button>
-      <button
-        className="gallery-item gallery-colors"
-        onClick={() => onNavigateToSearch("색채학")}
-      >
-        <div className="shape shape-colors">
-          {["#A9D3FF", "#B7E1D1", "#FFE59A", "#FFB5B8"].map((c) => (
-            <i key={c} style={{ background: c }} />
-          ))}
-        </div>
-        <span className="shape-label">컬러 레퍼런스</span>
-      </button>
-    </div>
+      </div>
+    </section>
   );
 }

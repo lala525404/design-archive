@@ -51,7 +51,9 @@ export function LandingView({
             </span>
           </button>
         </div>
-        <h1>디자인 자산 아카이브</h1>
+        <h1>
+          <span>디자인 자산</span> <span>아카이브</span>
+        </h1>
         <p>이미 만든 디자인을 찾고, 확인하고, 다시 활용하세요.</p>
       </section>
       <footer className="landing-footer">

@@ -89,6 +89,15 @@ const pages = [
   />,
   <NamingRuleView onBack={noop} onOpenMenu={noop} />,
 ];
+const landing = renderToStaticMarkup(pages[0]);
+assert.ok(
+  !landing.includes("design-thumbnail"),
+  "Landing blocks contain no asset thumbnails",
+);
+assert.ok(
+  search("").includes("design-thumbnail"),
+  "Search keeps the original asset previews",
+);
 for (const page of pages) {
   const html = renderToStaticMarkup(page);
   assert.ok(html.includes("<main"));

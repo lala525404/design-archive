@@ -92,7 +92,9 @@ export default function App() {
   const myUploadsCount = assets.filter((a) => a.designer === "김디자인").length;
 
   return (
-    <div className="min-h-screen bg-[#F7F3EF] text-[#191919] font-sans antialiased">
+    <div
+      className={`app-shell ${view === "landing" ? "is-landing" : ""} min-h-screen bg-[#F7F3EF] text-[#191919] font-sans antialiased`}
+    >
       <a className="skip-link" href="#main-content">
         본문으로 이동
       </a>
