@@ -363,7 +363,11 @@ input[type="radio"] {
   height: 100%;
   width: 100%;
   overflow: hidden;
-  background: #f7f3ef;
+  background: #ece7e1;
+  padding: 7%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .design-thumbnail > svg {
   width: 100%;
@@ -373,10 +377,9 @@ input[type="radio"] {
 }
 .design-thumbnail svg text {
   letter-spacing: -0.02em;
-  fill: #191919;
 }
-.design-thumbnail svg text[fill="white"] {
-  fill: white;
+.design-thumbnail > svg > g {
+  filter: drop-shadow(0 1px 0 rgba(25, 25, 25, 0.06));
 }
 /* Shared pages */
 .page-title {
@@ -683,11 +686,14 @@ input[type="radio"] {
   display: block;
   border-radius: 50%;
 }
-.status-attention {
-  color: var(--blue);
+.status-warning {
+  color: #9a6700;
 }
-.status-attention > span {
-  background: var(--blue);
+.status-danger {
+  color: #d93636;
+}
+.status svg {
+  flex: none;
 }
 .group-title {
   display: flex;
@@ -875,6 +881,12 @@ mark {
 }
 .inline-feedback:empty {
   display: none;
+}
+.license-note--warning {
+  color: #9a6700 !important;
+}
+.license-note--danger {
+  color: #d93636 !important;
 }
 .license-note {
   font-size: 12px;
@@ -2169,35 +2181,21 @@ mark {
   background: #19191950;
   backdrop-filter: blur(3px);
 }
-
-/* A single-viewport landing. Other archive screens keep their natural scroll. */
-.app-shell.is-landing {
-  --landing-nav-height: 0px;
-  height: 100vh;
-  height: 100dvh;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  padding-bottom: var(--landing-nav-height);
-  overflow: clip;
-}
-.is-landing .site-header {
-  height: clamp(56px, 10dvh, 88px);
-  flex: 0 0 auto;
-}
+/* ───────── 랜딩: 검색 → 블록 → 바닥선 → 타이틀 ───────── */
 .landing.page-shell {
-  flex: 1 1 0;
-  min-height: 0;
+  --u: clamp(60px, 10.6vw, 152px);
+  padding-top: 40px;
+  padding-bottom: 32px;
+}
+.landing-top {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
-  gap: clamp(8px, 1.6dvh, 18px);
-  padding-top: clamp(16px, 3.2dvh, 34px);
-  padding-bottom: clamp(12px, 2dvh, 22px);
+  grid-template-columns: minmax(48px, 1fr) minmax(0, 720px) minmax(48px, 1fr);
+  align-items: center;
+  gap: 16px;
 }
 .landing-search {
+  grid-column: 2;
   width: 100%;
-  max-width: 880px;
-  margin: 0 auto;
 }
 .landing .search-box {
   height: 64px;
@@ -2207,415 +2205,295 @@ mark {
 .landing .search-box .btn {
   height: 48px;
 }
-.suggestions {
-  display: flex;
-  align-items: center;
-  gap: 22px;
-  margin-top: 12px;
-  padding-left: 4px;
-  color: var(--muted);
-  font-size: 11px;
-  white-space: nowrap;
-}
-.suggestions > span {
-  color: #938d87;
-}
-.suggestions button {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0;
-  font-weight: 400;
-}
-.suggestions button:hover {
-  color: var(--blue);
-}
-.suggestions button svg {
-  color: #9b9690;
-}
-.shape-gallery {
-  min-width: 0;
-  min-height: 0;
-  container-type: size;
-  overflow: clip;
-  position: relative;
-}
-.landing-title {
-  border-top: 1px solid #cfcac4;
-  padding-top: clamp(10px, 1.6dvh, 18px);
-}
-.title-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 28px;
-  margin-bottom: clamp(8px, 1.4dvh, 16px);
-  color: #8a8179;
-  font-size: 10px;
-}
-.title-meta > button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0;
-  color: #191919;
-  font-size: 11px;
-}
-.asset-count {
-  color: #8a8179;
-  font-size: 10px;
-  font-weight: 400;
-}
-.circle-arrow {
+.landing-menu {
+  grid-column: 3;
+  justify-self: end;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  margin-left: 3px;
-  border: 1px solid #d9d4cd;
-  border-radius: 50%;
+  border-radius: 12px;
 }
-.title-meta button:hover .circle-arrow {
-  color: white;
-  background: var(--blue);
-  border-color: var(--blue);
-}
-.landing-title h1 {
-  font-size: clamp(44px, min(6.25vw, 10dvh), 88px);
-  line-height: 1.1;
-  font-weight: 800;
-  letter-spacing: -0.025em;
-}
-.landing-title h1 span {
-  display: inline-block;
-}
-.landing-title p {
-  margin-top: clamp(10px, 1.5dvh, 16px);
-  color: #77716c;
-  font-size: clamp(12px, 1.2vw, 16px);
-  line-height: 1.5;
-}
-.landing-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 0;
-  padding: 0;
-  color: #9a9086;
-  font-size: 9px;
-  line-height: 14px;
-}
-@media (max-width: 600px) {
-  .app-shell.is-landing {
-    --landing-nav-height: calc(65px + env(safe-area-inset-bottom, 0px));
-  }
-  .landing.page-shell {
-    padding-top: clamp(16px, 3dvh, 24px);
-    padding-bottom: 14px;
-    gap: clamp(10px, 1.8dvh, 16px);
-  }
-  .landing .search-box {
-    padding-left: 14px;
-  }
-  .suggestions {
-    gap: 16px;
-    padding-left: 0;
-    font-size: 10px;
-  }
-  .suggestions > span {
-    display: none;
-  }
-  .suggestions button svg {
-    width: 11px;
-    height: 11px;
-  }
-  .landing-title h1 {
-    font-size: clamp(44px, min(10.5vw, 7.6dvh), 56px);
-    line-height: 1.08;
-  }
-  .title-meta {
-    margin-bottom: 12px;
-    min-height: 26px;
-    font-size: 9px;
-  }
-  .title-meta > button {
-    font-size: 10px;
-    gap: 6px;
-  }
-  .circle-arrow {
-    width: 26px;
-    height: 26px;
-  }
-  .circle-arrow svg {
-    width: 16px;
-    height: 16px;
-  }
-  .landing-title p {
-    font-size: 11px;
-    margin-top: 12px;
-  }
-  .landing-footer {
-    font-size: 8px;
-    line-height: 12px;
-  }
-}
-@media (max-height: 680px) {
-  .landing-footer {
-    display: none;
-  }
-  .landing.page-shell {
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    padding-top: 16px;
-    padding-bottom: 14px;
-    gap: 10px;
-  }
-  .landing-title {
-    padding-top: 10px;
-  }
-  .title-meta {
-    margin-bottom: 8px;
-  }
-}
-@media (max-height: 500px) {
-  .is-landing .site-header {
-    height: 56px;
-  }
-  .landing.page-shell {
-    padding-top: 10px;
-    padding-bottom: 10px;
-    gap: 8px;
-  }
-  .landing .suggestions,
-  .title-meta > span {
-    display: none;
-  }
-  .landing .search-box {
-    height: 56px;
-    padding: 5px;
-    padding-left: 15px;
-  }
-  .landing .search-box .btn {
-    height: 44px;
-  }
-  .title-meta {
-    margin-bottom: 5px;
-    min-height: 24px;
-    justify-content: flex-end;
-  }
-  .circle-arrow {
-    width: 24px;
-    height: 24px;
-  }
-  .landing-title h1 {
-    font-size: clamp(32px, min(8vw, 9dvh), 44px);
-  }
-  .landing-title p {
-    margin-top: 7px;
-    font-size: 10px;
-  }
-}
-@media (max-height: 370px) {
-  .landing-title p {
-    display: none;
-  }
+.landing-menu:hover {
+  background: #ece7e1;
 }
 
-/* Pointer-driven block playground; its height is still owned by the landing grid. */
-.interactive-gallery {
-  display: grid;
-  grid-template-rows: 24px minmax(0, 1fr);
-  gap: 8px;
-  isolation: isolate;
+/* 블록 */
+.shape-gallery {
+  margin-top: 56px;
 }
-.physics-toolbar {
+.shape-stage {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 16px;
-  position: relative;
-  z-index: 2;
-  color: #9a9086;
-  font-size: 10px;
-  font-weight: 400;
+  gap: calc(var(--u) * 0.4);
 }
-.physics-reset {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 26px;
-  padding: 3px 0 3px 8px;
-  color: #7f746a;
-  font-size: 10px;
-  font-weight: 400;
+.shape-group {
+  display: flex;
+  align-items: flex-end;
 }
-.physics-reset:hover {
-  color: var(--blue);
+.shape-group--stacks {
+  gap: calc(var(--u) * 0.2);
 }
-.physics-reset svg {
-  transition: transform 0.4s;
-}
-.physics-reset:hover svg {
-  transform: rotate(-70deg);
-}
-.physics-stage {
-  position: relative;
-  min-width: 0;
-  min-height: 0;
-  overflow: clip;
-}
-.physics-block {
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: block;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  transform-origin: 50% 50%;
-  cursor: grab;
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-user-drag: none;
-  will-change: transform;
-  transition: filter 0.2s;
-}
-.physics-block[data-spawned="false"] {
-  visibility: hidden;
-  pointer-events: none;
-}
-.physics-block[data-spawned="true"] {
-  visibility: visible;
-}
-.physics-block:hover {
-  filter: brightness(1.025);
-}
-.physics-block.is-held {
-  cursor: grabbing;
-  z-index: 3;
-}
-.is-grabbing .physics-stage {
-  cursor: grabbing;
-}
-.physics-block--rectangle {
-  border-radius: 15%;
-}
-.physics-block--hexagon {
-  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-}
-.physics-block--circle {
-  border-radius: 50%;
-}
-.physics-block--clover {
-  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath fill='white' d='M50 13C12-15-15 12 13 50C-15 88 12 115 50 87C88 115 115 88 87 50C115 12 88-15 50 13Z'/%3E%3C/svg%3E");
-  mask-size: 100% 100%;
-  mask-repeat: no-repeat;
-}
-.physics-block--palette {
+.shape-stack {
   display: flex;
   flex-direction: column;
-  gap: 3%;
-  border: 1px solid var(--line);
-  border-radius: 12%;
-  background: white;
-  padding: var(--chip-padding, 4px);
-}
-.physics-block--palette i {
-  display: block;
-  flex: 1;
-  border-radius: 3px;
-  pointer-events: none;
-}
-.physics-block--palette i:first-child {
-  border-radius: 8px 8px 3px 3px;
-}
-.physics-block--palette i:last-child {
-  border-radius: 3px 3px 8px 8px;
-}
-.physics-block:focus-visible {
-  outline: 3px solid #191919;
-  outline-offset: -5px;
-}
-.block-open-cue {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  display: flex;
   align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: #fff;
-  color: #191919;
+}
+.shape-block {
+  position: relative;
+  display: block;
+  padding: 0;
+  width: var(--u);
+  height: var(--u);
+  animation: block-land 0.42s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+.shape-block--hexagon {
+  height: calc(var(--u) * 0.88);
+  margin-bottom: calc(var(--u) * -0.02);
+}
+.shape-block svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.shape-block:hover svg,
+.shape-block:focus-visible svg {
+  transform: translateY(-6px);
+}
+.shape-block:focus-visible {
+  outline: none;
+}
+.shape-block:focus-visible svg {
+  outline: 2px solid #191919;
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+.shape-label {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 4px);
+  transform: translate(-50%, 4px);
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: #191919;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
   opacity: 0;
-  transform: translate(-50%, -40%) scale(0.85);
-  transition:
-    opacity 0.2s,
-    transform 0.2s;
   pointer-events: none;
+  transition:
+    opacity 0.18s,
+    transform 0.18s;
+  z-index: 2;
 }
-.physics-block:hover .block-open-cue,
-.physics-block:focus-visible .block-open-cue {
+.shape-block:hover .shape-label,
+.shape-block:focus-visible .shape-label {
   opacity: 1;
-  transform: translate(-50%, -50%) scale(1);
+  transform: translate(-50%, -4px);
 }
-.physics-block.is-held .block-open-cue {
-  opacity: 0;
-}
-.landing-title h1 span {
-  animation: title-arrive 0.85s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-}
-.landing-title h1 span:nth-child(2) {
-  animation-delay: 0.13s;
-}
-@keyframes title-arrive {
+@keyframes block-land {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(-36px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
-@media (max-width: 600px) {
-  .physics-toolbar {
-    font-size: 9px;
+
+/* 바닥선 + 추천 검색어 */
+.landing-baseline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-top: 1px solid #3a3836;
+  padding-top: 14px;
+  font-size: 13px;
+  color: #5f5f5f;
+}
+.landing-baseline nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px 24px;
+}
+.landing-baseline button {
+  padding: 0;
+  font-weight: 400;
+  color: #5f5f5f;
+}
+.landing-baseline button:hover {
+  color: var(--blue);
+}
+
+/* 타이틀 */
+.landing-title {
+  margin-top: clamp(40px, 6vw, 80px);
+}
+.landing-title h1 {
+  font-size: clamp(44px, 11.15vw, 190px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.045em;
+  white-space: nowrap;
+  margin-left: -0.04em;
+  animation: title-arrive 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) 0.35s both;
+}
+.landing-sub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 24px;
+}
+.landing-sub p {
+  color: #5f5f5f;
+  font-size: 16px;
+  line-height: 1.5;
+}
+.landing-sub button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.circle-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #d9d4cd;
+  border-radius: 50%;
+  transition:
+    background 0.18s,
+    color 0.18s,
+    border-color 0.18s;
+}
+.landing-sub button:hover .circle-arrow {
+  color: #fff;
+  background: var(--blue);
+  border-color: var(--blue);
+}
+@keyframes title-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
   }
-  .physics-reset {
-    font-size: 9px;
-  }
-  .block-open-cue {
-    width: 25px;
-    height: 25px;
-  }
-  .block-open-cue svg {
-    width: 14px;
-    height: 14px;
-  }
-  .physics-block--palette i {
-    border-radius: 2px;
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
-@media (max-height: 370px) {
-  .interactive-gallery {
-    grid-template-rows: 20px minmax(0, 1fr);
-    gap: 3px;
+
+/* 푸터 */
+.landing-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid #3a3836;
+}
+.landing-footer button {
+  padding: 4px 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #5f5f5f;
+}
+.landing-footer button:hover {
+  color: var(--blue);
+}
+
+@media (max-width: 900px) {
+  .landing-top {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
-  .physics-toolbar,
-  .physics-reset {
-    font-size: 8px;
+  .landing-search {
+    grid-column: 1;
+    width: 100%;
+  }
+  .landing-menu {
+    grid-column: 2;
+  }
+}
+@media (max-width: 600px) {
+  .landing.page-shell {
+    --u: calc((100vw - 40px) / 5.9);
+    padding-top: 20px;
+    padding-bottom: 96px;
+  }
+  .landing .search-box {
+    height: 56px;
+    padding: 5px 5px 5px 14px;
+  }
+  .landing .search-box .btn {
+    height: 46px;
+    padding: 0 14px;
+  }
+  .landing-menu {
+    width: 44px;
+    height: 44px;
+  }
+  .shape-gallery {
+    margin-top: 48px;
+  }
+  .shape-stage {
+    gap: calc(var(--u) * 0.3);
+  }
+  .shape-label {
+    display: none;
+  }
+  .landing-baseline {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 12px;
+  }
+  .landing-baseline nav {
+    justify-content: flex-start;
+    gap: 4px 16px;
+  }
+  .landing-baseline button {
+    min-height: 32px;
+  }
+  .landing-title {
+    margin-top: 36px;
+  }
+  .landing-title h1 {
+    font-size: clamp(44px, 14.2vw, 64px);
+    white-space: normal;
+    line-height: 1.04;
+  }
+  .landing-sub {
+    flex-direction: column;
+    align-items: flex-start;
+    margin-top: 16px;
+  }
+  .landing-sub p {
+    font-size: 14px;
+  }
+  .landing-footer {
+    display: none;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .landing-title h1 span {
+  .shape-block,
+  .landing-title h1 {
     animation: none;
   }
-  .block-open-cue,
-  .physics-reset svg {
+  .shape-block svg,
+  .shape-label {
     transition: none;
   }
 }

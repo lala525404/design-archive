@@ -7,6 +7,7 @@ import {
   Plus,
   X,
   ChevronDown,
+  AlertTriangle,
 } from "lucide-react";
 export type AppView =
   "landing" | "search" | "detail" | "upload" | "prompt" | "license" | "naming";
@@ -177,11 +178,19 @@ export const statusLabels: Record<string, string> = {
   expired: "기간 만료",
 };
 export function Status({ value }: { value: string }) {
+  const tone =
+    value === "verified"
+      ? ""
+      : value === "needs_review"
+        ? "status-warning"
+        : "status-danger";
   return (
-    <span
-      className={`status ${value === "verified" ? "" : "status-attention"}`}
-    >
-      <span />
+    <span className={`status ${tone}`}>
+      {value === "verified" ? (
+        <span />
+      ) : (
+        <AlertTriangle size={13} strokeWidth={2.2} aria-hidden="true" />
+      )}
       {statusLabels[value] || value}
     </span>
   );

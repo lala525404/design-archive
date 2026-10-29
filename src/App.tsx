@@ -98,12 +98,14 @@ export default function App() {
       <a className="skip-link" href="#main-content">
         본문으로 이동
       </a>
+      {view !== "landing" && (
       <Header
         view={view}
         onNavigate={(v) => setView(v)}
         onOpenMenu={() => setIsDrawerOpen(true)}
         canUpload={userRole !== "user"}
       />
+      )}
       <div id="main-content" tabIndex={-1} />
       {/* Toast Notification */}
       {toastMessage && (
@@ -124,6 +126,8 @@ export default function App() {
           onOpenMenu={() => setIsDrawerOpen(true)}
           onSelectAsset={handleSelectAsset}
           onNavigateToLicense={() => setView("license")}
+          onNavigate={(v) => setView(v)}
+          canUpload={userRole !== "user"}
         />
       )}
 

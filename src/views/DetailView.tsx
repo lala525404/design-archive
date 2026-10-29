@@ -100,7 +100,11 @@ export function DetailView({
             </div>
           </dl>
           {asset.licenseStatus !== "verified" && (
-            <p className="license-note">{asset.licenseNote}</p>
+            <p
+              className={`license-note ${asset.licenseStatus === "needs_review" ? "license-note--warning" : "license-note--danger"}`}
+            >
+              {asset.licenseNote}
+            </p>
           )}
           <div className="detail-primary">
             <button className="btn btn-primary" onClick={copy}>

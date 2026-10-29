@@ -12,7 +12,6 @@ import { UploadView } from "../src/views/UploadView";
 import { PromptStudioView } from "../src/views/PromptStudioView";
 import { LicenseManagementView } from "../src/views/LicenseManagementView";
 import { NamingRuleView } from "../src/views/NamingRuleView";
-import { BlockWorld, BLOCKS, blockLayout } from "../src/lib/blockPhysics";
 const noop = () => {};
 const search = (query: string, records = assets) =>
   renderToStaticMarkup(
@@ -123,69 +122,17 @@ for (const asset of assets) {
   assert.ok(html.includes(asset.filePath));
 }
 
-// Exercise actual collision and drag behavior independently of the browser renderer.
-for (const [width, height] of [
-  [1264, 360],
-  [335, 180],
-  [280, 110],
-]) {
-  const world = new BlockWorld(width, height);
-  for (let frame = 0; frame < 600; frame++) world.step();
-  assert.equal(
-    world.blocks.filter((b) => b.spawned).length,
-    BLOCKS.length,
-    "Every block enters the scene",
-  );
-  for (const { body } of world.blocks) {
-    assert.ok(
-      Number.isFinite(body.position.x) && Number.isFinite(body.angle),
-      "Physics stays finite",
-    );
-    assert.ok(
-      body.bounds.min.x >= -3 && body.bounds.max.x <= width + 3,
-      "Throws stay inside horizontal bounds",
-    );
-    assert.ok(
-      body.bounds.max.y <= world.floor + 3,
-      "Blocks stay above the floor",
-    );
-    assert.ok(body.bounds.max.y > 0, "Blocks remain visible");
-  }
-  assert.equal(
-    world.needsFrame,
-    false,
-    "Settled blocks let the frame loop sleep",
-  );
-  const target = { x: width * 0.65, y: height * 0.25 };
-  assert.ok(world.beginDrag(0, world.blocks[0].body.position));
-  world.moveDrag(target);
-  for (let frame = 0; frame < 90; frame++) world.step();
-  assert.ok(
-    Math.abs(world.blocks[0].body.position.x - target.x) < width * 0.15,
-    "Dragging follows the target",
-  );
-  world.endDrag();
-  assert.equal(world.dragging, null, "Release removes the drag constraint");
-  world.dispose();
-}
-const quiet = new BlockWorld(335, 180, true);
-const home = blockLayout(335, 180);
-for (let i = 0; i < 90; i++) quiet.step();
-assert.ok(
-  quiet.blocks.every(
-    (block, i) => Math.abs(block.body.position.x - home[i].x) < 1,
-  ),
-  "Reduced motion stays at rest",
-);
-quiet.beginDrag(0, { x: 100, y: 60 });
-quiet.moveDrag({ x: 130, y: 65 });
+// Landing blocks are a fixed composition of 7 shortcuts.
 assert.equal(
-  quiet.blocks[0].body.position.x,
-  130,
-  "Reduced motion permits direct dragging",
+  (landing.match(/class="shape-block /g) || []).length,
+  7,
+  "Landing shows 7 fixed blocks",
 );
-quiet.endDrag();
-quiet.dispose();
+assert.ok(!landing.includes("physics"), "No physics playground on landing");
+for (const q of ["이동건", "색채학 상세페이지", "산돌 사용", "GPT"]) {
+  assert.ok(landing.includes(`>${q}<`), `Suggestion ${q} is shown`);
+  assert.ok(resultCount(search(q)) > 0, `Suggestion ${q} returns results`);
+}
 console.log(
-  "PASS: search, 7 views, 9 samples, responsive physics, dragging, and reduced motion",
+  "PASS: search, 7 views, 9 samples, fixed landing blocks, suggestions",
 );
