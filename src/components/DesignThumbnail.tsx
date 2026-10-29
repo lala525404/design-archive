@@ -40,6 +40,19 @@ const FRAME: Record<string, { w: number; h: number }> = {
   썸네일: { w: 640, h: 360 },
 };
 
+function lookVersion(asset: DesignAsset): number {
+  const num = (v?: string) => Number(v?.replace(/\D/g, "")) || 1;
+  const list = asset.versions ?? [];
+  let version = asset.version;
+  for (let guard = 0; guard < 5; guard++) {
+    const entry = list.find((e) => e.version === version);
+    const target = entry?.reason === "되돌리기" ? entry.note?.match(/v\d+/)?.[0] : undefined;
+    if (!target) break;
+    version = target;
+  }
+  return list.length ? num(version) : 1;
+}
+
 const short = (text: string, max: number) =>
   text.length > max ? `${text.slice(0, max)}` : text;
 
@@ -52,7 +65,9 @@ export function DesignThumbnail({ asset, className = "", fit = "contain" }: Prop
       </div>
     );
   const n = Number(asset.id.split("-")[1]) || 1;
-  const c = COMBOS[(n - 1) % COMBOS.length];
+  // 샘플은 버전마다 색을 바꿔서 수정 흐름이 보이게 한다 (되돌린 버전은 원래 버전 색)
+  const look = lookVersion(asset);
+  const c = COMBOS[(n - 1 + Math.max(0, look - 1)) % COMBOS.length];
   const mobile = asset.device === "MO";
   const base = FRAME[asset.type] ?? FRAME["카드뉴스"];
   // MO 버전은 같은 그림을 좁은 폭으로 보여준다

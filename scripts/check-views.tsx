@@ -204,7 +204,7 @@ assert.equal(normalizeTool("Photoshop"), "포토샵");
 assert.equal(normalizeTool("GPT"), "AI");
 assert.equal(nextVersion("v03"), "v04");
 assert.equal(withVersion("a_b_c_d_v03.png", "v04"), "a_b_c_d_v04.png");
-assert.equal(resultCount(search("장소 변경")), 1, "Version change reasons are searchable");
+assert.equal(resultCount(search("장소 변경")), 4, "Version change reasons are searchable");
 for (const service of SERVICES)
   assert.ok(assets.some((a) => a.service === service), `Sample covers ${service}`);
 const uploadHtml = renderToStaticMarkup(
@@ -213,5 +213,5 @@ const uploadHtml = renderToStaticMarkup(
 assert.ok(uploadHtml.includes("NAS 프로젝트 폴더"), "Upload asks for the NAS path");
 
 console.log(
-  "PASS: search, 7 views, 15 samples, naming rule + legacy names, folder landing, services, NAS path, PC/MO, versions",
+  "PASS: search, 7 views, 16 samples, naming rule + legacy names, folder landing, services, NAS path, PC/MO, versions",
 );

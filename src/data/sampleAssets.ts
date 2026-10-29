@@ -158,6 +158,10 @@ const SEEDED: DesignAsset[] = [
     summary: '같은 과정의 모바일 상세페이지입니다. PC 버전과 함께 수정됩니다.',
     dimensions: '720 × 8200 px',
     fileSize: '9.8 MB',
+    versions: [
+      { version: 'v01', uploadDate: '2026-01-20', reason: '최초 제작', note: '1기 모집용', originalKept: true },
+      { version: 'v02', uploadDate: '2026-03-14', reason: '장소 변경', note: 'PC와 함께 온라인 실시간 강의로 수정', originalKept: true },
+    ],
   }),
   make({
     id: 'asset-3',
@@ -176,6 +180,10 @@ const SEEDED: DesignAsset[] = [
     summary: '평생교육원 메인 화면 상단에 걸리는 과정 홍보 배너입니다.',
     dimensions: '1920 × 480 px',
     fileSize: '2.1 MB',
+    versions: [
+      { version: 'v01', uploadDate: '2026-01-22', reason: '최초 제작', originalKept: true },
+      { version: 'v02', uploadDate: '2026-03-12', reason: '문구 수정', note: '"얼리버드 20%" → "마감 임박"', originalKept: true },
+    ],
   }),
   make({
     id: 'asset-4',
@@ -229,6 +237,12 @@ const SEEDED: DesignAsset[] = [
     summary: '취업반 모집용 랜딩 풀페이지입니다. 커리큘럼, 수강 후기, 신청 폼을 포함합니다.',
     dimensions: '1920 × 12800 px',
     fileSize: '21.6 MB',
+    versions: [
+      { version: 'v01', uploadDate: '2026-09-02', reason: '최초 제작', note: '1기 모집 오픈', originalKept: true },
+      { version: 'v02', uploadDate: '2026-09-18', reason: '디자인 수정', note: '메인 비주얼을 3D 일러스트로 교체', originalKept: true },
+      { version: 'v03', uploadDate: '2026-10-02', reason: '디자인 수정', note: '메인 비주얼 실사 사진으로 변경', originalKept: true },
+      { version: 'v04', uploadDate: '2026-10-14', reason: '되돌리기', note: 'v02 내용으로 되돌림 (3D 일러스트 반응이 더 좋아서 원복)', originalKept: true },
+    ],
   }),
   make({
     id: 'asset-7',
@@ -245,6 +259,10 @@ const SEEDED: DesignAsset[] = [
     summary: '같은 랜딩의 모바일 버전입니다.',
     dimensions: '720 × 11000 px',
     fileSize: '12.3 MB',
+    versions: [
+      { version: 'v01', uploadDate: '2026-09-02', reason: '최초 제작', originalKept: true },
+      { version: 'v02', uploadDate: '2026-10-14', reason: '일자 변경', note: '2기 개강일 10월 14일 → 10월 28일', originalKept: true },
+    ],
   }),
   make({
     id: 'asset-8',
@@ -279,6 +297,13 @@ const SEEDED: DesignAsset[] = [
     summary: '기업 고객사 대상 맞춤 교육 제안서 템플릿입니다. 표지와 커리큘럼 장표를 재사용합니다.',
     dimensions: '16:9 · 32장',
     fileSize: '18.0 MB',
+    versions: [
+      { version: 'v01', uploadDate: '2025-09-05', reason: '최초 제작', note: '공통 템플릿', originalKept: false },
+      { version: 'v02', uploadDate: '2025-10-17', reason: '문구 수정', note: 'A사 맞춤 커리큘럼 반영', originalKept: true },
+      { version: 'v03', uploadDate: '2025-11-28', reason: '디자인 수정', note: '표지·간지 리뉴얼', originalKept: true },
+      { version: 'v04', uploadDate: '2026-01-09', reason: '문구 수정', note: 'B사 제안용 사례 장표 교체', originalKept: true },
+      { version: 'v05', uploadDate: '2026-02-02', reason: '기타', note: '2026 단가표 반영', originalKept: true },
+    ],
   }),
 
   // 04_HRD내부구축 · 온보딩
@@ -316,6 +341,10 @@ const SEEDED: DesignAsset[] = [
     summary: '임원 대상 리더십 과정 상세페이지입니다.',
     dimensions: '1920 × 8000 px',
     fileSize: '11.5 MB',
+    versions: [
+      { version: 'v01', uploadDate: '2025-11-03', reason: '최초 제작', originalKept: true },
+      { version: 'v02', uploadDate: '2025-12-30', reason: '일자 변경', note: '2026년 1월 기수로 변경', originalKept: true },
+    ],
   }),
 
   // 01_교원 · 직무연수 (사용 제한)
@@ -335,6 +364,27 @@ const SEEDED: DesignAsset[] = [
     summary: '학교 배포용 A2 포스터입니다.',
     dimensions: 'A2 · 420 × 594 mm',
     fileSize: '48.0 MB',
+  }),
+
+  make({
+    id: 'asset-16',
+    title: '교원 직무연수 안내 리플렛',
+    service: '01_교원',
+    year: 2026,
+    folder: P.직무연수,
+    type: '편집',
+    tools: ['일러스트', '산돌'],
+    designer: '이혜진',
+    version: 'v03',
+    uploadDate: '2026-10-29',
+    summary: '학교에 함께 배포하는 3단 접지 리플렛입니다.',
+    dimensions: 'A4 3단 접지',
+    fileSize: '32.0 MB',
+    versions: [
+      { version: 'v01', uploadDate: '2026-10-20', reason: '최초 제작', originalKept: true },
+      { version: 'v02', uploadDate: '2026-10-24', reason: '일자 변경', note: '연수 기간 11월 → 12월', originalKept: true },
+      { version: 'v03', uploadDate: '2026-10-29', reason: '장소 변경', note: '본사 강의실 → 대전 연수원', originalKept: true },
+    ],
   }),
 
   // 07_전사 · 연말행사 PPT
@@ -369,6 +419,10 @@ const SEEDED: DesignAsset[] = [
     summary: '2호선 역사 와이드 광고 인쇄 파일입니다.',
     dimensions: '3000 × 1000 mm',
     fileSize: '120 MB',
+    versions: [
+      { version: 'v01', uploadDate: '2026-08-11', reason: '최초 제작', note: '강남역', originalKept: true },
+      { version: 'v02', uploadDate: '2026-08-28', reason: '장소 변경', note: '강남역 → 잠실역 (게재 위치 변경)', originalKept: true },
+    ],
   }),
 
   // 09_마케팅 · 가을프로모션
