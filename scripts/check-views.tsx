@@ -108,10 +108,7 @@ const pages = [
   <NamingRuleView onBack={noop} onOpenMenu={noop} />,
 ];
 const landing = renderToStaticMarkup(pages[0]);
-assert.ok(
-  !landing.includes("design-thumbnail"),
-  "Landing blocks contain no asset thumbnails",
-);
+
 assert.ok(
   search("").includes("design-thumbnail"),
   "Search keeps the original asset previews",
@@ -140,15 +137,12 @@ for (const asset of assets) {
   assert.ok(html.includes(asset.filePath));
 }
 
-// Landing blocks are a fixed composition of 7 shortcuts.
-assert.equal(
-  (landing.match(/class="shape-block /g) || []).length,
-  7,
-  "Landing shows 7 fixed blocks",
-);
-assert.ok(!landing.includes("physics"), "No physics playground on landing");
+// Landing: folder with recent thumbnails, search inside, title, register pill
+assert.equal((landing.match(/class="folder-card /g) || []).length, 5, "Five recent cards in the folder");
+assert.ok(landing.includes('role="search"'), "Search lives inside the folder");
+assert.ok(landing.includes("디자인 자산 아카이브"), "Title");
+assert.ok(landing.includes("등록하기"), "Register pill");
 for (const q of ["색채학", "아이티뱅크", "상세페이지 MO", "산돌 사용"]) {
-  assert.ok(landing.includes(`>${q}<`), `Suggestion ${q} is shown`);
   assert.ok(resultCount(search(q)) > 0, `Suggestion ${q} returns results`);
 }
 // NAS path parsing and version detection (new naming rule)
@@ -217,5 +211,5 @@ const uploadHtml = renderToStaticMarkup(
 assert.ok(uploadHtml.includes("NAS 프로젝트 폴더"), "Upload asks for the NAS path");
 
 console.log(
-  "PASS: search, 7 views, 15 samples, naming rule + legacy names, fixed landing blocks, suggestions, services, NAS path, PC/MO, versions",
+  "PASS: search, 7 views, 15 samples, naming rule + legacy names, folder landing, services, NAS path, PC/MO, versions",
 );

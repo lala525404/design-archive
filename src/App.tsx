@@ -104,7 +104,7 @@ export default function App() {
 
   return (
     <div
-      className={`app-shell ${view === "landing" ? "is-landing" : ""} min-h-screen bg-[#F7F3EF] text-[#191919] font-sans antialiased`}
+      className={`app-shell ${view === "landing" ? "is-landing" : ""} min-h-screen bg-white text-[#1d1d1f] font-sans antialiased`}
     >
       <a className="skip-link" href="#main-content">
         본문으로 이동

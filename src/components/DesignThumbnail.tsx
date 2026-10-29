@@ -6,6 +6,8 @@ interface Props {
   asset: DesignAsset;
   className?: string;
   showOverlay?: boolean;
+  /** cover: 칸을 꽉 채운다 (여백 매트 없이) */
+  fit?: "contain" | "cover";
 }
 
 // 원본 이미지가 없는 샘플용 그래픽 미리보기.
@@ -40,10 +42,11 @@ const FRAME: Record<string, { w: number; h: number }> = {
 const short = (text: string, max: number) =>
   text.length > max ? `${text.slice(0, max)}` : text;
 
-export function DesignThumbnail({ asset, className = "" }: Props) {
+export function DesignThumbnail({ asset, className = "", fit = "contain" }: Props) {
+  const coverClass = fit === "cover" ? "is-cover" : "";
   if (asset.imageUrl)
     return (
-      <div className={`design-thumbnail ${className}`}>
+      <div className={`design-thumbnail ${coverClass} ${className}`}>
         <img src={asset.imageUrl} alt={`${asset.title} 미리보기`} />
       </div>
     );
@@ -231,10 +234,10 @@ export function DesignThumbnail({ asset, className = "" }: Props) {
   }
 
   return (
-    <div className={`design-thumbnail ${className}`}>
+    <div className={`design-thumbnail ${coverClass} ${className}`}>
       <svg
         viewBox={`0 0 ${w} ${h}`}
-        preserveAspectRatio="xMidYMid meet"
+        preserveAspectRatio={fit === "cover" ? "xMidYMid slice" : "xMidYMid meet"}
         role="img"
         aria-label={`${asset.title} 샘플 미리보기`}
       >
