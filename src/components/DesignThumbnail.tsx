@@ -38,6 +38,12 @@ const short = (text: string, max: number) =>
   text.length > max ? `${text.slice(0, max)}` : text;
 
 export function DesignThumbnail({ asset, className = "" }: Props) {
+  if (asset.imageUrl)
+    return (
+      <div className={`design-thumbnail ${className}`}>
+        <img src={asset.imageUrl} alt={`${asset.title} 미리보기`} />
+      </div>
+    );
   const n = Number(asset.id.split("-")[1]) || 1;
   const c = COMBOS[(n - 1) % COMBOS.length];
   const { w, h } = FRAME[asset.type] ?? FRAME["카드뉴스"];

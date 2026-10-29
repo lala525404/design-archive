@@ -165,7 +165,7 @@ assert.equal(resultCount(search("장소 변경")), 1, "Version change reasons ar
 const uploadHtml = renderToStaticMarkup(
   <UploadView assets={assets} onBack={noop} onUploadSuccess={noop} />,
 );
-assert.ok(uploadHtml.includes("NAS 경로"), "Upload asks for the NAS path");
+assert.ok(uploadHtml.includes("NAS 원본 경로"), "Upload asks for the NAS path");
 
 console.log(
   "PASS: search, 7 views, 9 samples, fixed landing blocks, suggestions, NAS path, versions",

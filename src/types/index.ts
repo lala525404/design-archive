@@ -46,6 +46,8 @@ export interface DesignAsset {
   summary: string;
   dimensions?: string;
   fileSize?: string;
+  /** 업로드한 실제 이미지 (있으면 그래픽 미리보기 대신 표시) */
+  imageUrl?: string;
   /** 오래된 것부터 최신 순. 마지막 항목이 현재 버전이다. */
   versions?: VersionEntry[];
 }

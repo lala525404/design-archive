@@ -84,7 +84,7 @@ export function DetailView({
         <section className="preview-panel">
           <DesignThumbnail asset={asset} />
           <div className="preview-foot">
-            <span>샘플 미리보기</span>
+            <span>{asset.imageUrl ? "업로드한 이미지" : "샘플 미리보기"}</span>
             <span>
               {asset.dimensions} · {asset.fileSize}
             </span>
