@@ -3,9 +3,9 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  FolderOpen,
   History,
   ImagePlus,
-  Pencil,
   Plus,
   Sparkles,
   TriangleAlert,
@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { PageTitle } from "../components/Chrome";
 import { DesignThumbnail } from "../components/DesignThumbnail";
-import { AssetType, ChangeReason, DesignAsset } from "../types";
+import { AssetType, ChangeReason, DesignAsset, VersionEntry } from "../types";
 import {
   CHANGE_REASONS,
   findSameWork,
@@ -23,99 +23,88 @@ import {
   versionNumber,
   withVersion,
 } from "../lib/versions";
+import {
+  ASSET_TYPES,
+  CURRENT_DESIGNER,
+  DESIGNERS,
+  DEVICE_TYPES,
+  SERVICES,
+  guessType,
+  normalizeTool,
+  serviceName,
+} from "../lib/taxonomy";
 
+export interface UploadResult {
+  added: DesignAsset[];
+  updated: DesignAsset[];
+  project: string;
+}
 interface UploadViewProps {
   assets?: DesignAsset[];
   onBack: () => void;
-  onUploadSuccess: (newAsset: DesignAsset) => void;
-  onUploadVersion?: (updated: DesignAsset) => void;
+  onSubmit: (result: UploadResult) => void;
 }
 
-const TYPES: AssetType[] = [
-  "상세페이지",
-  "배너",
-  "카드뉴스",
-  "포스터",
-  "썸네일",
-  "소개자료",
-];
-const SAMPLE_PATH =
-  "/2026/이동건/색채학/상세페이지/2026_색채학상세페이지_Figma-GPT-산돌_김디자인_v03.psd";
-const CURRENT_DESIGNER = "김디자인";
-
-interface Draft {
+interface PickedFile {
+  key: string;
+  name: string;
+  size: string;
+  url?: string;
+}
+interface Item {
+  key: string;
+  file: PickedFile;
   title: string;
-  professor: string;
-  course: string;
-  type: string;
-  year: string;
+  type: AssetType | "";
+  device?: "PC" | "MO";
+  tools: string[];
   designer: string;
   version: string;
-  tools: string[];
-  folder: string;
-  fileName: string;
+  colors: string[];
 }
 
-/** 원본 경로를 폴더와 파일명으로 나눈다. 파일명이 없으면 이미지 이름을 쓴다. */
-function splitPath(raw: string, imageName: string) {
-  const trimmed = raw.trim();
-  const parts = trimmed.split(/[\\/]/);
-  const last = parts[parts.length - 1] || "";
-  if (/\.[a-z0-9]{2,5}$/i.test(last)) {
-    return {
-      folder: trimmed.slice(0, trimmed.length - last.length),
-      fileName: last,
-    };
-  }
-  const folder = /[\\/]$/.test(trimmed) || !trimmed ? trimmed : `${trimmed}/`;
-  return { folder, fileName: imageName };
-}
+const SAMPLE = {
+  path: "\\\\NAS\\디자인\\05_평생\\2026\\색채학\\",
+  files: [
+    "2026_색채학_상세페이지PC_피그마-AI-산돌_김다은_v04.png",
+    "2026_색채학_상세페이지MO_피그마-산돌_김다은_v03.png",
+    "2026_색채학_서브배너PC_포토샵_박지원_v01.png",
+    "2026_색채학_팝업_포토샵_박지원_v02.png",
+  ],
+};
 
-/** NAS 경로와 파일명에 이미 있는 정보만으로 채운다. 확실하지 않은 칸은 따로 표시한다. */
-function analyze(raw: string, imageName: string) {
-  const { folder, fileName } = splitPath(raw, imageName);
-  const fromPath = parseNasPath(folder);
-  const tokens = fileName.replace(/\.[^/.]+$/, "").split("_");
-  const uncertain: (keyof Draft)[] = [];
+const fileKey = () => Math.random().toString(36).slice(2, 9);
+const sizeText = (bytes: number) => `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 
-  const year = /^\d{4}$/.test(tokens[0] ?? "") ? tokens[0] : fromPath.year;
-  if (!year) uncertain.push("year");
-  const professor = fromPath.professor;
-  if (!professor) uncertain.push("professor");
-  const course = fromPath.course;
-  if (!course) uncertain.push("course");
-  const type = TYPES.find((t) => t === fromPath.type) ??
-    TYPES.find((t) => fileName.includes(t)) ??
-    "상세페이지";
-  if (!TYPES.includes(fromPath.type as AssetType)) uncertain.push("type");
-  const tools = tokens[2] ? tokens[2].split("-").filter(Boolean) : [];
-  if (!tools.length) uncertain.push("tools");
-  const designer = tokens[3] || CURRENT_DESIGNER;
-  const version = /^v\d+$/i.test(tokens[4] ?? "") ? tokens[4] : "v01";
-  const title =
-    course && tokens[1]?.includes(course)
-      ? `${course} 과정 ${type}`
-      : tokens[1] || (course ? `${course} 과정 ${type}` : "");
-  if (!title) uncertain.push("title");
-
+/** 파일명 하나에서 유형·PC/MO·도구·디자이너·버전을 읽는다 */
+function readFileName(name: string, project: string) {
+  const stem = name.replace(/\.[^/.]+$/, "");
+  const tokens = stem.split("_");
+  const { type, device } = guessType(name);
+  // 연도_프로젝트_유형_도구_디자이너_버전 (6칸) · 예전 규칙 연도_작업명_도구_디자이너_버전 (5칸)
+  const toolToken = tokens.length >= 6 ? tokens[3] : tokens.length === 5 ? tokens[2] : "";
+  const tools = Array.from(
+    new Set(toolToken.split("-").filter(Boolean).map(normalizeTool)),
+  );
+  const designerToken = tokens.find((t) => DESIGNERS.includes(t));
+  const version = tokens.find((t) => /^v\d+$/i.test(t)) ?? "v01";
+  // "서브배너PC" → "서브"
+  const label = (tokens[2] ?? "")
+    .replace(/(PC|MO)$/i, "")
+    .replace(type || "@@", "")
+    .trim();
+  const title = [project, label, type || "작업"].filter(Boolean).join(" ");
   return {
-    draft: {
-      title,
-      professor,
-      course,
-      type,
-      year: year || String(new Date().getFullYear()),
-      designer,
-      version,
-      tools,
-      folder,
-      fileName,
-    } as Draft,
-    uncertain,
+    type,
+    device,
+    tools,
+    designer: designerToken ?? CURRENT_DESIGNER,
+    version: version.toLowerCase(),
+    title,
   };
 }
 
-/** 업로드한 이미지에서 많이 쓰인 색 두 가지를 이름으로 뽑는다. */
+/** 업로드한 이미지에서 많이 쓰인 색 두 가지를 이름으로 뽑는다 */
 async function readImageColors(url: string): Promise<string[]> {
   const img = new Image();
   img.src = url;
@@ -132,253 +121,214 @@ async function readImageColors(url: string): Promise<string[]> {
     const [r, g, b] = [data[i], data[i + 1], data[i + 2]];
     const max = Math.max(r, g, b),
       min = Math.min(r, g, b);
-    const l = (max + min) / 510,
-      sat = max === min ? 0 : (max - min) / (255 - Math.abs(max + min - 255));
-    let name: string;
-    if (sat < 0.18) name = l > 0.85 ? "화이트" : l < 0.18 ? "블랙" : "그레이";
-    else {
-      const d = max - min;
-      let h =
-        max === r
-          ? ((g - b) / d) % 6
-          : max === g
-            ? (b - r) / d + 2
-            : (r - g) / d + 4;
-      h = (h * 60 + 360) % 360;
-      name =
-        h < 15 || h >= 340
-          ? "레드"
-          : h < 40
-            ? "오렌지"
-            : h < 65
-              ? "옐로"
-              : h < 150
-                ? "그린"
-                : h < 185
-                  ? "민트"
-                  : h < 250
-                    ? "블루"
-                    : h < 290
-                      ? "퍼플"
-                      : "핑크";
-    }
+    const sat = max === min ? 0 : (max - min) / (255 - Math.abs(max + min - 255));
+    if (sat < 0.18) continue;
+    const d = max - min;
+    let h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    h = (h * 60 + 360) % 360;
+    const name =
+      h < 15 || h >= 340 ? "레드" : h < 40 ? "오렌지" : h < 65 ? "옐로" : h < 150 ? "그린" : h < 185 ? "민트" : h < 250 ? "블루" : h < 290 ? "퍼플" : "핑크";
     counts[name] = (counts[name] || 0) + 1;
   }
   return Object.entries(counts)
-    .filter(([n]) => n !== "화이트" && n !== "그레이")
     .sort((a, b) => b[1] - a[1])
     .slice(0, 2)
     .map(([n]) => `${n}톤`);
 }
 
-const FIELD_LABELS: [keyof Draft, string][] = [
-  ["title", "작업명"],
-  ["professor", "교수명"],
-  ["course", "과정명"],
-  ["type", "작업 유형"],
-  ["year", "제작 연도"],
-  ["designer", "디자이너"],
-];
-
 export const UploadView: React.FC<UploadViewProps> = ({
   assets = [],
   onBack,
-  onUploadSuccess,
-  onUploadVersion,
+  onSubmit,
 }) => {
   const [step, setStep] = useState<0 | 1>(0);
+  const [files, setFiles] = useState<PickedFile[]>([]);
   const [nasPath, setNasPath] = useState("");
-  const [image, setImage] = useState<{
-    url: string;
-    name: string;
-    size: string;
-  } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState("");
+  const fileInput = useRef<HTMLInputElement>(null);
 
-  const [draft, setDraft] = useState<Draft | null>(null);
-  const [uncertain, setUncertain] = useState<(keyof Draft)[]>([]);
-  const [editing, setEditing] = useState<keyof Draft | null>(null);
-  const [tags, setTags] = useState<string[]>([]);
+  // 프로젝트 공통 정보
+  const [service, setService] = useState("");
+  const [year, setYear] = useState("");
+  const [project, setProject] = useState("");
+  const [folder, setFolder] = useState("");
+  const [items, setItems] = useState<Item[]>([]);
+  const [extraTags, setExtraTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
-
-  const [registerMode, setRegisterMode] = useState<"version" | "new">(
-    "version",
-  );
   const [changeReason, setChangeReason] = useState<ChangeReason | "">("");
   const [changeNote, setChangeNote] = useState("");
   const [fontConfirmed, setFontConfirmed] = useState(false);
-  const fileInput = useRef<HTMLInputElement>(null);
 
-  const takeFile = (file?: File) => {
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setError("PNG, JPG 같은 이미지 파일을 올려주세요.");
-      return;
-    }
+  const addFiles = (list: FileList | null) => {
+    if (!list?.length) return;
+    const next: PickedFile[] = Array.from(list).map((f) => ({
+      key: fileKey(),
+      name: f.name,
+      size: sizeText(f.size),
+      url: f.type.startsWith("image/") ? URL.createObjectURL(f) : undefined,
+    }));
+    setFiles((prev) => [...prev, ...next]);
     setError("");
-    setImage({
-      url: URL.createObjectURL(file),
-      name: file.name,
-      size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-    });
   };
 
   const runAnalysis = async () => {
-    if (!nasPath.trim()) {
-      setError("NAS 원본 경로를 입력해주세요.");
+    let picked = files;
+    let path = nasPath.trim();
+    // 경로에 파일명까지 붙어 있고 파일을 안 올렸으면, 그 파일 하나로 등록
+    const last = path.split(/[\\/]/).pop() ?? "";
+    if (/\.[a-z0-9]{2,5}$/i.test(last)) {
+      path = path.slice(0, path.length - last.length);
+      if (!picked.length) picked = [{ key: fileKey(), name: last, size: "" }];
+    }
+    if (!path) {
+      setError("NAS 프로젝트 폴더 경로를 입력해주세요.");
+      return;
+    }
+    if (!picked.length) {
+      setError("올릴 파일을 하나 이상 선택해주세요.");
       return;
     }
     setError("");
     setAnalyzing(true);
-    const { draft: d, uncertain: u } = analyze(nasPath, image?.name ?? "");
-    const colors = image ? await readImageColors(image.url).catch(() => []) : [];
-    await new Promise((r) => setTimeout(r, 700));
-    setDraft(d);
-    setUncertain(u);
-    setTags(
-      Array.from(
-        new Set(
-          [d.year, d.professor, d.course, d.type, ...d.tools, d.designer, ...colors]
-            .filter(Boolean)
-            .map((t) => `#${t}`),
-        ),
-      ),
+    const parsed = parseNasPath(path);
+    const proj = parsed.project;
+    const next: Item[] = await Promise.all(
+      picked.map(async (f) => {
+        const info = readFileName(f.name, proj);
+        const colors = f.url ? await readImageColors(f.url).catch(() => []) : [];
+        return { key: f.key, file: f, colors, ...info };
+      }),
     );
-    setRegisterMode("version");
+    await new Promise((r) => setTimeout(r, 600));
+    setService(parsed.service);
+    setYear(parsed.year || String(new Date().getFullYear()));
+    setProject(proj);
+    setFolder(/[\\/]$/.test(path) ? path : `${path}/`);
+    setItems(next);
+    setExtraTags([]);
     setChangeReason("");
     setChangeNote("");
     setFontConfirmed(false);
-    setEditing(null);
     setAnalyzing(false);
     setStep(1);
   };
 
-  const sameWork = useMemo(
+  // 같은 폴더 + 같은 작업명 파일이 이미 있으면 새 버전
+  const matches = useMemo(
     () =>
-      draft ? findSameWork(assets, draft.folder, draft.fileName) : undefined,
-    [assets, draft],
+      items.map((it) => {
+        const existing = findSameWork(assets, folder, it.file.name);
+        if (!existing) return { existing: undefined, finalVersion: it.version, fileName: it.file.name };
+        const latest = getVersions(existing).at(-1)!;
+        const finalVersion =
+          versionNumber(it.version) <= versionNumber(latest.version)
+            ? nextVersion(latest.version)
+            : it.version;
+        return {
+          existing,
+          from: latest.version,
+          finalVersion,
+          fileName:
+            finalVersion !== it.version ? withVersion(it.file.name, finalVersion) : it.file.name,
+        };
+      }),
+    [items, assets, folder],
   );
-  const latest = sameWork ? getVersions(sameWork).at(-1) : undefined;
-  const asNewVersion = Boolean(sameWork && registerMode === "version");
-  const finalVersion =
-    draft && asNewVersion && latest &&
-    versionNumber(draft.version) <= versionNumber(latest.version)
-      ? nextVersion(latest.version)
-      : (draft?.version ?? "v01");
-  const finalFileName =
-    draft && finalVersion !== draft.version
-      ? withVersion(draft.fileName, finalVersion)
-      : (draft?.fileName ?? "");
-  const usesSandoll = Boolean(
-    draft &&
-      (draft.tools.some((t) => t.includes("산돌")) || nasPath.includes("산돌")),
+  const versionCount = matches.filter((m) => m.existing).length;
+  const existingInProject = assets.filter(
+    (a) => a.service === service && a.project === project && String(a.year) === year,
   );
-
-  const set = (key: keyof Draft, value: string) => {
-    if (!draft) return;
-    setDraft({ ...draft, [key]: value });
-    if (value.trim()) setUncertain(uncertain.filter((k) => k !== key));
-  };
-
-  // 사람이 꼭 봐야 하는 것만 위로 모은다
-  const checks = [
-    ...uncertain.filter((k) => k !== "tools").map((k) => k),
-    ...(asNewVersion && !changeReason ? ["reason"] : []),
+  const usesSandoll =
+    items.some((it) => it.tools.includes("산돌")) || nasPath.includes("산돌");
+  const commonTags = [year, serviceName(service), project]
+    .filter(Boolean)
+    .map((t) => `#${t}`);
+  const missing = [
+    ...(!service ? ["서비스"] : []),
+    ...(!project.trim() ? ["프로젝트명"] : []),
+    ...(items.some((it) => !it.type) ? ["작업 유형"] : []),
+    ...(versionCount && !changeReason ? ["바뀐 이유"] : []),
   ];
 
+  const patch = (key: string, p: Partial<Item>) =>
+    setItems((prev) => prev.map((it) => (it.key === key ? { ...it, ...p } : it)));
+
   const submit = () => {
-    if (!draft) return;
-    const missing = uncertain.filter((k) => k !== "tools" && !String(draft[k]).trim());
     if (missing.length) {
-      setError("빨간 칸을 채워주세요.");
-      return;
-    }
-    if (asNewVersion && !changeReason) {
-      setError("새 버전을 만든 이유를 하나 골라주세요.");
+      setError(`${missing.join(", ")}을(를) 확인해주세요.`);
       return;
     }
     const today = new Date().toISOString().split("T")[0];
-    const licenseStatus = !usesSandoll
-      ? "verified"
-      : fontConfirmed
-        ? "verified"
-        : "needs_review";
-    const licenseNote = usesSandoll
-      ? fontConfirmed
-        ? "업로더가 회사 라이선스 범위 안에서 사용했다고 확인했습니다."
-        : "산돌 서체 사용이 감지되었습니다. 관리자 확인이 필요합니다."
-      : undefined;
-    const entry = {
-      version: finalVersion,
-      fileName: finalFileName,
-      filePath: draft.folder,
-      uploadDate: today,
-      designer: draft.designer,
-      reason: (asNewVersion ? changeReason : "최초 제작") as ChangeReason,
-      note: changeNote.trim() || undefined,
-      originalKept: true,
-    };
-    const common = {
-      fileName: finalFileName,
-      filePath: draft.folder,
-      designer: draft.designer,
-      tools: draft.tools,
-      hashtags: tags,
-      year: parseInt(draft.year) || new Date().getFullYear(),
-      hasSandoll: usesSandoll,
-      licenseStatus: licenseStatus as DesignAsset["licenseStatus"],
-      licenseNote,
-      uploadDate: today,
-      version: finalVersion,
-      ...(image ? { imageUrl: image.url, fileSize: image.size } : {}),
-    };
-    if (asNewVersion && sameWork && onUploadVersion) {
-      onUploadVersion({
-        ...sameWork,
-        ...common,
-        versions: [...getVersions(sameWork), entry],
-      });
-      return;
-    }
-    onUploadSuccess({
-      id: `asset-${Date.now()}`,
-      title: draft.title,
-      professor: draft.professor,
-      course: draft.course,
-      type: draft.type as AssetType,
-      ...common,
-      bgColor: "#F7F3EF",
-      accentColor: "#246BFD",
-      summary: `${draft.professor} 교수 ${draft.course} 과정의 ${draft.type} 작업입니다.`,
-      versions: [entry],
-    });
-  };
-
-  const previewAsset: DesignAsset | null = draft
-    ? {
-        id: "asset-1",
-        title: draft.title,
-        professor: draft.professor,
-        course: draft.course,
-        type: (TYPES.includes(draft.type as AssetType) ? draft.type : "상세페이지") as AssetType,
-        year: Number(draft.year) || 2026,
-        tools: draft.tools,
-        designer: draft.designer,
-        version: finalVersion,
-        filePath: draft.folder,
-        fileName: finalFileName,
+    const licenseStatus: DesignAsset["licenseStatus"] = fontConfirmed || !usesSandoll ? "verified" : "needs_review";
+    const added: DesignAsset[] = [];
+    const updated: DesignAsset[] = [];
+    items.forEach((it, i) => {
+      const m = matches[i];
+      const itemSandoll = it.tools.includes("산돌");
+      const tags = Array.from(
+        new Set([
+          ...commonTags,
+          `#${it.type}`,
+          ...(it.device ? [`#${it.device}`] : []),
+          ...it.tools.map((t) => `#${t}`),
+          `#${it.designer}`,
+          ...it.colors.map((c) => `#${c}`),
+          ...extraTags,
+        ]),
+      );
+      const entry: VersionEntry = {
+        version: m.finalVersion,
+        fileName: m.fileName,
+        filePath: folder,
+        uploadDate: today,
+        designer: it.designer,
+        reason: m.existing ? (changeReason as ChangeReason) : "최초 제작",
+        note: m.existing ? changeNote.trim() || undefined : undefined,
+        originalKept: true,
+      };
+      const common = {
+        version: m.finalVersion,
+        fileName: m.fileName,
+        filePath: folder,
+        designer: it.designer,
+        tools: it.tools,
         hashtags: tags,
-        hasSandoll: usesSandoll,
-        licenseStatus: "verified",
-        uploadDate: "",
-        bgColor: "",
-        accentColor: "",
-        summary: "",
-        imageUrl: image?.url,
+        hasSandoll: itemSandoll,
+        licenseStatus: itemSandoll ? licenseStatus : ("verified" as const),
+        licenseNote: itemSandoll
+          ? fontConfirmed
+            ? "업로더가 회사 라이선스 범위 안에서 사용했다고 확인했습니다."
+            : "산돌 서체 사용이 감지되었습니다. 관리자 확인이 필요합니다."
+          : undefined,
+        uploadDate: today,
+        ...(it.file.url ? { imageUrl: it.file.url } : {}),
+        ...(it.file.size ? { fileSize: it.file.size } : {}),
+      };
+      if (m.existing) {
+        updated.push({ ...m.existing, ...common, versions: [...getVersions(m.existing), entry] });
+      } else {
+        added.push({
+          id: `asset-${Date.now()}-${i}`,
+          title: it.title,
+          service,
+          project: project.trim(),
+          course: project.trim(),
+          professor: "",
+          device: it.device,
+          type: it.type as AssetType,
+          year: parseInt(year) || new Date().getFullYear(),
+          ...common,
+          bgColor: "#F7F3EF",
+          accentColor: "#246BFD",
+          summary: `${serviceName(service)} ${project} 프로젝트의 ${it.type}${it.device ? ` ${it.device}` : ""} 작업입니다.`,
+          versions: [entry],
+        });
       }
-    : null;
+    });
+    onSubmit({ added, updated, project: project.trim() });
+  };
 
   return (
     <main className="page-shell upload-page quick-upload">
@@ -395,7 +345,7 @@ export const UploadView: React.FC<UploadViewProps> = ({
       {step === 0 && (
         <section className="quick-drop">
           <div
-            className={`quick-dropzone ${dragging ? "is-over" : ""} ${image ? "has-image" : ""}`}
+            className={`quick-dropzone ${dragging ? "is-over" : ""} ${files.length ? "has-files" : ""}`}
             onDragOver={(e) => {
               e.preventDefault();
               setDragging(true);
@@ -404,54 +354,69 @@ export const UploadView: React.FC<UploadViewProps> = ({
             onDrop={(e) => {
               e.preventDefault();
               setDragging(false);
-              takeFile(e.dataTransfer.files?.[0]);
+              addFiles(e.dataTransfer.files);
             }}
-            onClick={() => fileInput.current?.click()}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") fileInput.current?.click();
-            }}
-            aria-label="작업 이미지 선택"
           >
             <input
               ref={fileInput}
               type="file"
-              accept="image/*"
+              multiple
+              accept="image/*,.pdf,.ppt,.pptx"
               hidden
-              onChange={(e) => takeFile(e.target.files?.[0])}
+              onChange={(e) => {
+                addFiles(e.target.files);
+                e.target.value = "";
+              }}
             />
-            {image ? (
-              <>
-                <img src={image.url} alt="올린 이미지 미리보기" />
-                <span className="quick-file">
-                  {image.name} · {image.size}
-                  <button
-                    type="button"
-                    aria-label="이미지 빼기"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setImage(null);
-                    }}
-                  >
-                    <X size={14} />
-                  </button>
-                </span>
-              </>
+            {files.length ? (
+              <div className="picked-grid">
+                {files.map((f) => (
+                  <div key={f.key} className="picked">
+                    <div className="picked-thumb">
+                      {f.url ? <img src={f.url} alt="" /> : <span>{f.name.split(".").pop()?.toUpperCase()}</span>}
+                    </div>
+                    <span className="picked-name" title={f.name}>
+                      {f.name}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label={`${f.name} 빼기`}
+                      onClick={() => setFiles(files.filter((x) => x.key !== f.key))}
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  className="picked picked-add"
+                  onClick={() => fileInput.current?.click()}
+                >
+                  <Plus size={20} />
+                  파일 추가
+                </button>
+              </div>
             ) : (
-              <>
+              <button
+                type="button"
+                className="dropzone-empty"
+                onClick={() => fileInput.current?.click()}
+              >
                 <ImagePlus size={34} strokeWidth={1.4} />
-                <strong>작업 이미지를 끌어 놓거나 눌러서 선택</strong>
-                <span>PNG, JPG · 미리보기용 이미지</span>
-              </>
+                <strong>작업 파일을 한 번에 끌어 놓으세요</strong>
+                <span>
+                  상세페이지 PC·MO, 배너, 팝업, PPT를 여러 개 같이 올려도 되고
+                  하나만 올려도 돼요
+                </span>
+              </button>
             )}
           </div>
 
           <label className="field quick-path">
-            NAS 원본 경로
+            NAS 프로젝트 폴더
             <input
               value={nasPath}
-              placeholder="\\NAS\디자인\2026\이동건\색채학\상세페이지\파일명.psd"
+              placeholder="\\NAS\디자인\05_평생\2026\색채학"
               onChange={(e) => setNasPath(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") runAnalysis();
@@ -459,14 +424,17 @@ export const UploadView: React.FC<UploadViewProps> = ({
             />
           </label>
           <p className="quick-help">
-            경로와 파일명만 있으면 교수·과정·유형·도구·버전과 태그를 자동으로
-            채워요.{" "}
+            폴더에서 서비스·연도·프로젝트를, 파일명에서 유형·PC/MO·도구·디자이너·버전을
+            자동으로 채워요.{" "}
             <button
               type="button"
               className="link-button"
-              onClick={() => setNasPath(SAMPLE_PATH)}
+              onClick={() => {
+                setNasPath(SAMPLE.path);
+                setFiles(SAMPLE.files.map((name) => ({ key: fileKey(), name, size: "" })));
+              }}
             >
-              샘플 경로 넣기
+              샘플 패키지 넣기
             </button>
           </p>
 
@@ -477,11 +445,7 @@ export const UploadView: React.FC<UploadViewProps> = ({
             <button className="btn" onClick={onBack}>
               취소
             </button>
-            <button
-              className="btn btn-primary"
-              onClick={runAnalysis}
-              disabled={analyzing}
-            >
+            <button className="btn btn-primary" onClick={runAnalysis} disabled={analyzing}>
               {analyzing ? (
                 <>
                   <Sparkles size={16} className="spin" />
@@ -498,198 +462,253 @@ export const UploadView: React.FC<UploadViewProps> = ({
         </section>
       )}
 
-      {step === 1 && draft && previewAsset && (
-        <section className="quick-review">
-          <div className="quick-preview">
-            <DesignThumbnail asset={previewAsset} />
-            <p className="quick-path-line" title={`${draft.folder}${finalFileName}`}>
-              {draft.folder}
-              <b>{finalFileName}</b>
+      {step === 1 && (
+        <section className="pkg-review">
+          <p className="quick-status">
+            <Sparkles size={15} />
+            {missing.length
+              ? `자동으로 채웠어요. ${missing.join(", ")}만 확인해주세요.`
+              : `자동으로 채웠어요. 맞으면 바로 등록하세요.`}
+          </p>
+
+          <div className="pkg-head">
+            <FolderOpen size={18} />
+            <label className={!service ? "needs" : ""}>
+              서비스
+              <select value={service} onChange={(e) => setService(e.target.value)}>
+                <option value="">선택</option>
+                {SERVICES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              연도
+              <input value={year} onChange={(e) => setYear(e.target.value)} />
+            </label>
+            <label className={`pkg-project ${!project.trim() ? "needs" : ""}`}>
+              프로젝트
+              <input
+                value={project}
+                placeholder="프로젝트명"
+                onChange={(e) => setProject(e.target.value)}
+              />
+            </label>
+            <p className="pkg-note">
+              {existingInProject.length
+                ? `기존 '${project}' 프로젝트에 추가돼요 · 지금 ${existingInProject.length}개 작업`
+                : "새 프로젝트로 등록돼요"}
             </p>
           </div>
 
-          <div className="quick-form">
-            <p className="quick-status">
-              <Sparkles size={15} />
-              {checks.length
-                ? `자동으로 채웠어요. ${checks.length}개만 확인해주세요.`
-                : "자동으로 채웠어요. 맞으면 바로 등록하세요."}
-            </p>
-
-            {sameWork && latest && (
-              <div className="quick-card">
-                <div className="quick-card-head">
-                  <History size={16} />
-                  <span>
-                    <b>{sameWork.title}</b>의 새 버전이에요 · {latest.version} →{" "}
-                    {finalVersion}
-                  </span>
+          {versionCount > 0 && (
+            <div className="quick-card">
+              <div className="quick-card-head">
+                <History size={16} />
+                <span>
+                  <b>{versionCount}개</b>는 이미 있는 작업의 새 버전이에요. 바뀐 이유를
+                  하나 골라주세요.
+                </span>
+              </div>
+              <div className="reason-chips" role="radiogroup" aria-label="바뀐 이유">
+                {CHANGE_REASONS.map((r) => (
                   <button
                     type="button"
-                    className="link-button"
-                    onClick={() =>
-                      setRegisterMode(registerMode === "version" ? "new" : "version")
-                    }
+                    key={r}
+                    className={changeReason === r ? "selected" : ""}
+                    aria-pressed={changeReason === r}
+                    onClick={() => {
+                      setChangeReason(r);
+                      setError("");
+                    }}
                   >
-                    {registerMode === "version" ? "다른 작업이에요" : "새 버전으로 되돌리기"}
+                    {r}
                   </button>
-                </div>
-                {asNewVersion && (
-                  <>
-                    <div className="reason-chips" role="radiogroup" aria-label="바뀐 이유">
-                      {CHANGE_REASONS.map((r) => (
-                        <button
-                          type="button"
-                          key={r}
-                          className={changeReason === r ? "selected" : ""}
-                          aria-pressed={changeReason === r}
-                          onClick={() => {
-                            setChangeReason(r);
-                            setError("");
-                          }}
-                        >
-                          {r}
-                        </button>
-                      ))}
-                    </div>
-                    <input
-                      className="quick-note"
-                      value={changeNote}
-                      placeholder="무엇이 바뀌었나요? (선택) 예: 3월 10일 → 3월 17일"
-                      onChange={(e) => setChangeNote(e.target.value)}
-                    />
-                  </>
-                )}
-              </div>
-            )}
-
-            {usesSandoll && (
-              <label className={`quick-card quick-font ${fontConfirmed ? "is-ok" : ""}`}>
-                <input
-                  type="checkbox"
-                  checked={fontConfirmed}
-                  onChange={(e) => setFontConfirmed(e.target.checked)}
-                />
-                <span>
-                  <b>산돌 서체가 쓰였어요.</b> 회사 라이선스 범위 안에서
-                  사용했다면 체크해주세요. 체크하지 않으면 '확인 필요'로
-                  등록되고 관리자가 확인해요.
-                </span>
-              </label>
-            )}
-
-            <dl className="quick-fields">
-              {FIELD_LABELS.map(([key, label]) => {
-                const value = String(draft[key] ?? "");
-                const needs = uncertain.includes(key);
-                const isEditing = editing === key || (needs && !value);
-                if (asNewVersion && ["title", "professor", "course", "type"].includes(key))
-                  return null;
-                return (
-                  <div key={key} className={needs ? "needs" : ""}>
-                    <dt>{label}</dt>
-                    <dd>
-                      {isEditing ? (
-                        key === "type" ? (
-                          <select
-                            autoFocus={editing === key}
-                            value={value}
-                            onChange={(e) => set(key, e.target.value)}
-                            onBlur={() => setEditing(null)}
-                          >
-                            {TYPES.map((t) => (
-                              <option key={t}>{t}</option>
-                            ))}
-                          </select>
-                        ) : (
-                          <input
-                            autoFocus={editing === key}
-                            value={value}
-                            placeholder={`${label} 입력`}
-                            onChange={(e) => set(key, e.target.value)}
-                            onBlur={() => setEditing(null)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") setEditing(null);
-                            }}
-                          />
-                        )
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setEditing(key)}
-                          aria-label={`${label} 수정`}
-                        >
-                          <span>{value}</span>
-                          {needs ? (
-                            <TriangleAlert size={14} />
-                          ) : (
-                            <Pencil size={13} />
-                          )}
-                        </button>
-                      )}
-                    </dd>
-                  </div>
-                );
-              })}
-              <div>
-                <dt>버전</dt>
-                <dd className="static">{finalVersion}</dd>
-              </div>
-              <div>
-                <dt>사용 도구</dt>
-                <dd className="static">
-                  {draft.tools.length ? draft.tools.join(" · ") : "없음 (태그로 추가)"}
-                </dd>
-              </div>
-            </dl>
-
-            <div className="quick-tags">
-              <span className="field-label">자동 태그</span>
-              <div className="tag-list editable">
-                {tags.map((t) => (
-                  <span key={t}>
-                    {t}
-                    <button
-                      onClick={() => setTags(tags.filter((x) => x !== t))}
-                      aria-label={`${t} 삭제`}
-                    >
-                      <X size={12} />
-                    </button>
-                  </span>
                 ))}
-                <form
-                  className="tag-add"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const v = newTag.trim().replace(/^#/, "");
-                    if (v && !tags.includes(`#${v}`)) setTags([...tags, `#${v}`]);
-                    setNewTag("");
-                  }}
-                >
-                  <Plus size={12} />
-                  <input
-                    value={newTag}
-                    placeholder="태그 추가"
-                    aria-label="추가할 태그"
-                    onChange={(e) => setNewTag(e.target.value)}
-                  />
-                </form>
               </div>
+              <input
+                className="quick-note"
+                value={changeNote}
+                placeholder="무엇이 바뀌었나요? (선택) 예: 개강일 3월 10일 → 3월 17일"
+                onChange={(e) => setChangeNote(e.target.value)}
+              />
             </div>
+          )}
 
-            <p role="alert" className="inline-feedback">
-              {error}
-            </p>
-            <div className="wizard-footer">
-              <button className="btn" onClick={() => setStep(0)}>
-                <ArrowLeft size={16} />
-                다시 올리기
-              </button>
-              <button className="btn btn-primary" onClick={submit}>
-                {asNewVersion ? `${finalVersion}로 등록` : "등록하기"}
-                <Check size={16} />
-              </button>
+          {usesSandoll && (
+            <label className={`quick-card quick-font ${fontConfirmed ? "is-ok" : ""}`}>
+              <input
+                type="checkbox"
+                checked={fontConfirmed}
+                onChange={(e) => setFontConfirmed(e.target.checked)}
+              />
+              <span>
+                <b>산돌 서체가 쓰인 파일이 있어요.</b> 회사 라이선스 범위 안에서
+                사용했다면 체크해주세요. 체크하지 않으면 '확인 필요'로 등록되고 관리자가
+                확인해요.
+              </span>
+            </label>
+          )}
+
+          <ul className="pkg-items">
+            {items.map((it, i) => {
+              const m = matches[i];
+              const preview: DesignAsset = {
+                id: `asset-${(i % 6) + 1}`,
+                title: it.title,
+                service,
+                project,
+                device: it.device,
+                professor: "",
+                course: project,
+                type: (it.type || "카드뉴스") as AssetType,
+                year: Number(year) || 2026,
+                tools: it.tools,
+                designer: it.designer,
+                version: m.finalVersion,
+                filePath: folder,
+                fileName: m.fileName,
+                hashtags: [],
+                hasSandoll: false,
+                licenseStatus: "verified",
+                uploadDate: "",
+                bgColor: "",
+                accentColor: "",
+                summary: "",
+                imageUrl: it.file.url,
+              };
+              return (
+                <li key={it.key} className={!it.type ? "needs" : ""}>
+                  <div className="pkg-thumb">
+                    <DesignThumbnail asset={preview} />
+                  </div>
+                  <div className="pkg-main">
+                    <input
+                      className="pkg-title"
+                      value={m.existing ? m.existing.title : it.title}
+                      disabled={Boolean(m.existing)}
+                      aria-label="작업명"
+                      onChange={(e) => patch(it.key, { title: e.target.value })}
+                    />
+                    <div className="pkg-controls">
+                      <select
+                        value={it.type}
+                        aria-label="작업 유형"
+                        onChange={(e) => {
+                          const type = e.target.value as AssetType;
+                          patch(it.key, {
+                            type,
+                            device: DEVICE_TYPES.includes(type) ? (it.device ?? "PC") : undefined,
+                          });
+                        }}
+                      >
+                        <option value="">유형 선택</option>
+                        {ASSET_TYPES.map((t) => (
+                          <option key={t}>{t}</option>
+                        ))}
+                      </select>
+                      {it.type && DEVICE_TYPES.includes(it.type) && (
+                        <div className="seg" role="radiogroup" aria-label="PC 또는 MO">
+                          {(["PC", "MO"] as const).map((d) => (
+                            <button
+                              type="button"
+                              key={d}
+                              className={it.device === d ? "on" : ""}
+                              aria-pressed={it.device === d}
+                              onClick={() => patch(it.key, { device: d })}
+                            >
+                              {d}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <select
+                        value={it.designer}
+                        aria-label="디자이너"
+                        onChange={(e) => patch(it.key, { designer: e.target.value })}
+                      >
+                        {DESIGNERS.map((d) => (
+                          <option key={d}>{d}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <p className="pkg-meta">
+                      {m.existing ? (
+                        <span className="pkg-version">
+                          <History size={12} /> 새 버전 {m.from} → {m.finalVersion}
+                        </span>
+                      ) : (
+                        <span className="pkg-new">새 작업 · {m.finalVersion}</span>
+                      )}
+                      <span>{it.tools.length ? it.tools.join(" · ") : "도구 정보 없음"}</span>
+                      {!it.type && (
+                        <span className="pkg-warn">
+                          <TriangleAlert size={12} /> 유형을 골라주세요
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="pkg-remove"
+                    aria-label={`${it.file.name} 빼기`}
+                    onClick={() => setItems(items.filter((x) => x.key !== it.key))}
+                  >
+                    <X size={16} />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="quick-tags">
+            <span className="field-label">공통 태그 · 파일별 유형·도구·디자이너·색 태그는 자동으로 붙어요</span>
+            <div className="tag-list editable">
+              {commonTags.map((t) => (
+                <span key={t}>{t}</span>
+              ))}
+              {extraTags.map((t) => (
+                <span key={t}>
+                  {t}
+                  <button onClick={() => setExtraTags(extraTags.filter((x) => x !== t))} aria-label={`${t} 삭제`}>
+                    <X size={12} />
+                  </button>
+                </span>
+              ))}
+              <form
+                className="tag-add"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const v = newTag.trim().replace(/^#/, "");
+                  if (v && !extraTags.includes(`#${v}`)) setExtraTags([...extraTags, `#${v}`]);
+                  setNewTag("");
+                }}
+              >
+                <Plus size={12} />
+                <input
+                  value={newTag}
+                  placeholder="태그 추가"
+                  aria-label="추가할 태그"
+                  onChange={(e) => setNewTag(e.target.value)}
+                />
+              </form>
             </div>
+          </div>
+
+          <p role="alert" className="inline-feedback">
+            {error}
+          </p>
+          <div className="wizard-footer">
+            <button className="btn" onClick={() => setStep(0)}>
+              <ArrowLeft size={16} />
+              다시 올리기
+            </button>
+            <button className="btn btn-primary" onClick={submit} disabled={!items.length}>
+              {items.length > 1 ? `${items.length}개 등록하기` : "등록하기"}
+              <Check size={16} />
+            </button>
           </div>
         </section>
       )}

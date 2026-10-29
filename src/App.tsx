@@ -9,7 +9,8 @@ import { INITIAL_ASSETS, INITIAL_SAN_DOLL_FONTS } from "./data/sampleAssets";
 import { LandingView } from "./views/LandingView";
 import { SearchView } from "./views/SearchView";
 import { DetailView } from "./views/DetailView";
-import { UploadView } from "./views/UploadView";
+import { UploadView, UploadResult } from "./views/UploadView";
+import { CURRENT_DESIGNER } from "./lib/taxonomy";
 import { PromptStudioView } from "./views/PromptStudioView";
 import { LicenseManagementView } from "./views/LicenseManagementView";
 import { NamingRuleView } from "./views/NamingRuleView";
@@ -64,18 +65,21 @@ export default function App() {
     setView("prompt");
   };
 
-  const handleUploadSuccess = (newAsset: DesignAsset) => {
-    setAssets([newAsset, ...assets]);
-    setSelectedAssetId(newAsset.id);
-    setView("detail");
-    showToast(`"${newAsset.title}" 등록 완료`);
-  };
-
-  const handleUploadVersion = (updated: DesignAsset) => {
-    setAssets(assets.map((a) => (a.id === updated.id ? updated : a)));
-    setSelectedAssetId(updated.id);
-    setView("detail");
-    showToast(`"${updated.title}" ${updated.version} 등록 완료`);
+  const handleUploadSubmit = ({ added, updated, project }: UploadResult) => {
+    const byId = new Map(updated.map((a) => [a.id, a]));
+    setAssets([...added, ...assets.map((a) => byId.get(a.id) ?? a)]);
+    const total = added.length + updated.length;
+    const versionText = updated.length ? ` (새 버전 ${updated.length}개)` : "";
+    if (total === 1) {
+      const one = added[0] ?? updated[0];
+      setSelectedAssetId(one.id);
+      setView("detail");
+      showToast(`"${one.title}" ${one.version} 등록 완료`);
+    } else {
+      setSearchQuery(project);
+      setView("search");
+      showToast(`${project} 프로젝트 ${total}개 등록 완료${versionText}`);
+    }
   };
 
   const handleUpdateAsset = (updated: DesignAsset) => {
@@ -96,7 +100,7 @@ export default function App() {
   const currentSelectedAsset =
     assets.find((a) => a.id === selectedAssetId) || assets[0];
 
-  const myUploadsCount = assets.filter((a) => a.designer === "김디자인").length;
+  const myUploadsCount = assets.filter((a) => a.designer === CURRENT_DESIGNER).length;
 
   return (
     <div
@@ -169,8 +173,7 @@ export default function App() {
         <UploadView
           assets={assets}
           onBack={() => setView("landing")}
-          onUploadSuccess={handleUploadSuccess}
-          onUploadVersion={handleUploadVersion}
+          onSubmit={handleUploadSubmit}
         />
       )}
 

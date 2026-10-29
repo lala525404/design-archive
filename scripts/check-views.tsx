@@ -12,6 +12,7 @@ import { UploadView } from "../src/views/UploadView";
 import { PromptStudioView } from "../src/views/PromptStudioView";
 import { LicenseManagementView } from "../src/views/LicenseManagementView";
 import { NamingRuleView } from "../src/views/NamingRuleView";
+import { SERVICES, guessType, normalizeTool } from "../src/lib/taxonomy";
 import {
   findSameWork,
   nextVersion,
@@ -40,12 +41,22 @@ assert.equal(
 );
 assert.equal(
   resultCount(search("색채학 상세페이지")),
-  1,
-  "Multi-word search matches course and type",
+  2,
+  "Multi-word search matches project and type (PC + MO)",
 );
 assert.equal(
-  resultCount(search("Figma")),
-  assets.filter((a) => a.tools.includes("Figma")).length,
+  resultCount(search("상세페이지 MO")),
+  assets.filter((a) => ["상세페이지"].includes(a.type) && a.device === "MO").length,
+  "PC/MO is searchable",
+);
+assert.equal(
+  resultCount(search("아이티뱅크")),
+  assets.filter((a) => a.service === "02_아이티뱅크").length,
+  "Service folder name is searchable",
+);
+assert.equal(
+  resultCount(search("피그마")),
+  assets.filter((a) => a.tools.includes("피그마")).length,
   "Tool search",
 );
 assert.equal(
@@ -79,7 +90,7 @@ const pages = [
     allAssets={assets}
     onSelectAsset={noop}
   />,
-  <UploadView onBack={noop} onUploadSuccess={noop} />,
+  <UploadView onBack={noop} onSubmit={noop} />,
   <PromptStudioView
     initialAsset={assets[0]}
     allAssets={assets}
@@ -135,38 +146,54 @@ assert.equal(
   "Landing shows 7 fixed blocks",
 );
 assert.ok(!landing.includes("physics"), "No physics playground on landing");
-for (const q of ["이동건", "색채학 상세페이지", "산돌 사용", "GPT"]) {
+for (const q of ["색채학", "아이티뱅크", "상세페이지 MO", "산돌 사용"]) {
   assert.ok(landing.includes(`>${q}<`), `Suggestion ${q} is shown`);
   assert.ok(resultCount(search(q)) > 0, `Suggestion ${q} returns results`);
 }
 // NAS path parsing and version detection
 assert.deepEqual(
-  parseNasPath("\\\\NAS\\디자인\\2026\\이동건\\색채학\\상세페이지\\"),
-  { year: "2026", professor: "이동건", course: "색채학", type: "상세페이지" },
+  parseNasPath("\\\\NAS\\디자인\\05_평생\\2026\\색채학\\"),
+  { service: "05_평생", year: "2026", project: "색채학" },
   "Windows NAS path with share prefix",
+);
+assert.deepEqual(
+  parseNasPath("/08_인쇄광고물(시디)/2026/지하철광고/파일.png"),
+  { service: "08_인쇄광고물(시디)", year: "2026", project: "지하철광고" },
+  "Path with file name",
 );
 assert.equal(
   findSameWork(
     assets,
-    "/2026/이동건/색채학/상세페이지/",
-    "2026_색채학상세페이지_Figma-GPT-산돌_김디자인_v04.png",
+    "\\\\NAS\\디자인\\05_평생\\2026\\색채학\\",
+    "2026_색채학_상세페이지PC_피그마-산돌_양현보_v04.png",
   )?.id,
   "asset-1",
-  "Same folder + same work name is detected as a new version",
+  "Same folder + same project/type/device is a new version even if tools or designer changed",
 );
 assert.equal(
-  findSameWork(assets, "/2026/이동건/색채학/상세페이지/", "2026_다른작업_Figma_김디자인_v01.png"),
-  undefined,
-  "Different work name is a separate work",
+  findSameWork(assets, "/05_평생/2026/색채학/", "2026_색채학_상세페이지MO_피그마_김다은_v03.png")?.id,
+  "asset-2",
+  "MO version is tracked separately from PC",
 );
+assert.equal(
+  findSameWork(assets, "/05_평생/2026/색채학/", "2026_색채학_서브배너PC_포토샵_박지원_v01.png"),
+  undefined,
+  "A different banner in the same project is a new work",
+);
+assert.deepEqual(guessType("2026_색채학_상세페이지MO_피그마_김다은_v01.png"), { type: "상세페이지", device: "MO" });
+assert.deepEqual(guessType("2026_HRD_제안서_AI_김다은_v02.pptx"), { type: "PPT", device: undefined });
+assert.equal(normalizeTool("Photoshop"), "포토샵");
+assert.equal(normalizeTool("GPT"), "AI");
 assert.equal(nextVersion("v03"), "v04");
 assert.equal(withVersion("a_b_c_d_v03.png", "v04"), "a_b_c_d_v04.png");
 assert.equal(resultCount(search("장소 변경")), 1, "Version change reasons are searchable");
+for (const service of SERVICES)
+  assert.ok(assets.some((a) => a.service === service), `Sample covers ${service}`);
 const uploadHtml = renderToStaticMarkup(
-  <UploadView assets={assets} onBack={noop} onUploadSuccess={noop} />,
+  <UploadView assets={assets} onBack={noop} onSubmit={noop} />,
 );
-assert.ok(uploadHtml.includes("NAS 원본 경로"), "Upload asks for the NAS path");
+assert.ok(uploadHtml.includes("NAS 프로젝트 폴더"), "Upload asks for the NAS path");
 
 console.log(
-  "PASS: search, 7 views, 9 samples, fixed landing blocks, suggestions, NAS path, versions",
+  "PASS: search, 7 views, 15 samples, fixed landing blocks, suggestions, services, NAS path, PC/MO, versions",
 );

@@ -1,5 +1,6 @@
 import React from "react";
 import { DesignAsset } from "../types";
+import { serviceName } from "../lib/taxonomy";
 
 interface Props {
   asset: DesignAsset;
@@ -27,11 +28,13 @@ const COMBOS: Combo[] = [
 
 const FRAME: Record<string, { w: number; h: number }> = {
   상세페이지: { w: 300, h: 420 },
+  풀페이지: { w: 300, h: 420 },
+  팝업: { w: 360, h: 400 },
+  PPT: { w: 640, h: 360 },
   포스터: { w: 300, h: 420 },
   카드뉴스: { w: 400, h: 400 },
   배너: { w: 640, h: 360 },
   썸네일: { w: 640, h: 360 },
-  소개자료: { w: 600, h: 400 },
 };
 
 const short = (text: string, max: number) =>
@@ -46,9 +49,16 @@ export function DesignThumbnail({ asset, className = "" }: Props) {
     );
   const n = Number(asset.id.split("-")[1]) || 1;
   const c = COMBOS[(n - 1) % COMBOS.length];
-  const { w, h } = FRAME[asset.type] ?? FRAME["카드뉴스"];
-  const course = short(asset.course, 9);
-  const prof = `${asset.professor} 교수`;
+  const mobile = asset.device === "MO";
+  const base = FRAME[asset.type] ?? FRAME["카드뉴스"];
+  // MO 버전은 같은 그림을 좁은 폭으로 보여준다
+  const { w, h } = mobile && ["상세페이지", "풀페이지"].includes(asset.type)
+    ? { w: 220, h: 420 }
+    : base;
+  const course = short(asset.project || asset.course, 9);
+  const prof = asset.professor
+    ? `${asset.professor} 교수`
+    : serviceName(asset.service);
   const T = (props: React.SVGProps<SVGTextElement>) => (
     <text fill={c.ink} {...props} />
   );
@@ -56,6 +66,7 @@ export function DesignThumbnail({ asset, className = "" }: Props) {
   let art: React.ReactNode;
   switch (asset.type) {
     case "상세페이지":
+    case "풀페이지":
       art = (
         <>
           <rect width={w} height={h} fill="#FFFFFF" />
@@ -68,7 +79,7 @@ export function DesignThumbnail({ asset, className = "" }: Props) {
             {course}
           </T>
           <T x="24" y="164" fontSize="30" fontWeight="800">
-            과정 안내
+            {asset.type === "풀페이지" ? "모집 안내" : "과정 안내"}
           </T>
           <T x="24" y="206" fontSize="11" opacity=".8">
             {prof}
@@ -171,35 +182,50 @@ export function DesignThumbnail({ asset, className = "" }: Props) {
         </>
       );
       break;
+    case "팝업":
+      art = (
+        <>
+          <rect width={w} height={h} rx="18" fill={c.bg} />
+          <circle cx="324" cy="36" r="14" fill={c.ink} opacity=".15" />
+          <path d="M318 30l12 12M330 30l-12 12" stroke={c.ink} strokeWidth="2" />
+          <T x="32" y="74" fontSize="14" fontWeight="600" opacity=".7">
+            마감 임박
+          </T>
+          <T x="32" y="138" fontSize="38" fontWeight="800">
+            {short(course, 6)}
+          </T>
+          <T x="32" y="182" fontSize="22" fontWeight="600">
+            모집 마감 D-7
+          </T>
+          <circle cx="250" cy="270" r="70" fill={c.a} />
+          <rect x="32" y="330" width="160" height="44" rx="12" fill={c.ink} />
+          <text x="112" y="358" fontSize="16" fontWeight="600" textAnchor="middle" fill={c.bg}>
+            지금 신청
+          </text>
+        </>
+      );
+      break;
     default:
-      // 소개자료: 3단 접지 리플렛
+      // PPT: 16:9 표지 장표
       art = (
         <>
           <rect width={w} height={h} fill="#FFFFFF" />
-          <rect width="200" height={h} fill={c.bg} />
-          <rect x="400" width="200" height={h} fill={c.a} opacity=".55" />
-          <line x1="200" y1="0" x2="200" y2={h} stroke="#191919" opacity=".12" />
-          <line x1="400" y1="0" x2="400" y2={h} stroke="#191919" opacity=".12" />
-          <T x="24" y="52" fontSize="11" fontWeight="600" opacity=".7">
-            {asset.year} · {asset.type}
+          <rect width="240" height={h} fill={c.bg} />
+          <circle cx="120" cy="250" r="70" fill={c.a} />
+          <T x="28" y="48" fontSize="13" fontWeight="600" opacity=".7">
+            {asset.year}
           </T>
-          <T x="24" y="200" fontSize="28" fontWeight="800">
-            {short(asset.course, 6)}
-          </T>
-          <T x="24" y="236" fontSize="28" fontWeight="800">
-            실습 안내
-          </T>
-          <T x="24" y="370" fontSize="11">
-            {prof}
-          </T>
-          {[0, 1, 2, 3].map((i) => (
-            <rect key={i} x="224" y={60 + i * 26} width={i % 2 ? 120 : 150} height="6" rx="3" fill="#D9D4CD" />
-          ))}
-          {["#F5CC55", "#7FE495", "#6E9BF7", "#F28C5A", "#F5BFF0", "#191919"].map((col, i) => (
-            <rect key={col} x={224 + (i % 3) * 52} y={190 + Math.floor(i / 3) * 52} width="44" height="44" rx="8" fill={col} />
-          ))}
-          <circle cx="500" cy="200" r="64" fill="#FFFFFF" />
-          <circle cx="500" cy="200" r="30" fill={c.bg} />
+          <text x="280" y="140" fontSize="40" fontWeight="800" fill="#191919">
+            {short(asset.title, 9)}
+          </text>
+          <text x="280" y="186" fontSize="20" fill="#5F5F5F">
+            {serviceName(asset.service)} · {course}
+          </text>
+          <rect x="280" y="232" width="200" height="6" rx="3" fill="#D9D4CD" />
+          <rect x="280" y="250" width="150" height="6" rx="3" fill="#D9D4CD" />
+          <text x="600" y="330" fontSize="14" textAnchor="end" fill="#8F867E">
+            1 / 32
+          </text>
         </>
       );
   }
@@ -212,7 +238,18 @@ export function DesignThumbnail({ asset, className = "" }: Props) {
         role="img"
         aria-label={`${asset.title} 샘플 미리보기`}
       >
-        <g>{art}</g>
+        {w !== base.w ? (
+          // MO: 같은 시안을 좁은 화면 비율로 줄이고 아래로 이어지는 영역을 붙인다
+          <g>
+            <rect width={w} height={h} fill="#FFFFFF" />
+            <g transform={`scale(${w / base.w})`}>{art}</g>
+            <rect x="18" y={base.h * (w / base.w) + 14} width={w - 36} height="44" rx="8" fill={c.bg} />
+            <rect x="18" y={base.h * (w / base.w) + 70} width={w - 80} height="5" rx="2.5" fill="#D9D4CD" />
+            <rect x="18" y={base.h * (w / base.w) + 82} width={w - 110} height="5" rx="2.5" fill="#D9D4CD" />
+          </g>
+        ) : (
+          <g>{art}</g>
+        )}
       </svg>
     </div>
   );

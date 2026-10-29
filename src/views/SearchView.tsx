@@ -16,6 +16,13 @@ import {
 import { DesignAsset, ViewMode, GroupMode, SortOption } from "../types";
 import { SearchBox, PageTitle, Status } from "../components/Chrome";
 import { getVersions } from "../lib/versions";
+import {
+  ASSET_TYPES,
+  DESIGNERS,
+  SERVICES,
+  TOOLS,
+  serviceName,
+} from "../lib/taxonomy";
 import { DesignThumbnail } from "../components/DesignThumbnail";
 
 interface SearchViewProps {
@@ -46,7 +53,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
 
   // Filter States
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
-  const [selectedProfessors, setSelectedProfessors] = useState<string[]>([]);
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
   const [selectedSandoll, setSelectedSandoll] = useState<
@@ -55,27 +62,24 @@ export const SearchView: React.FC<SearchViewProps> = ({
   const [selectedDesigners, setSelectedDesigners] = useState<string[]>([]);
 
   // Distinct options
-  const allTypes = useMemo(
-    () => Array.from(new Set(assets.map((a) => a.type))),
-    [assets],
-  );
-  const allProfessors = useMemo(
-    () => Array.from(new Set(assets.map((a) => a.professor))),
-    [assets],
-  );
+  // 필터 항목은 회사 분류 기준으로 고정 (데이터에 없어도 보여준다)
+  const allTypes = ASSET_TYPES;
   const allYears = useMemo(
     () => Array.from(new Set(assets.map((a) => a.year))).sort((a, b) => b - a),
     [assets],
   );
-  const allTools = useMemo(() => {
-    const set = new Set<string>();
-    assets.forEach((a) => a.tools.forEach((t) => set.add(t)));
-    return Array.from(set);
-  }, [assets]);
-  const allDesigners = useMemo(
-    () => Array.from(new Set(assets.map((a) => a.designer))),
-    [assets],
-  );
+  const allTools = TOOLS;
+  const allDesigners = DESIGNERS;
+  const countBy = (pick: (a: DesignAsset) => string | string[] | number) => {
+    const map = new Map<string, number>();
+    assets.forEach((a) => {
+      const v = pick(a);
+      (Array.isArray(v) ? v : [String(v)]).forEach((k) =>
+        map.set(k, (map.get(k) ?? 0) + 1),
+      );
+    });
+    return map;
+  };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,7 +88,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
 
   const handleClearFilters = () => {
     setSelectedTypes([]);
-    setSelectedProfessors([]);
+    setSelectedServices([]);
     setSelectedYears([]);
     setSelectedTools([]);
     setSelectedSandoll("all");
@@ -93,7 +97,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
 
   const hasActiveFilters =
     selectedTypes.length > 0 ||
-    selectedProfessors.length > 0 ||
+    selectedServices.length > 0 ||
     selectedYears.length > 0 ||
     selectedTools.length > 0 ||
     selectedSandoll !== "all" ||
@@ -111,6 +115,10 @@ export const SearchView: React.FC<SearchViewProps> = ({
             asset.title,
             asset.professor,
             asset.course,
+            asset.project,
+            asset.service,
+            serviceName(asset.service),
+            asset.device ?? "",
             asset.type,
             ...asset.tools,
             asset.designer,
@@ -136,8 +144,8 @@ export const SearchView: React.FC<SearchViewProps> = ({
         if (selectedTypes.length > 0 && !selectedTypes.includes(asset.type))
           return false;
         if (
-          selectedProfessors.length > 0 &&
-          !selectedProfessors.includes(asset.professor)
+          selectedServices.length > 0 &&
+          !selectedServices.includes(asset.service)
         )
           return false;
         if (selectedYears.length > 0 && !selectedYears.includes(asset.year))
@@ -165,8 +173,8 @@ export const SearchView: React.FC<SearchViewProps> = ({
           if (aExactProf && !bExactProf) return -1;
           if (!aExactProf && bExactProf) return 1;
 
-          const aExactCourse = a.course.toLowerCase() === q;
-          const bExactCourse = b.course.toLowerCase() === q;
+          const aExactCourse = a.project.toLowerCase() === q;
+          const bExactCourse = b.project.toLowerCase() === q;
           if (aExactCourse && !bExactCourse) return -1;
           if (!aExactCourse && bExactCourse) return 1;
         }
@@ -185,16 +193,13 @@ export const SearchView: React.FC<SearchViewProps> = ({
         if (sortBy === "title") {
           return a.title.localeCompare(b.title, "ko");
         }
-        if (sortBy === "professor") {
-          return a.professor.localeCompare(b.professor, "ko");
-        }
         return 0;
       });
   }, [
     assets,
     searchQuery,
     selectedTypes,
-    selectedProfessors,
+    selectedServices,
     selectedYears,
     selectedTools,
     selectedSandoll,
@@ -211,10 +216,9 @@ export const SearchView: React.FC<SearchViewProps> = ({
 
     filteredAssets.forEach((asset) => {
       let key = "";
-      if (groupMode === "course") key = `${asset.course} 과정`;
-      if (groupMode === "professor") key = `${asset.professor} 교수`;
       if (groupMode === "project")
-        key = `${asset.year}년 ${asset.course} 프로젝트`;
+        key = `${serviceName(asset.service)} · ${asset.project} (${asset.year})`;
+      if (groupMode === "service") key = asset.service;
 
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(asset);
@@ -228,7 +232,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
 
   const count =
     selectedTypes.length +
-    selectedProfessors.length +
+    selectedServices.length +
     selectedYears.length +
     selectedTools.length +
     selectedDesigners.length +
@@ -240,21 +244,34 @@ export const SearchView: React.FC<SearchViewProps> = ({
     options: any[],
     selected: any[],
     set: (v: any) => void,
+    counts: Map<string, number>,
+    format: (v: any) => string = (v) => String(v),
+    wide = false,
   ) => (
-    <fieldset className="filter-group">
-      <legend>{title}</legend>
+    <fieldset className={`filter-group ${wide ? "filter-group--wide" : ""}`}>
+      <legend>
+        {title}
+        {selected.length > 0 && (
+          <button type="button" onClick={() => set([])}>
+            해제
+          </button>
+        )}
+      </legend>
       <div>
-        {options.map((v) => (
-          <label key={v}>
-            <input
-              type="checkbox"
-              checked={selected.includes(v)}
-              onChange={() => toggle(selected, v, set)}
-            />
-            {v}
-            {title === "연도" ? "년" : ""}
-          </label>
-        ))}
+        {options.map((v) => {
+          const n = counts.get(String(v)) ?? 0;
+          return (
+            <label key={v} className={n ? "" : "is-empty"}>
+              <input
+                type="checkbox"
+                checked={selected.includes(v)}
+                onChange={() => toggle(selected, v, set)}
+              />
+              <span>{format(v)}</span>
+              <em>{n}</em>
+            </label>
+          );
+        })}
       </div>
     </fieldset>
   );
@@ -329,29 +346,42 @@ export const SearchView: React.FC<SearchViewProps> = ({
         >
           <div className="filter-grid">
             {filterGroup(
+              "서비스 (NAS 분류)",
+              [...SERVICES],
+              selectedServices,
+              setSelectedServices,
+              countBy((a) => a.service),
+              (v) => v.replace("_", ". "),
+              true,
+            )}
+            {filterGroup(
               "작업 유형",
               allTypes,
               selectedTypes,
               setSelectedTypes,
-            )}
-            {filterGroup(
-              "교수",
-              allProfessors,
-              selectedProfessors,
-              setSelectedProfessors,
-            )}
-            {filterGroup("연도", allYears, selectedYears, setSelectedYears)}
-            {filterGroup(
-              "사용 도구",
-              allTools,
-              selectedTools,
-              setSelectedTools,
+              countBy((a) => a.type),
             )}
             {filterGroup(
               "디자이너",
               allDesigners,
               selectedDesigners,
               setSelectedDesigners,
+              countBy((a) => a.designer),
+            )}
+            {filterGroup(
+              "사용 도구",
+              allTools,
+              selectedTools,
+              setSelectedTools,
+              countBy((a) => a.tools),
+            )}
+            {filterGroup(
+              "연도",
+              allYears,
+              selectedYears,
+              setSelectedYears,
+              countBy((a) => a.year),
+              (v) => `${v}년`,
             )}
             <fieldset className="filter-group">
               <legend>산돌 폰트</legend>
@@ -368,7 +398,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
                       checked={selectedSandoll === v}
                       onChange={() => setSelectedSandoll(v as any)}
                     />
-                    {l}
+                    <span>{l}</span>
                   </label>
                 ))}
               </div>
@@ -399,9 +429,8 @@ export const SearchView: React.FC<SearchViewProps> = ({
             onChange={(e) => setGroupMode(e.target.value as GroupMode)}
           >
             <option value="none">묶지 않음</option>
-            <option value="course">과정별</option>
-            <option value="professor">교수별</option>
             <option value="project">프로젝트별</option>
+            <option value="service">서비스별</option>
           </select>
           <select
             aria-label="결과 정렬"
@@ -411,7 +440,6 @@ export const SearchView: React.FC<SearchViewProps> = ({
             <option value="latest">최신순</option>
             <option value="oldest">오래된순</option>
             <option value="title">이름순</option>
-            <option value="professor">교수명순</option>
           </select>
           <div className="view-toggle">
             <button
@@ -435,7 +463,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
         <div className="active-filters">
           {[
             ...selectedTypes,
-            ...selectedProfessors,
+            ...selectedServices.map(serviceName),
             ...selectedYears,
             ...selectedTools,
             ...selectedDesigners,
@@ -494,7 +522,8 @@ export const SearchView: React.FC<SearchViewProps> = ({
                   <div className="asset-caption">
                     <div>
                       <p className="asset-meta">
-                        {asset.course} · {asset.type}
+                        {asset.project} · {asset.type}
+                        {asset.device ? ` ${asset.device}` : ""}
                         {getVersions(asset).length > 1 &&
                           ` · ${asset.version} (버전 ${getVersions(asset).length}개)`}
                       </p>
@@ -506,7 +535,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
                       </button>
                       {viewMode === "list" && (
                         <p className="asset-meta">
-                          {asset.professor} 교수 · {asset.designer} ·{" "}
+                          {serviceName(asset.service)} · {asset.designer} ·{" "}
                           {asset.tools.join(", ")} · {asset.uploadDate}
                         </p>
                       )}
@@ -515,7 +544,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
                       <button
                         aria-label={`${asset.title} 비슷한 작업 찾기`}
                         title="비슷한 작업"
-                        onClick={() => onSearchChange(asset.course)}
+                        onClick={() => onSearchChange(asset.project)}
                       >
                         <Search size={16} />
                       </button>

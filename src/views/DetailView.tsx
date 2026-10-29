@@ -13,6 +13,7 @@ import { DesignAsset, UserRole } from "../types";
 import { DesignThumbnail } from "../components/DesignThumbnail";
 import { Disclosure, Status } from "../components/Chrome";
 import { getVersions } from "../lib/versions";
+import { serviceName } from "../lib/taxonomy";
 interface Props {
   asset: DesignAsset;
   onBack: () => void;
@@ -63,11 +64,17 @@ export function DetailView({
       setMessage("복사하지 못했어요. 경로를 직접 선택해 복사해주세요.");
     }
   };
-  const related = allAssets.filter(
+  // 같은 프로젝트(패키지)로 만든 작업을 먼저, 그다음 같은 서비스 작업
+  const sameProject = allAssets.filter(
     (a) =>
       a.id !== asset.id &&
-      (a.professor === asset.professor || a.course === asset.course),
+      a.service === asset.service &&
+      a.project === asset.project &&
+      a.year === asset.year,
   );
+  const related = sameProject.length
+    ? sameProject
+    : allAssets.filter((a) => a.id !== asset.id && a.service === asset.service);
   return (
     <main className="page-shell detail-page">
       <div className="detail-top">
@@ -92,9 +99,12 @@ export function DetailView({
         </section>
         <section className="detail-info">
           <p className="detail-eyebrow">
-            {asset.course} · {asset.professor} 교수
+            {serviceName(asset.service)} · {asset.project} 프로젝트
           </p>
-          <h1>{asset.title}</h1>
+          <h1>
+            {asset.title}
+            {asset.device && <span className="device-badge">{asset.device}</span>}
+          </h1>
           <p className="detail-summary">{asset.summary}</p>
           <dl className="essential-meta">
             <div>
@@ -133,7 +143,7 @@ export function DetailView({
           <div className="detail-secondary">
             <button
               className="text-button"
-              onClick={() => onSimilarSearch(asset.course)}
+              onClick={() => onSimilarSearch(asset.project)}
             >
               <Search size={15} />
               비슷한 작업
@@ -230,6 +240,9 @@ export function DetailView({
           <Disclosure title="파일 정보">
             <dl className="file-meta">
               {[
+                ["서비스", asset.service],
+                ["프로젝트", asset.project],
+                ["작업 유형", `${asset.type}${asset.device ? ` · ${asset.device}` : ""}`],
                 ["제작 연도", `${asset.year}년`],
                 ["등록일", asset.uploadDate],
                 ["버전", asset.version],
@@ -264,17 +277,23 @@ export function DetailView({
       {related.length > 0 && (
         <section className="related-section">
           <div className="section-heading">
-            <h2>함께 보면 좋은 작업</h2>
+            <h2>
+              {sameProject.length
+                ? `같은 프로젝트 작업 ${sameProject.length}개`
+                : "같은 서비스의 다른 작업"}
+            </h2>
             <button
               className="text-button"
-              onClick={() => onSimilarSearch(asset.course)}
+              onClick={() =>
+                onSimilarSearch(sameProject.length ? asset.project : serviceName(asset.service))
+              }
             >
               전체 보기
               <ArrowUpRight size={15} />
             </button>
           </div>
           <div className="related-grid">
-            {related.slice(0, 4).map((a) => (
+            {related.slice(0, 8).map((a) => (
               <button
                 className="related-item"
                 key={a.id}
@@ -283,7 +302,13 @@ export function DetailView({
                 <div>
                   <DesignThumbnail asset={a} />
                 </div>
-                <span>{a.title}</span>
+                <span>
+                  {a.title}
+                  <small>
+                    {a.type}
+                    {a.device ? ` ${a.device}` : ""} · {a.version}
+                  </small>
+                </span>
               </button>
             ))}
           </div>

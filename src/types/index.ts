@@ -2,7 +2,15 @@ export type UserRole = 'user' | 'designer' | 'admin';
 
 export type LicenseStatus = 'verified' | 'needs_review' | 'restricted' | 'expired';
 
-export type AssetType = '상세페이지' | '배너' | '카드뉴스' | '포스터' | '썸네일' | '소개자료';
+export type AssetType =
+  | '상세페이지'
+  | '풀페이지'
+  | '배너'
+  | '팝업'
+  | '카드뉴스'
+  | '포스터'
+  | '썸네일'
+  | 'PPT';
 
 export type ChangeReason =
   | '최초 제작'
@@ -27,6 +35,13 @@ export interface VersionEntry {
 export interface DesignAsset {
   id: string;
   title: string;
+  /** NAS 최상위 분류 폴더, 예: 05_평생 */
+  service: string;
+  /** 프로젝트(패키지) 이름. 같은 프로젝트의 상세·배너·팝업이 함께 묶인다 */
+  project: string;
+  /** PC/MO 버전이 따로 있는 작업 */
+  device?: 'PC' | 'MO';
+  /** 교수 정보는 추후 추가 (지금은 검색에만 쓰임) */
   professor: string;
   course: string;
   type: AssetType;
@@ -68,7 +83,9 @@ export interface SandollFontItem {
 export interface NamingRuleConfig {
   separator: string;
   toolSeparator: string;
-  order: Array<'year' | 'courseAndTitle' | 'tools' | 'designer' | 'version'>;
+  order: Array<
+    'year' | 'project' | 'workType' | 'courseAndTitle' | 'tools' | 'designer' | 'version'
+  >;
   requiredFields: string[];
   allowedTypes: string[];
   allowedTools: string[];
@@ -77,5 +94,5 @@ export interface NamingRuleConfig {
 }
 
 export type ViewMode = 'grid' | 'list';
-export type GroupMode = 'none' | 'course' | 'project' | 'professor';
-export type SortOption = 'latest' | 'oldest' | 'title' | 'professor';
+export type GroupMode = 'none' | 'project' | 'service';
+export type SortOption = 'latest' | 'oldest' | 'title';

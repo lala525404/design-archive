@@ -28,7 +28,7 @@ export const NamingRuleView: React.FC<NamingRuleViewProps> = ({
   const [config, setConfig] = useState<NamingRuleConfig>(() => {
     try {
       return (
-        JSON.parse(localStorage.getItem("archive-naming-rule") || "null") ||
+        JSON.parse(localStorage.getItem("archive-naming-rule-v2") || "null") ||
         INITIAL_NAMING_RULE
       );
     } catch {
@@ -43,6 +43,8 @@ export const NamingRuleView: React.FC<NamingRuleViewProps> = ({
   // Field names in Korean
   const fieldLabels: Record<string, string> = {
     year: "연도",
+    project: "프로젝트",
+    workType: "작업유형(PC/MO)",
     courseAndTitle: "작업명",
     tools: "사용도구",
     designer: "디자이너",
@@ -52,9 +54,11 @@ export const NamingRuleView: React.FC<NamingRuleViewProps> = ({
   // Sample data tokens to preview
   const sampleValues: Record<string, string> = {
     year: "2026",
+    project: "색채학",
+    workType: "상세페이지PC",
     courseAndTitle: "색채학상세페이지",
-    tools: ["Figma", "GPT", "산돌"].join(config.toolSeparator),
-    designer: "김디자인",
+    tools: ["피그마", "AI", "산돌"].join(config.toolSeparator),
+    designer: "김다은",
     version: config.versionFormat.replace("NN", "03").replace("N", "3"),
   };
 
@@ -271,7 +275,7 @@ export const NamingRuleView: React.FC<NamingRuleViewProps> = ({
           onClick={() => {
             try {
               localStorage.setItem(
-                "archive-naming-rule",
+                "archive-naming-rule-v2",
                 JSON.stringify(config),
               );
               setSaveMessage("이 브라우저에 규칙을 저장했어요.");

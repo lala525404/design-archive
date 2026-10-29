@@ -150,7 +150,7 @@ export function SearchBox({
       <Search className="search-leading" size={22} aria-hidden="true" />
       <input
         aria-label="디자인 자산 검색"
-        placeholder="교수명, 과정명, 작업명과 사용 도구로 검색해보세요."
+        placeholder="프로젝트, 작업 유형, 디자이너, 사용 도구로 검색해보세요."
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />

@@ -32,36 +32,41 @@ const segments = (path: string) =>
     .filter(Boolean);
 
 /**
- * NAS 경로에서 연도/교수/과정/작업유형을 읽는다.
- * \\NAS\디자인\2026\이동건\색채학\상세페이지 처럼 앞에 공유 폴더가 붙어도
- * 4자리 연도 폴더부터 읽는다.
+ * NAS 경로에서 서비스 폴더/연도/프로젝트를 읽는다.
+ * \\NAS\디자인\05_평생\2026\색채학\ 처럼 앞에 공유 폴더가 붙어도
+ * "숫자_이름" 서비스 폴더와 4자리 연도 폴더를 찾아서 읽는다.
  */
 export function parseNasPath(path: string) {
-  const parts = segments(path);
-  let start = parts.findIndex((p) => /^\d{4}$/.test(p));
-  if (start < 0) start = 0;
-  const [year = "", professor = "", course = "", type = ""] = parts.slice(
-    start,
-    start + 4,
+  const parts = segments(path).filter((p) => !/\.[a-z0-9]{2,5}$/i.test(p));
+  const serviceIdx = parts.findIndex((p) => /^\d{2}_/.test(p));
+  const yearIdx = parts.findIndex(
+    (p, i) => i > serviceIdx && /^\d{4}$/.test(p),
   );
-  return { year, professor, course, type };
+  const service = serviceIdx >= 0 ? parts[serviceIdx] : "";
+  const year = yearIdx >= 0 ? parts[yearIdx] : "";
+  const after = yearIdx >= 0 ? yearIdx + 1 : serviceIdx >= 0 ? serviceIdx + 1 : 0;
+  const project = parts[after] ?? "";
+  return { service, year, project };
 }
 
-/** 비교용 경로: 연도 폴더부터 슬래시로 통일 */
+/** 비교용 경로: 서비스 폴더(없으면 연도)부터 슬래시로 통일 */
 export function pathKey(path: string) {
-  const parts = segments(path);
-  const start = Math.max(
-    0,
-    parts.findIndex((p) => /^\d{4}$/.test(p)),
-  );
+  const parts = segments(path).filter((p) => !/\.[a-z0-9]{2,5}$/i.test(p));
+  let start = parts.findIndex((p) => /^\d{2}_/.test(p));
+  if (start < 0) start = Math.max(0, parts.findIndex((p) => /^\d{4}$/.test(p)));
   return parts.slice(start).join("/").toLowerCase();
 }
 
-/** 파일명에서 작업명 토큰(두 번째 칸)을 꺼낸다. 없으면 버전을 뗀 이름 */
+/**
+ * 파일명에서 "어떤 작업인지"를 나타내는 부분을 꺼낸다.
+ * 연도_프로젝트_유형(PC|MO)_도구_디자이너_버전 → 프로젝트_유형(PC|MO)
+ * 도구·디자이너·버전이 바뀌어도 같은 작업으로 본다.
+ */
 export function workToken(fileName: string) {
   const stem = fileName.replace(/\.[^/.]+$/, "");
   const tokens = stem.split("_");
-  return (tokens[1] || stem.replace(/_?v\d+$/i, "")).toLowerCase();
+  if (tokens.length >= 5) return `${tokens[1]}_${tokens[2]}`.toLowerCase();
+  return stem.replace(/_?v\d+$/i, "").toLowerCase();
 }
 
 /** 같은 NAS 폴더 + 같은 작업명이면 같은 작업의 다른 버전으로 본다. */

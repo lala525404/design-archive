@@ -14,7 +14,7 @@ interface Props {
   canUpload?: boolean;
 }
 
-const SUGGESTIONS = ["이동건", "색채학 상세페이지", "산돌 사용", "GPT"];
+const SUGGESTIONS = ["색채학", "아이티뱅크", "상세페이지 MO", "산돌 사용"];
 
 export function LandingView({
   assets,
