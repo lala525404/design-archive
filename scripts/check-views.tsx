@@ -142,6 +142,7 @@ assert.equal((landing.match(/class="folder-card /g) || []).length, 5, "Five rece
 assert.ok(landing.includes('role="search"'), "Search lives inside the folder");
 assert.ok(landing.includes("디자인 자산 아카이브"), "Title");
 assert.ok(landing.includes("등록하기"), "Register pill");
+assert.ok(landing.includes("둘러보기"), "Browse pill for first-time visitors");
 for (const q of ["색채학", "아이티뱅크", "상세페이지 MO", "산돌 사용"]) {
   assert.ok(resultCount(search(q)) > 0, `Suggestion ${q} returns results`);
 }

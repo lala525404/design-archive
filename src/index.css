@@ -3806,3 +3806,22 @@ mark {
     transition: none;
   }
 }
+.hero-actions {
+  margin-top: 20px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.hero-actions .hero-pill {
+  margin-top: 0;
+  height: 44px;
+  padding: 0 22px;
+}
+.hero-pill--primary {
+  background: var(--blue);
+  color: #ffffff;
+}
+.hero-pill--primary:hover {
+  background: #0077ed;
+}

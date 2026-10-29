@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Menu, Plus, Search } from "lucide-react";
+import { ChevronRight, Menu, Plus, Search } from "lucide-react";
 import { DesignAsset } from "../types";
 import { DesignThumbnail } from "../components/DesignThumbnail";
 import { serviceName } from "../lib/taxonomy";
@@ -120,16 +120,21 @@ export function LandingView({
 
         <h1 className="hero-title">디자인 자산 아카이브</h1>
 
-        {canUpload ? (
-          <button className="hero-pill" onClick={() => onNavigate?.("upload")}>
-            <Plus size={16} />
-            등록하기
+        <div className="hero-actions">
+          {canUpload && (
+            <button className="hero-pill hero-pill--primary" onClick={() => onNavigate?.("upload")}>
+              <Plus size={16} strokeWidth={2.4} />
+              등록하기
+            </button>
+          )}
+          <button
+            className={`hero-pill ${canUpload ? "" : "hero-pill--primary"}`}
+            onClick={() => onSearch("")}
+          >
+            둘러보기
+            <ChevronRight size={16} strokeWidth={2.4} />
           </button>
-        ) : (
-          <button className="hero-pill" onClick={() => onSearch("")}>
-            전체 {assets.length}개 보기
-          </button>
-        )}
+        </div>
       </section>
     </main>
   );
