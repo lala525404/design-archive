@@ -12,6 +12,7 @@ import { UploadView } from "../src/views/UploadView";
 import { PromptStudioView } from "../src/views/PromptStudioView";
 import { LicenseManagementView } from "../src/views/LicenseManagementView";
 import { NamingRuleView } from "../src/views/NamingRuleView";
+import { BlockWorld, BLOCKS, blockLayout } from "../src/lib/blockPhysics";
 const noop = () => {};
 const search = (query: string, records = assets) =>
   renderToStaticMarkup(
@@ -121,6 +122,70 @@ for (const asset of assets) {
   assert.ok(html.includes(asset.fileName));
   assert.ok(html.includes(asset.filePath));
 }
+
+// Exercise actual collision and drag behavior independently of the browser renderer.
+for (const [width, height] of [
+  [1264, 360],
+  [335, 180],
+  [280, 110],
+]) {
+  const world = new BlockWorld(width, height);
+  for (let frame = 0; frame < 600; frame++) world.step();
+  assert.equal(
+    world.blocks.filter((b) => b.spawned).length,
+    BLOCKS.length,
+    "Every block enters the scene",
+  );
+  for (const { body } of world.blocks) {
+    assert.ok(
+      Number.isFinite(body.position.x) && Number.isFinite(body.angle),
+      "Physics stays finite",
+    );
+    assert.ok(
+      body.bounds.min.x >= -3 && body.bounds.max.x <= width + 3,
+      "Throws stay inside horizontal bounds",
+    );
+    assert.ok(
+      body.bounds.max.y <= world.floor + 3,
+      "Blocks stay above the floor",
+    );
+    assert.ok(body.bounds.max.y > 0, "Blocks remain visible");
+  }
+  assert.equal(
+    world.needsFrame,
+    false,
+    "Settled blocks let the frame loop sleep",
+  );
+  const target = { x: width * 0.65, y: height * 0.25 };
+  assert.ok(world.beginDrag(0, world.blocks[0].body.position));
+  world.moveDrag(target);
+  for (let frame = 0; frame < 90; frame++) world.step();
+  assert.ok(
+    Math.abs(world.blocks[0].body.position.x - target.x) < width * 0.15,
+    "Dragging follows the target",
+  );
+  world.endDrag();
+  assert.equal(world.dragging, null, "Release removes the drag constraint");
+  world.dispose();
+}
+const quiet = new BlockWorld(335, 180, true);
+const home = blockLayout(335, 180);
+for (let i = 0; i < 90; i++) quiet.step();
+assert.ok(
+  quiet.blocks.every(
+    (block, i) => Math.abs(block.body.position.x - home[i].x) < 1,
+  ),
+  "Reduced motion stays at rest",
+);
+quiet.beginDrag(0, { x: 100, y: 60 });
+quiet.moveDrag({ x: 130, y: 65 });
+assert.equal(
+  quiet.blocks[0].body.position.x,
+  130,
+  "Reduced motion permits direct dragging",
+);
+quiet.endDrag();
+quiet.dispose();
 console.log(
-  "PASS: search cases, 7 views, and detail metadata for all 9 samples",
+  "PASS: search, 7 views, 9 samples, responsive physics, dragging, and reduced motion",
 );

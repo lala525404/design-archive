@@ -2240,138 +2240,6 @@ mark {
   overflow: clip;
   position: relative;
 }
-.block-stage {
-  --block-size: min(17cqw, max(0px, calc((100cqh - 26px) / 2)), 164px);
-  --caption-height: 26px;
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 0;
-}
-.block-cluster {
-  display: flex;
-  align-items: flex-end;
-  gap: clamp(5px, 1cqw, 14px);
-}
-.block-column {
-  position: relative;
-  width: var(--block-size);
-  height: calc(var(--block-size) * 2 + var(--caption-height));
-  flex: 0 0 auto;
-}
-.block-column--clover {
-  width: calc(var(--block-size) * 1.16);
-}
-.block-column--circle {
-  width: calc(var(--block-size) * 1.34);
-}
-.block-column--palette {
-  width: calc(var(--block-size) * 0.72);
-}
-.falling-block {
-  position: absolute;
-  left: 0;
-  bottom: var(--caption-height);
-  width: 100%;
-  height: var(--block-size);
-  display: block;
-  padding: 0;
-  border: 0;
-  transform-origin: 50% 90%;
-  animation: block-drop 900ms var(--drop-delay) both;
-}
-.falling-block--top {
-  bottom: calc(var(--block-size) + var(--caption-height));
-}
-.falling-block--rectangle {
-  border-radius: 15%;
-}
-.falling-block--hexagon {
-  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-}
-.falling-block--circle {
-  height: calc(var(--block-size) * 1.34);
-  border-radius: 50%;
-}
-.falling-block--clover {
-  height: calc(var(--block-size) * 1.16);
-  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath fill='white' d='M50 13C12-15-15 12 13 50C-15 88 12 115 50 87C88 115 115 88 87 50C115 12 88-15 50 13Z'/%3E%3C/svg%3E");
-  mask-size: 100% 100%;
-  mask-repeat: no-repeat;
-}
-.falling-block--palette {
-  height: calc(var(--block-size) * 1.12);
-  display: flex;
-  flex-direction: column;
-  gap: max(2px, calc(var(--block-size) * 0.025));
-  border: 1px solid var(--line);
-  border-radius: 12%;
-  background: white;
-  padding: 5%;
-}
-.falling-block--palette i {
-  flex: 1;
-  border-radius: 3px;
-}
-.falling-block--palette i:first-child {
-  border-top-left-radius: 8px;
-  border-top-right-radius: 8px;
-}
-.falling-block--palette i:last-child {
-  border-bottom-left-radius: 8px;
-  border-bottom-right-radius: 8px;
-}
-.falling-block:focus-visible {
-  outline: 3px solid #191919;
-  outline-offset: -5px;
-}
-.falling-block:hover {
-  filter: brightness(0.97);
-}
-.block-caption {
-  position: absolute;
-  left: 50%;
-  bottom: 0;
-  transform: translateX(-50%);
-  color: #8a8179;
-  font-size: 10px;
-  line-height: 14px;
-  font-weight: 400;
-  white-space: nowrap;
-}
-@keyframes block-drop {
-  0% {
-    opacity: 0;
-    transform: translate3d(var(--drop-drift), calc(-100dvh), 0)
-      rotate(var(--drop-turn));
-    animation-timing-function: cubic-bezier(0.5, 0.02, 0.88, 0.5);
-  }
-  12% {
-    opacity: 1;
-  }
-  65% {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) rotate(0deg);
-    animation-timing-function: cubic-bezier(0.15, 0.7, 0.35, 1);
-  }
-  79% {
-    transform: translate3d(0, -10%, 0) rotate(calc(var(--drop-turn) * -0.1));
-  }
-  90% {
-    transform: translate3d(0, 0, 0) rotate(0deg);
-  }
-  96% {
-    transform: translate3d(0, -1.5%, 0) rotate(0deg);
-  }
-  100% {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) rotate(0deg);
-  }
-}
 .landing-title {
   border-top: 1px solid #cfcac4;
   padding-top: clamp(10px, 1.6dvh, 18px);
@@ -2463,28 +2331,6 @@ mark {
     width: 11px;
     height: 11px;
   }
-  .block-stage {
-    --caption-height: 22px;
-    --block-size: min(17cqw, max(0px, calc((100cqh - 22px) / 2)), 90px);
-  }
-  .block-caption {
-    font-size: 8px;
-    line-height: 12px;
-  }
-  .falling-block--palette {
-    border-radius: 8px;
-  }
-  .falling-block--palette i {
-    border-radius: 2px;
-  }
-  .falling-block--palette i:first-child {
-    border-top-left-radius: 4px;
-    border-top-right-radius: 4px;
-  }
-  .falling-block--palette i:last-child {
-    border-bottom-left-radius: 4px;
-    border-bottom-right-radius: 4px;
-  }
   .landing-title h1 {
     font-size: clamp(44px, min(10.5vw, 7.6dvh), 56px);
     line-height: 1.08;
@@ -2574,18 +2420,202 @@ mark {
   .landing-title p {
     display: none;
   }
-  .block-caption {
-    display: none;
+}
+
+/* Pointer-driven block playground; its height is still owned by the landing grid. */
+.interactive-gallery {
+  display: grid;
+  grid-template-rows: 24px minmax(0, 1fr);
+  gap: 8px;
+  isolation: isolate;
+}
+.physics-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  position: relative;
+  z-index: 2;
+  color: #9a9086;
+  font-size: 10px;
+  font-weight: 400;
+}
+.physics-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 3px 0 3px 8px;
+  color: #7f746a;
+  font-size: 10px;
+  font-weight: 400;
+}
+.physics-reset:hover {
+  color: var(--blue);
+}
+.physics-reset svg {
+  transition: transform 0.4s;
+}
+.physics-reset:hover svg {
+  transform: rotate(-70deg);
+}
+.physics-stage {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: clip;
+}
+.physics-block {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  transform-origin: 50% 50%;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+  will-change: transform;
+  transition: filter 0.2s;
+}
+.physics-block[data-spawned="false"] {
+  visibility: hidden;
+  pointer-events: none;
+}
+.physics-block[data-spawned="true"] {
+  visibility: visible;
+}
+.physics-block:hover {
+  filter: brightness(1.025);
+}
+.physics-block.is-held {
+  cursor: grabbing;
+  z-index: 3;
+}
+.is-grabbing .physics-stage {
+  cursor: grabbing;
+}
+.physics-block--rectangle {
+  border-radius: 15%;
+}
+.physics-block--hexagon {
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+}
+.physics-block--circle {
+  border-radius: 50%;
+}
+.physics-block--clover {
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath fill='white' d='M50 13C12-15-15 12 13 50C-15 88 12 115 50 87C88 115 115 88 87 50C115 12 88-15 50 13Z'/%3E%3C/svg%3E");
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+}
+.physics-block--palette {
+  display: flex;
+  flex-direction: column;
+  gap: 3%;
+  border: 1px solid var(--line);
+  border-radius: 12%;
+  background: white;
+  padding: var(--chip-padding, 4px);
+}
+.physics-block--palette i {
+  display: block;
+  flex: 1;
+  border-radius: 3px;
+  pointer-events: none;
+}
+.physics-block--palette i:first-child {
+  border-radius: 8px 8px 3px 3px;
+}
+.physics-block--palette i:last-child {
+  border-radius: 3px 3px 8px 8px;
+}
+.physics-block:focus-visible {
+  outline: 3px solid #191919;
+  outline-offset: -5px;
+}
+.block-open-cue {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #fff;
+  color: #191919;
+  opacity: 0;
+  transform: translate(-50%, -40%) scale(0.85);
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+  pointer-events: none;
+}
+.physics-block:hover .block-open-cue,
+.physics-block:focus-visible .block-open-cue {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+.physics-block.is-held .block-open-cue {
+  opacity: 0;
+}
+.landing-title h1 span {
+  animation: title-arrive 0.85s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.landing-title h1 span:nth-child(2) {
+  animation-delay: 0.13s;
+}
+@keyframes title-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
   }
-  .block-stage {
-    --caption-height: 0px;
-    --block-size: min(17cqw, max(0px, calc(100cqh / 2)), 90px);
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (max-width: 600px) {
+  .physics-toolbar {
+    font-size: 9px;
+  }
+  .physics-reset {
+    font-size: 9px;
+  }
+  .block-open-cue {
+    width: 25px;
+    height: 25px;
+  }
+  .block-open-cue svg {
+    width: 14px;
+    height: 14px;
+  }
+  .physics-block--palette i {
+    border-radius: 2px;
+  }
+}
+@media (max-height: 370px) {
+  .interactive-gallery {
+    grid-template-rows: 20px minmax(0, 1fr);
+    gap: 3px;
+  }
+  .physics-toolbar,
+  .physics-reset {
+    font-size: 8px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .falling-block {
+  .landing-title h1 span {
     animation: none;
-    opacity: 1;
-    transform: none;
+  }
+  .block-open-cue,
+  .physics-reset svg {
+    transition: none;
   }
 }
