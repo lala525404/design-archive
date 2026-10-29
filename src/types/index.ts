@@ -50,6 +50,8 @@ export interface DesignAsset {
   resources?: string[];
   /** '기타' 리소스의 실제 이름/출처 (예: 언스플래시, 프리픽) */
   resourceEtc?: string;
+  /** 기타 리소스 라이선스 증빙(캡처·PDF) */
+  licenseProofs?: { name: string; url?: string }[];
   /** 이 프로젝트(패키지)에 들어 있는 작업 유형. 업로드 때 체크한 값 */
   packageTypes?: AssetType[];
   /** PC/MO 버전이 따로 있는 작업 */

@@ -290,6 +290,9 @@ export function DetailView({
                 ["프로젝트", asset.project],
                 ["요청번호", asset.requestNo || "없음"],
                 ["리소스", asset.resources?.length ? resourceLabels(asset.resources, asset.resourceEtc).join(" · ") : "없음"],
+                ...(asset.licenseProofs?.length
+                  ? [["라이선스 증빙", asset.licenseProofs.map((p) => p.name).join(", ")]]
+                  : []),
                 ["패키지 구성", (asset.packageTypes ?? [asset.type]).join(" · ")],
                 ["작업 유형", `${asset.type}${asset.device ? ` · ${asset.device}` : ""}`],
                 ["제작 연도", `${asset.year}년`],

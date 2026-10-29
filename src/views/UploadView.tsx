@@ -182,8 +182,8 @@ async function readImageColors(url: string): Promise<string[]> {
 }
 
 const PAID_RESOURCES = ["산돌", "게티"];
-/** 사용 범위 확인이 필요한 리소스 (기타는 출처 확인) */
-const CHECK_RESOURCES = ["산돌", "게티", "기타"];
+/** 등록 때 확인이 필요한 리소스. 산돌·게티는 회사 구매 패키지라 확인하지 않는다 */
+const CHECK_RESOURCES = ["AI"];
 
 export const UploadView: React.FC<UploadViewProps> = ({
   assets = [],
@@ -230,7 +230,8 @@ export const UploadView: React.FC<UploadViewProps> = ({
   // 태그
   const [extraTags, setExtraTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
-  const [tagsOk, setTagsOk] = useState(false);
+  const [proofs, setProofs] = useState<{ name: string; url?: string }[]>([]);
+  const proofInput = useRef<HTMLInputElement>(null);
 
   const addFiles = (list: { file: File; path?: string }[]) => {
     if (!list.length) return;
@@ -330,7 +331,7 @@ export const UploadView: React.FC<UploadViewProps> = ({
     setChangeNote("");
     setLicenseOk({});
     setExtraTags([]);
-    setTagsOk(false);
+    setProofs(existing?.licenseProofs ?? []);
     setAnalyzing(false);
     setStep(1);
   };
@@ -404,13 +405,12 @@ export const UploadView: React.FC<UploadViewProps> = ({
     ...(paid.length
       ? [
           {
-            label: `라이선스 확인 (${paid.length - unconfirmed.length}/${paid.length})`,
+            label: "AI 사용 표기",
             ok: unconfirmed.length === 0,
             required: false,
           },
         ]
       : []),
-    { label: "태그 확인", ok: tagsOk, required: true },
   ];
   const blocking = checks.filter((c) => c.required && !c.ok);
 
@@ -423,12 +423,11 @@ export const UploadView: React.FC<UploadViewProps> = ({
       return;
     }
     const today = new Date().toISOString().split("T")[0];
-    const label = (r: string) => (r === "기타" ? `기타(${etcName})` : r);
     const licenseStatus: DesignAsset["licenseStatus"] = unconfirmed.length ? "needs_review" : "verified";
     const licenseNote = paid.length
       ? unconfirmed.length
-        ? `${unconfirmed.map(label).join("·")} 라이선스 범위를 관리자가 확인해야 합니다.`
-        : `업로더가 ${paid.map(label).join("·")} 라이선스 범위 안에서 사용했다고 확인했습니다.`
+        ? "AI 사용 표기 여부를 확인해야 합니다."
+        : "AI 사용 문구를 기재했다고 업로더가 확인했습니다."
       : undefined;
     const projectFields = {
       service,
@@ -439,6 +438,7 @@ export const UploadView: React.FC<UploadViewProps> = ({
       projectDate,
       resources,
       resourceEtc: etcName || undefined,
+      licenseProofs: resources.includes("기타") && proofs.length ? proofs : undefined,
       packageTypes: mergedPackage,
     };
     const added: DesignAsset[] = [];
@@ -984,7 +984,7 @@ export const UploadView: React.FC<UploadViewProps> = ({
             <header>
               <span className="review-no">{(isRevision ? 3 : 4) + (versionCount ? 1 : 0)}</span>
               <h2>리소스·라이선스</h2>
-              <span className="review-hint">유료 리소스는 사용 범위를 확인해주세요. 체크하지 않으면 관리자가 확인해요.</span>
+              <span className="review-hint">산돌·게티는 회사 구매 패키지라 따로 확인하지 않아요. AI·기타만 확인해주세요.</span>
             </header>
             <div className="builder-chips" role="group" aria-label="사용한 리소스">
               {RESOURCES.map((r) => (
@@ -1004,16 +1004,55 @@ export const UploadView: React.FC<UploadViewProps> = ({
               {!resources.length && <span className="review-hint">사용한 리소스 없음</span>}
             </div>
             {resources.includes("기타") && (
-              <label className={`etc-resource ${!etcName ? "needs" : ""}`}>
-                기타 리소스 이름·출처
-                <input
-                  value={resourceEtc}
-                  autoFocus={!resourceEtc}
-                  disabled={isRevision}
-                  placeholder="예: 언스플래시 이미지, 프리픽 아이콘, 눈누 무료폰트"
-                  onChange={(e) => setResourceEtc(e.target.value)}
-                />
-              </label>
+              <div className="etc-row">
+                <label className={`etc-resource ${!etcName ? "needs" : ""}`}>
+                  기타 리소스 이름·출처
+                  <input
+                    value={resourceEtc}
+                    autoFocus={!resourceEtc}
+                    disabled={isRevision}
+                    placeholder="예: 언스플래시 이미지, 프리픽 아이콘, 눈누 무료폰트"
+                    onChange={(e) => setResourceEtc(e.target.value)}
+                  />
+                </label>
+                <div className="proof">
+                  <span className="proof-label">라이선스 증빙 (선택)</span>
+                  <div className="proof-list">
+                    {proofs.map((pf, i) => (
+                      <span key={pf.name + i} className="proof-chip">
+                        {pf.url ? <img src={pf.url} alt="" /> : <FolderOpen size={13} />}
+                        {pf.name}
+                        <button
+                          type="button"
+                          onClick={() => setProofs(proofs.filter((_, j) => j !== i))}
+                          aria-label={`${pf.name} 삭제`}
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ))}
+                    <button type="button" className="proof-add" onClick={() => proofInput.current?.click()}>
+                      <ImagePlus size={14} />
+                      캡처 올리기
+                    </button>
+                    <input
+                      ref={proofInput}
+                      type="file"
+                      accept="image/*,.pdf"
+                      multiple
+                      hidden
+                      onChange={(e) => {
+                        const list = Array.from(e.target.files ?? []).map((f) => ({
+                          name: f.name,
+                          url: f.type.startsWith("image/") ? URL.createObjectURL(f) : undefined,
+                        }));
+                        setProofs([...proofs, ...list]);
+                        e.target.value = "";
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
             )}
             {paid.map((r) => (
               <label key={r} className={`license-check ${licenseOk[r] ? "is-ok" : ""}`}>
@@ -1023,19 +1062,14 @@ export const UploadView: React.FC<UploadViewProps> = ({
                   onChange={(e) => setLicenseOk({ ...licenseOk, [r]: e.target.checked })}
                 />
                 <span>
-                  <b>{r === "기타" ? `기타${etcName ? `(${etcName})` : ""}` : r}</b>
-                  {r === "산돌"
-                    ? " 서체를 회사 라이선스 범위(웹·인쇄 용도) 안에서 사용했어요"
-                    : r === "게티"
-                      ? " 이미지를 구매한 라이선스 범위 안에서 사용했어요"
-                      : " 리소스의 출처와 상업적 이용 가능 여부를 확인했어요"}
+                  결과물에 <b>AI 사용 문구</b>(예: "본 이미지는 AI로 제작되었습니다")를 기재했어요
                 </span>
               </label>
             ))}
           </section>
 
           {/* 6. 태그 */}
-          <section className={`review-block review-block--tags ${tagsOk ? "is-ok" : ""}`}>
+          <section className="review-block review-block--tags">
             <header>
               <span className="review-no">{(isRevision ? 4 : 5) + (versionCount ? 1 : 0)}</span>
               <h2>태그</h2>
@@ -1054,7 +1088,6 @@ export const UploadView: React.FC<UploadViewProps> = ({
                     <button
                       onClick={() => {
                         setExtraTags(extraTags.filter((x) => x !== t));
-                        setTagsOk(false);
                       }}
                       aria-label={`${t} 삭제`}
                     >
@@ -1101,10 +1134,6 @@ export const UploadView: React.FC<UploadViewProps> = ({
             <p className="review-hint">
               예: 행사명, 캠페인명, 시즌(가을·연말), 타깃(직장인·학부모), 강사·교수명처럼 나중에 검색할 말을 추가하면 찾기 쉬워요.
             </p>
-            <label className={`tag-confirm ${tagsOk ? "is-ok" : ""}`}>
-              <input type="checkbox" checked={tagsOk} onChange={(e) => setTagsOk(e.target.checked)} />
-              <span>태그를 확인했어요</span>
-            </label>
           </section>
 
           {/* 확인 목록 + 등록 */}
