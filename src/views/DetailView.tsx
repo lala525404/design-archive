@@ -14,6 +14,7 @@ import { DesignThumbnail } from "../components/DesignThumbnail";
 import { Disclosure, Status } from "../components/Chrome";
 import { getVersions } from "../lib/versions";
 import { serviceName } from "../lib/taxonomy";
+import { projectKey } from "../lib/projects";
 interface Props {
   asset: DesignAsset;
   onBack: () => void;
@@ -24,6 +25,7 @@ interface Props {
   userRole: UserRole;
   allAssets: DesignAsset[];
   onSelectAsset: (id: string) => void;
+  onOpenProject?: (key: string) => void;
 }
 export function DetailView({
   asset,
@@ -34,6 +36,7 @@ export function DetailView({
   userRole,
   allAssets,
   onSelectAsset,
+  onOpenProject,
 }: Props) {
   const [copied, setCopied] = useState(false),
     [message, setMessage] = useState(""),
@@ -98,10 +101,15 @@ export function DetailView({
           </div>
         </section>
         <section className="detail-info">
-          <p className="detail-eyebrow">
+          <button
+            type="button"
+            className="detail-eyebrow detail-project-link"
+            onClick={() => onOpenProject?.(projectKey(asset))}
+          >
             {serviceName(asset.service)} · {asset.project} 프로젝트
             {asset.requestNo && ` · 요청 ${asset.requestNo}`}
-          </p>
+            <span aria-hidden="true"> ›</span>
+          </button>
           <h1>
             {asset.title}
             {asset.device && <span className="device-badge">{asset.device}</span>}
@@ -289,7 +297,9 @@ export function DetailView({
             <button
               className="text-button"
               onClick={() =>
-                onSimilarSearch(sameProject.length ? asset.project : serviceName(asset.service))
+                sameProject.length
+                  ? onOpenProject?.(projectKey(asset))
+                  : onSimilarSearch(serviceName(asset.service))
               }
             >
               전체 보기

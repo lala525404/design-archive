@@ -16,6 +16,7 @@ import {
 import { DesignAsset, ViewMode, GroupMode, SortOption } from "../types";
 import { SearchBox, PageTitle, Status } from "../components/Chrome";
 import { getVersions } from "../lib/versions";
+import { groupProjects, projectKey, typeSummary } from "../lib/projects";
 import {
   ASSET_TYPES,
   DESIGNERS,
@@ -34,6 +35,9 @@ interface SearchViewProps {
   onOpenPromptStudio: (asset: DesignAsset) => void;
   onOpenMenu: () => void;
   onNavigateHome: () => void;
+  onSelectProject?: (key: string) => void;
+  /** 처음 보여줄 단위: 프로젝트 카드 / 파일 카드 */
+  initialUnit?: "project" | "file";
 }
 
 export const SearchView: React.FC<SearchViewProps> = ({
@@ -44,7 +48,10 @@ export const SearchView: React.FC<SearchViewProps> = ({
   onOpenPromptStudio,
   onOpenMenu,
   onNavigateHome,
+  onSelectProject,
+  initialUnit = "project",
 }) => {
+  const [unit, setUnit] = useState<"project" | "file">(initialUnit);
   const [inputVal, setInputVal] = useState(searchQuery);
   useEffect(() => setInputVal(searchQuery), [searchQuery]);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
@@ -255,6 +262,29 @@ export const SearchView: React.FC<SearchViewProps> = ({
     }));
   }, [filteredAssets, groupMode]);
 
+  // 프로젝트 단위: 조건에 맞는 파일이 하나라도 있는 프로젝트
+  const projectSections = useMemo(() => {
+    const totals = new Map<string, number>();
+    assets.forEach((a) => totals.set(projectKey(a), (totals.get(projectKey(a)) ?? 0) + 1));
+    const list = groupProjects(filteredAssets)
+      .map((p) => ({ ...p, total: totals.get(p.key) ?? p.files.length }))
+      .sort((a, b) =>
+        sortBy === "oldest"
+          ? a.latestDate.localeCompare(b.latestDate)
+          : sortBy === "title"
+            ? a.project.localeCompare(b.project, "ko")
+            : b.latestDate.localeCompare(a.latestDate),
+      );
+    if (groupMode !== "service") return [{ groupTitle: "", items: list }];
+    const map = new Map<string, typeof list>();
+    list.forEach((p) => {
+      if (!map.has(p.service)) map.set(p.service, []);
+      map.get(p.service)!.push(p);
+    });
+    return Array.from(map.entries()).map(([groupTitle, items]) => ({ groupTitle, items }));
+  }, [assets, filteredAssets, sortBy, groupMode]);
+  const projectCount = projectSections.reduce((n, s) => n + s.items.length, 0);
+
   const count =
     selectedTypes.length +
     selectedServices.length +
@@ -461,16 +491,32 @@ export const SearchView: React.FC<SearchViewProps> = ({
       <div className="results-toolbar">
         <p aria-live="polite">
           {searchQuery && <span className="query-text">‘{searchQuery}’ </span>}
-          <strong>{filteredAssets.length}</strong>개의 작업
+          {unit === "project" ? (
+            <>
+              프로젝트 <strong>{projectCount}</strong>개 · 파일 {filteredAssets.length}개
+            </>
+          ) : (
+            <>
+              <strong>{filteredAssets.length}</strong>개의 파일
+            </>
+          )}
         </p>
         <div className="result-options">
+          <div className="unit-toggle" role="group" aria-label="보기 단위">
+            <button aria-pressed={unit === "project"} onClick={() => setUnit("project")}>
+              프로젝트
+            </button>
+            <button aria-pressed={unit === "file"} onClick={() => setUnit("file")}>
+              파일
+            </button>
+          </div>
           <select
             aria-label="결과 묶어 보기"
             value={groupMode}
             onChange={(e) => setGroupMode(e.target.value as GroupMode)}
           >
             <option value="none">묶지 않음</option>
-            <option value="project">프로젝트별</option>
+            {unit === "file" && <option value="project">프로젝트별</option>}
             <option value="service">서비스별</option>
           </select>
           <select
@@ -538,6 +584,58 @@ export const SearchView: React.FC<SearchViewProps> = ({
             전체 자산 보기
           </button>
         </div>
+      ) : unit === "project" ? (
+        projectSections.map((sec) => (
+          <section key={sec.groupTitle || "all"} className="result-section">
+            {sec.groupTitle && (
+              <h2 className="group-title">
+                {sec.groupTitle}
+                <span>{sec.items.length}</span>
+              </h2>
+            )}
+            <div className="project-grid">
+              {sec.items.map((p) => (
+                <article key={p.key} className="project-item">
+                  <button
+                    className="project-cover"
+                    onClick={() => onSelectProject?.(p.key)}
+                    aria-label={`${p.project} 프로젝트 보기`}
+                  >
+                    {p.covers.slice(0, 3).map((c, i) => (
+                      <span key={c.id} className={`project-cover-card project-cover-card--${i}`}>
+                        <DesignThumbnail asset={c} fit="cover" />
+                      </span>
+                    ))}
+                    {p.license !== "verified" && (
+                      <span className="image-status">
+                        <Status value={p.license} />
+                      </span>
+                    )}
+                  </button>
+                  <div className="project-caption">
+                    <p className="asset-meta">
+                      {serviceName(p.service)} · {p.year}
+                      {p.requestNo && ` · 요청 ${p.requestNo}`}
+                    </p>
+                    <button className="asset-title" onClick={() => onSelectProject?.(p.key)}>
+                      {highlightText(p.project, searchQuery)}
+                    </button>
+                    <p className="project-types">
+                      {typeSummary(p.files).map((t) => (
+                        <span key={t}>{t}</span>
+                      ))}
+                      <em>
+                        {p.files.length < p.total
+                          ? `일치 ${p.files.length} / 전체 ${p.total}개`
+                          : `파일 ${p.total}개`}
+                      </em>
+                    </p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        ))
       ) : (
         groupedSections.map((sec) => (
           <section key={sec.groupTitle} className="result-section">

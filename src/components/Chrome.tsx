@@ -10,7 +10,14 @@ import {
   AlertTriangle,
 } from "lucide-react";
 export type AppView =
-  "landing" | "search" | "detail" | "upload" | "prompt" | "license" | "naming";
+  | "landing"
+  | "search"
+  | "detail"
+  | "project"
+  | "upload"
+  | "prompt"
+  | "license"
+  | "naming";
 export function Header({
   view,
   onNavigate,

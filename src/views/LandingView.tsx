@@ -3,6 +3,7 @@ import { ChevronRight, Menu, Plus, Search } from "lucide-react";
 import { DesignAsset } from "../types";
 import { DesignThumbnail } from "../components/DesignThumbnail";
 import { serviceName } from "../lib/taxonomy";
+import { groupProjects, typeSummary } from "../lib/projects";
 
 interface Props {
   assets: DesignAsset[];
@@ -11,6 +12,7 @@ interface Props {
   onSelectAsset: (id: string) => void;
   onNavigateToLicense: () => void;
   onNavigate?: (view: "upload" | "prompt" | "license") => void;
+  onSelectProject?: (key: string) => void;
   canUpload?: boolean;
 }
 
@@ -24,12 +26,17 @@ export function LandingView({
   onOpenMenu,
   onSelectAsset,
   onNavigate,
+  onSelectProject,
   canUpload = true,
 }: Props) {
   const [query, setQuery] = useState("");
 
   const recent = useMemo(
     () => [...assets].sort((a, b) => b.uploadDate.localeCompare(a.uploadDate)),
+    [assets],
+  );
+  const recentProjects = useMemo(
+    () => groupProjects(assets).sort((a, b) => b.latestDate.localeCompare(a.latestDate)),
     [assets],
   );
   // 폴더에 꽂을 카드: 최근 작업 중 서로 다른 유형 위주로 5장
@@ -82,14 +89,13 @@ export function LandingView({
           <div className="folder-front">
             <span className="folder-front-tab" aria-hidden="true" />
             <div className="folder-front-body">
-              <ul className="folder-list" aria-label="최근 등록">
-                {recent.slice(0, 3).map((a) => (
-                  <li key={a.id}>
-                    <button type="button" onClick={() => onSelectAsset(a.id)}>
-                      <strong>{a.project}</strong>
+              <ul className="folder-list" aria-label="최근 프로젝트">
+                {recentProjects.slice(0, 3).map((p) => (
+                  <li key={p.key}>
+                    <button type="button" onClick={() => onSelectProject?.(p.key)}>
+                      <strong>{p.project}</strong>
                       <span>
-                        {a.type}
-                        {a.device ? ` ${a.device}` : ""} · {serviceName(a.service)}
+                        {serviceName(p.service)} · {typeSummary(p.files).join(", ")}
                       </span>
                     </button>
                   </li>

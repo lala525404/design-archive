@@ -14,6 +14,8 @@ import { CURRENT_DESIGNER } from "./lib/taxonomy";
 import { PromptStudioView } from "./views/PromptStudioView";
 import { LicenseManagementView } from "./views/LicenseManagementView";
 import { NamingRuleView } from "./views/NamingRuleView";
+import { ProjectView } from "./views/ProjectView";
+import { projectKey } from "./lib/projects";
 import { NavigationDrawer } from "./components/NavigationDrawer";
 import { BottomNav } from "./components/BottomNav";
 import { Header } from "./components/Chrome";
@@ -21,8 +23,9 @@ import { CheckCircle2, AlertCircle } from "lucide-react";
 
 export default function App() {
   const [view, setView] = useState<
-    "landing" | "search" | "detail" | "upload" | "prompt" | "license" | "naming"
+    "landing" | "search" | "detail" | "project" | "upload" | "prompt" | "license" | "naming"
   >("landing");
+  const [selectedProjectKey, setSelectedProjectKey] = useState("");
 
   // Application state
   const [assets, setAssets] = useState<DesignAsset[]>(INITIAL_ASSETS);
@@ -37,7 +40,7 @@ export default function App() {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [view, selectedAssetId]);
+  }, [view, selectedAssetId, selectedProjectKey]);
 
   // Toast feedback state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -53,6 +56,11 @@ export default function App() {
   const handleSearch = (q: string) => {
     setSearchQuery(q);
     setView("search");
+  };
+
+  const handleSelectProject = (key: string) => {
+    setSelectedProjectKey(key);
+    setView("project");
   };
 
   const handleSelectAsset = (id: string) => {
@@ -76,8 +84,9 @@ export default function App() {
       setView("detail");
       showToast(`"${one.title}" ${one.version} 등록 완료`);
     } else {
-      setSearchQuery(project);
-      setView("search");
+      const first = added[0] ?? updated[0];
+      setSelectedProjectKey(projectKey(first));
+      setView("project");
       showToast(`${project} 프로젝트 ${total}개 등록 완료${versionText}`);
     }
   };
@@ -138,6 +147,18 @@ export default function App() {
           onSelectAsset={handleSelectAsset}
           onNavigateToLicense={() => setView("license")}
           onNavigate={(v) => setView(v)}
+          onSelectProject={handleSelectProject}
+          canUpload={userRole !== "user"}
+        />
+      )}
+
+      {view === "project" && (
+        <ProjectView
+          projectKey={selectedProjectKey}
+          assets={assets}
+          onBack={() => setView("search")}
+          onSelectAsset={handleSelectAsset}
+          onAddFiles={() => setView("upload")}
           canUpload={userRole !== "user"}
         />
       )}
@@ -151,6 +172,7 @@ export default function App() {
           onOpenPromptStudio={handleOpenPromptStudio}
           onOpenMenu={() => setIsDrawerOpen(true)}
           onNavigateHome={() => setView("landing")}
+          onSelectProject={handleSelectProject}
         />
       )}
 
@@ -166,6 +188,7 @@ export default function App() {
           userRole={userRole}
           allAssets={assets}
           onSelectAsset={handleSelectAsset}
+          onOpenProject={handleSelectProject}
         />
       )}
 

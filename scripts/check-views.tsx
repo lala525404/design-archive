@@ -31,6 +31,7 @@ const search = (query: string, records = assets) =>
       onOpenPromptStudio={noop}
       onOpenMenu={noop}
       onNavigateHome={noop}
+      initialUnit="file"
     />,
   );
 const resultCount = (html: string) =>
