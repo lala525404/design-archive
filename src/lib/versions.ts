@@ -11,7 +11,14 @@ export const CHANGE_REASONS: ChangeReason[] = [
 
 /** 저장된 기록이 없으면 현재 정보로 한 줄짜리 기록을 만든다. */
 export function getVersions(asset: DesignAsset): VersionEntry[] {
-  if (asset.versions?.length) return asset.versions;
+  if (asset.versions?.length) {
+    // 현재 버전 기록에 이미지가 빠져 있으면 지금 이미지를 채워 둔다 (다음 버전이 올라와도 남도록)
+    const list = asset.versions;
+    const last = list[list.length - 1];
+    if (asset.imageUrl && !last.imageUrl && last.version === asset.version)
+      return [...list.slice(0, -1), { ...last, imageUrl: asset.imageUrl }];
+    return list;
+  }
   return [
     {
       version: asset.version,
@@ -21,6 +28,7 @@ export function getVersions(asset: DesignAsset): VersionEntry[] {
       designer: asset.designer,
       reason: "최초 제작",
       originalKept: true,
+      ...(asset.imageUrl ? { imageUrl: asset.imageUrl } : {}),
     },
   ];
 }
@@ -103,4 +111,9 @@ export function withVersion(fileName: string, version: string) {
   return /_v\d+$/i.test(stem)
     ? `${stem.replace(/_v\d+$/i, `_${version}`)}${ext}`
     : `${stem}_${version}${ext}`;
+}
+
+/** 특정 버전으로 그린 미리보기용 자산 (그 버전의 이미지가 없으면 샘플 그림) */
+export function assetAtVersion(asset: DesignAsset, v: VersionEntry): DesignAsset {
+  return { ...asset, version: v.version, fileName: v.fileName, imageUrl: v.imageUrl };
 }

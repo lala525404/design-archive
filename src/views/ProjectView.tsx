@@ -27,7 +27,7 @@ import {
   resourceLabels,
 } from "../lib/taxonomy";
 import { groupProjects, projectKey, typeSummary } from "../lib/projects";
-import { getVersions, nextVersion, withVersion } from "../lib/versions";
+import { assetAtVersion, getVersions, nextVersion, withVersion } from "../lib/versions";
 
 interface Props {
   projectKey: string;
@@ -484,12 +484,7 @@ function VersionRow({
   const v = versions[Math.min(picked, versions.length - 1)];
   const isCurrent = picked >= versions.length - 1;
   const last = versions[versions.length - 1];
-  const preview: DesignAsset = {
-    ...asset,
-    version: v.version,
-    fileName: v.fileName,
-    imageUrl: v.imageUrl ?? (isCurrent ? asset.imageUrl : undefined),
-  };
+  const preview = assetAtVersion(asset, v);
 
   const rollback = (target: VersionEntry) => {
     const version = nextVersion(last.version);
@@ -510,7 +505,7 @@ function VersionRow({
         ...asset,
         version,
         fileName,
-        imageUrl: target.imageUrl ?? asset.imageUrl,
+        imageUrl: target.imageUrl,
         uploadDate: entry.uploadDate,
         versions: [...versions, entry],
       },

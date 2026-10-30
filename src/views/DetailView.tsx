@@ -12,7 +12,7 @@ import {
 import { AssetType, DesignAsset, UserRole } from "../types";
 import { DesignThumbnail } from "../components/DesignThumbnail";
 import { Disclosure, Status } from "../components/Chrome";
-import { getVersions } from "../lib/versions";
+import { assetAtVersion, getVersions } from "../lib/versions";
 import { ASSET_TYPES, DEVICE_TYPES, serviceName, resourceLabels } from "../lib/taxonomy";
 import { projectKey } from "../lib/projects";
 interface Props {
@@ -61,6 +61,11 @@ export function DetailView({
     }
   };
   const versions = getVersions(asset);
+  // 버전 기록에서 고른 버전을 미리보기에 보여준다 (기본: 현재)
+  const [viewing, setViewing] = useState(versions.length - 1);
+  const viewed = versions[Math.min(viewing, versions.length - 1)];
+  const isViewingCurrent = viewing >= versions.length - 1;
+  const previewAsset = isViewingCurrent ? asset : assetAtVersion(asset, viewed);
   const [copiedVersion, setCopiedVersion] = useState("");
   const copyVersionPath = async (path: string, version: string) => {
     try {
@@ -96,9 +101,42 @@ export function DetailView({
       </div>
       <div className="detail-layout">
         <section className="preview-panel">
-          <DesignThumbnail asset={asset} />
+          {versions.length > 1 && (
+            <div className="preview-versions" role="tablist" aria-label="버전 선택">
+              {versions.map((v, i) => (
+                <button
+                  key={v.version + v.uploadDate}
+                  type="button"
+                  role="tab"
+                  aria-selected={i === viewing}
+                  className={`${i === viewing ? "on" : ""} ${i === versions.length - 1 ? "is-current" : ""}`}
+                  onClick={() => setViewing(i)}
+                  title={`${v.reason} · ${v.uploadDate}`}
+                >
+                  {v.version}
+                  {i === versions.length - 1 && <small>현재</small>}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="preview-frame">
+            <DesignThumbnail key={viewed.version} asset={previewAsset} />
+            {!isViewingCurrent && (
+              <div className="preview-old-bar">
+                <span>
+                  <b>{viewed.version}</b> 이전 버전을 보고 있어요 · {viewed.reason} · {viewed.uploadDate}
+                </span>
+                <button type="button" onClick={() => setViewing(versions.length - 1)}>
+                  현재 {asset.version} 보기
+                </button>
+              </div>
+            )}
+          </div>
           <div className="preview-foot">
-            <span>{asset.imageUrl ? "업로드한 이미지" : "샘플 미리보기"}</span>
+            <span>
+              {previewAsset.imageUrl ? "업로드한 이미지" : "샘플 미리보기"}
+              {!isViewingCurrent && ` · ${viewed.fileName}`}
+            </span>
             <span>
               {asset.dimensions} · {asset.fileSize}
             </span>
@@ -256,13 +294,27 @@ export function DetailView({
           <Disclosure title={`버전 기록 ${versions.length}`} open={versions.length > 1}>
             <ol className="version-list">
               {[...versions].reverse().map((v, i) => (
-                <li key={v.version + v.uploadDate} className={i === 0 ? "is-current" : ""}>
-                  <div className="version-line">
+                <li
+                  key={v.version + v.uploadDate}
+                  className={`${i === 0 ? "is-current" : ""} ${versions.length - 1 - i === viewing ? "is-viewing" : ""}`}
+                >
+                  <button
+                    type="button"
+                    className="version-line"
+                    onClick={() => {
+                      setViewing(versions.length - 1 - i);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    aria-label={`${v.version} 미리보기`}
+                  >
                     <strong>{v.version}</strong>
                     {i === 0 && <span className="version-current">현재</span>}
                     <span className="version-reason">{v.reason}</span>
                     <span className="version-date">{v.uploadDate}</span>
-                  </div>
+                    <span className="version-view">
+                      {versions.length - 1 - i === viewing ? "보는 중" : "보기"}
+                    </span>
+                  </button>
                   {v.note && <p className="version-note">{v.note}</p>}
                   <div className="version-foot">
                     <span>{v.designer}</span>
