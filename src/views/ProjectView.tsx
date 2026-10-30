@@ -72,7 +72,7 @@ export function ProjectView({
     return (
       <main className="page-shell project-page">
         <button className="back-link" onClick={onBack}>
-          <ArrowLeft size={16} /> 검색 결과
+          <ArrowLeft size={16} /> 뒤로
         </button>
         <p className="muted">프로젝트를 찾을 수 없어요.</p>
       </main>
@@ -123,7 +123,7 @@ export function ProjectView({
   return (
     <main className="page-shell project-page">
       <button className="back-link" onClick={onBack}>
-        <ArrowLeft size={16} /> 검색 결과
+        <ArrowLeft size={16} /> 뒤로
       </button>
 
       <header className="project-head">

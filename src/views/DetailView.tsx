@@ -87,7 +87,7 @@ export function DetailView({
       <div className="detail-top">
         <button className="back-link" onClick={onBack}>
           <ArrowLeft size={16} />
-          검색 결과
+          뒤로
         </button>
         <span className="muted">
           {asset.type} / {asset.version}
