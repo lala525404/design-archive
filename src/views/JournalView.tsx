@@ -8,6 +8,7 @@ import {
   PenLine,
   Plus,
   Send,
+  Sparkles,
   Trash2,
   X,
 } from "lucide-react";
@@ -16,10 +17,11 @@ import { DesignThumbnail } from "../components/DesignThumbnail";
 import { groupProjects, typeSummary } from "../lib/projects";
 import { serviceName } from "../lib/taxonomy";
 
-export const JOURNAL_CATEGORIES: JournalCategory[] = ["트렌드", "레퍼런스", "작업 후기", "툴·팁", "공지"];
+export const JOURNAL_CATEGORIES: JournalCategory[] = ["트렌드", "AI 뉴스", "레퍼런스", "작업 후기", "툴·팁", "공지"];
 
 const CATEGORY_TONE: Record<JournalCategory, string> = {
   트렌드: "#0071e3",
+  "AI 뉴스": "#5e5ce6",
   레퍼런스: "#8e44ad",
   "작업 후기": "#1d8f4e",
   "툴·팁": "#c46a00",
@@ -174,6 +176,13 @@ function JournalList({ posts, onOpen, canWrite }: Props) {
           ))}
         </div>
       </div>
+
+      {cat === "AI 뉴스" && (
+        <p className="finder-note">
+          <Sparkles size={14} />
+          디자인에 쓰는 AI 툴 소식을 매주 월요일 아침에 정리해 올려요.
+        </p>
+      )}
 
       {!first ? (
         <p className="finder-empty">아직 글이 없어요.</p>

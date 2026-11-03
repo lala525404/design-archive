@@ -1,3 +1,4 @@
+import { AI_NEWS_POSTS } from "../src/data/journalPosts";
 import React from "react";
 import assert from "node:assert/strict";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -213,6 +214,23 @@ const uploadHtml = renderToStaticMarkup(
 );
 assert.ok(uploadHtml.includes("NAS 프로젝트 폴더"), "Upload asks for the NAS path");
 
+// 주간 AI 뉴스 데이터 검사 (매주 자동으로 추가되는 파일)
+{
+  const news = AI_NEWS_POSTS;
+  assert.ok(news.length > 0, "AI news has at least one post");
+  const ids = new Set(news.map((p) => p.id));
+  assert.equal(ids.size, news.length, "AI news ids are unique");
+  for (const p of news) {
+    assert.equal(p.category, "AI 뉴스", `${p.id} category`);
+    assert.ok(p.title && p.summary && p.body.includes("## "), `${p.id} has title, summary, sections`);
+    assert.match(p.date, /^\d{4}-\d{2}-\d{2}$/, `${p.id} date format`);
+    assert.ok((p.sources ?? []).length > 0 && p.sources!.every((s) => /^https?:\/\//.test(s.url)), `${p.id} has sources`);
+    assert.ok(Array.isArray(p.likes) && Array.isArray(p.comments) && Array.isArray(p.tags), `${p.id} arrays`);
+  }
+  const dates = news.map((p) => p.date);
+  assert.deepEqual([...dates].sort().reverse(), dates, "AI news is newest first");
+}
+
 console.log(
-  "PASS: search, 7 views, 16 samples, naming rule + legacy names, folder landing, services, NAS path, PC/MO, versions",
+  "PASS: search, 7 views, 16 samples, naming rule + legacy names, folder landing, services, NAS path, PC/MO, versions, AI news",
 );

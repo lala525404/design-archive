@@ -114,7 +114,7 @@ export type GroupMode = 'none' | 'project' | 'service';
 export type SortOption = 'latest' | 'oldest' | 'title';
 
 /** 디자인 저널 (트렌드·레퍼런스·작업 후기 공유) */
-export type JournalCategory = '트렌드' | '레퍼런스' | '작업 후기' | '툴·팁' | '공지';
+export type JournalCategory = '트렌드' | 'AI 뉴스' | '레퍼런스' | '작업 후기' | '툴·팁' | '공지';
 
 export interface JournalSwatch {
   name: string;

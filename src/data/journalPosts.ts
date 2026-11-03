@@ -1,6 +1,10 @@
 import { JournalPost } from '../types';
+import aiNews from './ai-news.json';
 
-export const INITIAL_POSTS: JournalPost[] = [
+/** 주간 AI 뉴스: ai-news.json에 매주 한 편씩 추가된다 (최신이 맨 앞) */
+export const AI_NEWS_POSTS = aiNews as JournalPost[];
+
+const EDITORIAL_POSTS: JournalPost[] = [
   {
     id: 'post-2027-trends',
     title: '2027 디자인 트렌드 미리 보기',
@@ -102,3 +106,5 @@ v02에서 메인 비주얼을 3D 일러스트로 바꿨다가, v03에서 실사 
     comments: [],
   },
 ];
+
+export const INITIAL_POSTS: JournalPost[] = [...AI_NEWS_POSTS, ...EDITORIAL_POSTS];
