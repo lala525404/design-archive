@@ -1,10 +1,10 @@
 import React from "react";
-import { Search, Plus, Sparkles, Menu } from "lucide-react";
+import { Search, Plus, Folder, Menu } from "lucide-react";
 import { UserRole } from "../types";
 interface Props {
   currentView: string;
   onNavigate: (
-    v: "landing" | "search" | "upload" | "prompt" | "license" | "naming",
+    v: "landing" | "search" | "browse" | "upload" | "prompt" | "license" | "naming",
   ) => void;
   onOpenMenu: () => void;
   userRole: UserRole;
@@ -36,11 +36,11 @@ export function BottomNav({
         </button>
       )}
       <button
-        className={currentView === "prompt" ? "active" : ""}
-        onClick={() => onNavigate("prompt")}
+        className={currentView === "browse" ? "active" : ""}
+        onClick={() => onNavigate("browse")}
       >
-        <Sparkles size={20} />
-        프롬프트
+        <Folder size={20} />
+        폴더
       </button>
       <button onClick={onOpenMenu}>
         <Menu size={20} />

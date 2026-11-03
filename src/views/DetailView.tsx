@@ -8,6 +8,7 @@ import {
   Sparkles,
   Download,
   Edit3,
+  FolderOpen,
 } from "lucide-react";
 import { AssetType, DesignAsset, UserRole } from "../types";
 import { DesignThumbnail } from "../components/DesignThumbnail";
@@ -26,6 +27,7 @@ interface Props {
   allAssets: DesignAsset[];
   onSelectAsset: (id: string) => void;
   onOpenProject?: (key: string) => void;
+  onOpenFolder?: (a: DesignAsset) => void;
 }
 export function DetailView({
   asset,
@@ -37,6 +39,7 @@ export function DetailView({
   allAssets,
   onSelectAsset,
   onOpenProject,
+  onOpenFolder,
 }: Props) {
   const [copied, setCopied] = useState(false),
     [message, setMessage] = useState(""),
@@ -192,6 +195,10 @@ export function DetailView({
             </button>
           </div>
           <div className="detail-secondary">
+            <button className="text-button" onClick={() => onOpenFolder?.(asset)}>
+              <FolderOpen size={15} />
+              폴더에서 보기
+            </button>
             <button
               className="text-button"
               onClick={() => onSimilarSearch(asset.project)}

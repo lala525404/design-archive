@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { ChevronRight, Menu, Plus, Search } from "lucide-react";
+import { ChevronRight, FolderOpen, Menu, Plus, Search } from "lucide-react";
 import { DesignAsset } from "../types";
 import { DesignThumbnail } from "../components/DesignThumbnail";
 import { serviceName } from "../lib/taxonomy";
@@ -11,7 +11,7 @@ interface Props {
   onOpenMenu: () => void;
   onSelectAsset: (id: string) => void;
   onNavigateToLicense: () => void;
-  onNavigate?: (view: "upload" | "prompt" | "license") => void;
+  onNavigate?: (view: "upload" | "prompt" | "license" | "browse") => void;
   onSelectProject?: (key: string) => void;
   canUpload?: boolean;
 }
@@ -139,6 +139,10 @@ export function LandingView({
           >
             둘러보기
             <ChevronRight size={16} strokeWidth={2.4} />
+          </button>
+          <button className="hero-pill" onClick={() => onNavigate?.("browse")}>
+            <FolderOpen size={16} strokeWidth={2.2} />
+            폴더로 보기
           </button>
         </div>
       </section>

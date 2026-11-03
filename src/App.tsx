@@ -15,14 +15,15 @@ import { PromptStudioView } from "./views/PromptStudioView";
 import { LicenseManagementView } from "./views/LicenseManagementView";
 import { NamingRuleView } from "./views/NamingRuleView";
 import { ProjectView } from "./views/ProjectView";
+import { FolderView, folderPathOf } from "./views/FolderView";
 import { projectKey } from "./lib/projects";
 import { NavigationDrawer } from "./components/NavigationDrawer";
 import { BottomNav } from "./components/BottomNav";
 import { Header } from "./components/Chrome";
 import { CheckCircle2, AlertCircle } from "lucide-react";
 
-type View = "landing" | "search" | "detail" | "project" | "upload" | "prompt" | "license" | "naming";
-const VIEWS: View[] = ["landing", "search", "detail", "project", "upload", "prompt", "license", "naming"];
+type View = "landing" | "search" | "browse" | "detail" | "project" | "upload" | "prompt" | "license" | "naming";
+const VIEWS: View[] = ["landing", "search", "browse", "detail", "project", "upload", "prompt", "license", "naming"];
 
 /** 화면 위치를 주소(#)에 담는다 → 브라우저 뒤로/앞으로, 새로고침, 링크 공유가 된다 */
 interface Route {
@@ -32,6 +33,8 @@ interface Route {
   key?: string;
   folder?: string;
   revise?: string;
+  /** 폴더 화면 경로: 서비스/연도/프로젝트 폴더 */
+  path?: string;
 }
 
 function routeToHash(r: Route) {
@@ -41,6 +44,7 @@ function routeToHash(r: Route) {
   if (r.key) params.set("key", r.key);
   if (r.folder) params.set("folder", r.folder);
   if (r.revise) params.set("revise", r.revise);
+  if (r.path) params.set("path", r.path);
   const qs = params.toString();
   return r.view === "landing" && !qs ? "#/" : `#/${r.view}${qs ? `?${qs}` : ""}`;
 }
@@ -56,6 +60,7 @@ function hashToRoute(hash: string): Route {
     key: p.get("key") ?? undefined,
     folder: p.get("folder") ?? undefined,
     revise: p.get("revise") ?? undefined,
+    path: p.get("path") ?? undefined,
   };
 }
 
@@ -74,6 +79,9 @@ export default function App() {
   const [fonts, setFonts] = useState<SandollFontItem[]>(INITIAL_SAN_DOLL_FONTS);
   const [userRole, setUserRole] = useState<UserRole>("designer");
   const [searchQuery, setSearchQuery] = useState(initial.q ?? "");
+  const [folderPath, setFolderPath] = useState<string[]>(
+    initial.path ? initial.path.split("/").filter(Boolean) : [],
+  );
   const [selectedAssetId, setSelectedAssetId] = useState<string>(initial.id ?? "asset-1");
   const [promptAsset, setPromptAsset] = useState<DesignAsset>(
     INITIAL_ASSETS[0],
@@ -91,6 +99,7 @@ export default function App() {
     if (r.view === "search") setSearchQuery(r.q ?? "");
     if (r.view === "detail" && r.id) setSelectedAssetId(r.id);
     if (r.view === "project" && r.key) setSelectedProjectKey(r.key);
+    if (r.view === "browse") setFolderPath(r.path ? r.path.split("/").filter(Boolean) : []);
     if (r.view === "upload") setUploadPreset({ folder: r.folder, reviseId: r.revise });
   };
 
@@ -131,7 +140,7 @@ export default function App() {
     restoreTo.current = null;
     // 화면이 그려진 다음 위치를 맞춘다
     requestAnimationFrame(() => window.scrollTo(0, y));
-  }, [view, selectedAssetId, selectedProjectKey]);
+  }, [view, selectedAssetId, selectedProjectKey, folderPath.join("/")]);
 
   const setView = (v: View) => navigate({ view: v });
   const openUpload = (preset: { folder?: string; reviseId?: string } = {}) =>
@@ -156,6 +165,7 @@ export default function App() {
   };
 
   const handleSelectProject = (key: string) => navigate({ view: "project", key });
+  const openFolder = (path: string[]) => navigate({ view: "browse", path: path.join("/") });
 
   const handleSelectAsset = (id: string) => navigate({ view: "detail", id });
 
@@ -262,6 +272,7 @@ export default function App() {
           onAddFiles={(folder) => openUpload({ folder })}
           onReviseFile={(id, folder) => openUpload({ folder, reviseId: id })}
           onUpdateAssets={handleUpdateAssets}
+          onOpenFolder={(a) => openFolder(folderPathOf(a))}
           canUpload={userRole !== "user"}
         />
       )}
@@ -281,6 +292,18 @@ export default function App() {
         />
       </div>
 
+      {view === "browse" && (
+        <FolderView
+          assets={assets}
+          path={folderPath}
+          onOpen={openFolder}
+          onSelectAsset={handleSelectAsset}
+          onOpenProject={handleSelectProject}
+          onAddFiles={(folder) => openUpload({ folder })}
+          canUpload={userRole !== "user"}
+        />
+      )}
+
       {view === "detail" && (
         <DetailView
           key={currentSelectedAsset.id}
@@ -294,6 +317,7 @@ export default function App() {
           allAssets={assets}
           onSelectAsset={handleSelectAsset}
           onOpenProject={handleSelectProject}
+          onOpenFolder={(a) => openFolder(folderPathOf(a))}
         />
       )}
 

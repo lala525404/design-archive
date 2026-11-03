@@ -37,6 +37,7 @@ interface Props {
   onAddFiles?: (folder: string) => void;
   onReviseFile?: (assetId: string, folder: string) => void;
   onUpdateAssets?: (list: DesignAsset[], message: string) => void;
+  onOpenFolder?: (a: DesignAsset) => void;
   canUpload?: boolean;
 }
 
@@ -49,6 +50,7 @@ export function ProjectView({
   onAddFiles,
   onReviseFile,
   onUpdateAssets,
+  onOpenFolder,
   canUpload = true,
 }: Props) {
   const project = useMemo(
@@ -325,9 +327,10 @@ export function ProjectView({
         </section>
       ))}
 
-      <p className="project-path">
-        <Copy size={13} /> {folderPath}
-      </p>
+      <button type="button" className="project-path" onClick={() => onOpenFolder?.(project.files[0])}>
+        <FolderOpen size={13} /> {folderPath}
+        <span>폴더에서 보기 ›</span>
+      </button>
     </main>
   );
 }

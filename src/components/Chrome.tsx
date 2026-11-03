@@ -12,6 +12,7 @@ import {
 export type AppView =
   | "landing"
   | "search"
+  | "browse"
   | "detail"
   | "project"
   | "upload"
@@ -51,6 +52,12 @@ export function Header({
             onClick={() => onNavigate("search")}
           >
             자산 찾기
+          </button>
+          <button
+            aria-current={view === "browse" ? "page" : undefined}
+            onClick={() => onNavigate("browse")}
+          >
+            폴더
           </button>
           <button
             aria-current={view === "prompt" ? "page" : undefined}
