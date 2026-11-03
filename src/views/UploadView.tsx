@@ -106,7 +106,7 @@ interface Item {
 }
 
 const SAMPLE = {
-  path: "\\\\NAS\\디자인\\05_평생\\2026\\260120_15832_색채학 과정_산돌-AI_김다은\\",
+  path: "\\\\NAS\\디자인\\2026\\05_평생\\260120_15832_색채학 과정_산돌-AI_김다은\\",
   files: [
     "15832_상세_PC_v04.png",
     "15832_상세_MO_v03.png",
@@ -661,7 +661,7 @@ export const UploadView: React.FC<UploadViewProps> = ({
                 NAS 프로젝트 폴더
                 <input
                   value={nasPath}
-                  placeholder="\\NAS\디자인\05_평생\2026\260714_21076_프로젝트명_산돌-게티_김다은"
+                  placeholder="\\NAS\디자인\2026\05_평생\260714_21076_프로젝트명_산돌-게티_김다은"
                   onChange={(e) => setNasPath(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") runAnalysis();

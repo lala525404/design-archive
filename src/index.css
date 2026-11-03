@@ -5876,3 +5876,9 @@ button.version-line {
   background: #1d1d1f;
   color: #fff;
 }
+
+.finder-side-title--gap {
+  margin-top: 12px;
+  padding-top: 12px !important;
+  border-top: 1px solid #e5e5ea;
+}

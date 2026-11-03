@@ -20,10 +20,14 @@ import { assetAtVersion, getVersions, parseNasPath } from "../lib/versions";
 /** NAS 루트 표시 이름 */
 export const NAS_ROOT = "\\\\NAS\\디자인";
 const OLD = "이전 버전";
+/** 지난 연도 폴더를 모아 두는 곳 */
+export const PAST = "이전 연도";
+/** 지금 연도 (사용자 컴퓨터 시간 기준). 해가 바뀌면 지난 연도는 '이전 연도'로 들어간다 */
+const currentYear = () => String(new Date().getFullYear());
 
 interface Props {
   assets: DesignAsset[];
-  /** [서비스, 연도, 프로젝트 폴더, (이전 버전)] */
+  /** [연도, 서비스, 프로젝트 폴더, (이전 버전)] · 비어 있으면 올해 · ['이전 연도']는 지난 연도 목록 */
   path: string[];
   onOpen: (path: string[]) => void;
   onSelectAsset: (id: string) => void;
@@ -50,10 +54,10 @@ export function locate(a: DesignAsset): Located {
   };
 }
 
-/** 폴더 화면에서 프로젝트 폴더로 가는 경로 */
+/** 폴더 화면에서 프로젝트 폴더로 가는 경로 (NAS 순서: 연도/서비스/프로젝트) */
 export function folderPathOf(a: DesignAsset) {
   const l = locate(a);
-  return [l.service, l.year, l.folder];
+  return [l.year, l.service, l.folder];
 }
 
 const fmt = (d: string) => d.replace(/-/g, ".");
@@ -86,13 +90,20 @@ export function FolderView({
   };
 
   const all = useMemo(() => assets.map(locate), [assets]);
-  const [service, year, folder, sub] = path;
+  const CUR = currentYear();
+  const pastYears = Array.from(new Set(all.map((l) => l.year).filter((y) => y !== CUR))).sort().reverse();
+  const isPastList = path[0] === PAST;
+  // 경로가 비어 있으면 올해 폴더를 연 것으로 본다
+  const [year, service, folder, sub] = isPastList ? [] : path.length ? path : [CUR];
+  const isRoot = !isPastList && path.length === 0;
 
-  const inService = all.filter((l) => !service || l.service === service);
-  const inYear = inService.filter((l) => !year || l.year === year);
-  const inFolder = inYear.filter((l) => !folder || l.folder === folder);
+  const inYear = all.filter((l) => l.year === year);
+  const inService = inYear.filter((l) => !service || l.service === service);
+  const inFolder = inService.filter((l) => !folder || l.folder === folder);
 
-  const nasPath = [NAS_ROOT, ...path.filter((p) => p !== OLD)].join("\\") + "\\";
+  const nasPath = isPastList
+    ? `${NAS_ROOT}\\`
+    : [NAS_ROOT, year, service, folder].filter(Boolean).join("\\") + "\\";
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(nasPath);
@@ -115,39 +126,51 @@ export function FolderView({
     const previewsOf = (list: Located[]) =>
       [...list].sort((a, b) => b.asset.uploadDate.localeCompare(a.asset.uploadDate)).slice(0, 3).map((l) => l.asset);
 
-    if (!service)
-      return SERVICES.map((s) => {
-        const list = all.filter((l) => l.service === s);
-        return {
-          kind: "folder" as const,
-          name: s,
-          meta: list.length ? `프로젝트 ${projectsOf(list)} · 파일 ${list.length}` : "비어 있음",
-          date: latest(list),
-          previews: previewsOf(list),
-          to: [s],
-          empty: !list.length,
-        };
-      });
-
-    if (!year) {
-      const years = Array.from(new Set(inService.map((l) => l.year))).sort().reverse();
-      return years.map((y) => {
-        const list = inService.filter((l) => l.year === y);
+    if (isPastList)
+      return pastYears.map((y) => {
+        const list = all.filter((l) => l.year === y);
         return {
           kind: "folder" as const,
           name: y,
           meta: `프로젝트 ${projectsOf(list)} · 파일 ${list.length}`,
           date: latest(list),
           previews: previewsOf(list),
-          to: [service, y],
+          to: [y],
         };
       });
+
+    if (!service) {
+      // 올해는 서비스 폴더를 모두 보여주고, 지난 연도는 있는 폴더만
+      const names = year === CUR ? [...SERVICES] : SERVICES.filter((sv) => inYear.some((l) => l.service === sv));
+      const list: Entry[] = names.map((sv) => {
+        const inSv = inYear.filter((l) => l.service === sv);
+        return {
+          kind: "folder" as const,
+          name: sv,
+          meta: inSv.length ? `프로젝트 ${projectsOf(inSv)} · 파일 ${inSv.length}` : "비어 있음",
+          date: latest(inSv),
+          previews: previewsOf(inSv),
+          to: [year, sv],
+          empty: !inSv.length,
+        };
+      });
+      if (isRoot && pastYears.length)
+        list.push({
+          kind: "folder",
+          name: PAST,
+          meta: pastYears.join(", "),
+          date: latest(all.filter((l) => l.year !== CUR)),
+          previews: previewsOf(all.filter((l) => l.year !== CUR)),
+          to: [PAST],
+          tone: "old",
+        });
+      return list;
     }
 
     if (!folder) {
-      const folders = Array.from(new Set(inYear.map((l) => l.folder))).sort().reverse();
+      const folders = Array.from(new Set(inService.map((l) => l.folder))).sort().reverse();
       return folders.map((f) => {
-        const list = inYear.filter((l) => l.folder === f);
+        const list = inService.filter((l) => l.folder === f);
         return {
           kind: "folder" as const,
           name: f,
@@ -155,7 +178,7 @@ export function FolderView({
           meta: `${typeSummary(list.map((l) => l.asset)).join(", ")} · 파일 ${list.length}`,
           date: latest(list),
           previews: previewsOf(list),
-          to: [service, year, f],
+          to: [year, service, f],
         };
       });
     }
@@ -195,15 +218,17 @@ export function FolderView({
         meta: `파일 ${olds.length}`,
         date: olds.map((o) => o.version.uploadDate).sort().at(-1),
         previews: olds.slice(0, 3).map((o) => assetAtVersion(o.asset, o.version)),
-        to: [service, year, folder, OLD],
+        to: [year, service, folder, OLD],
         tone: "old",
       });
     return list;
-  }, [all, inService, inYear, inFolder, service, year, folder, sub]);
+  }, [all, inService, inYear, inFolder, service, year, folder, sub, isPastList, isRoot, CUR]);
 
+  const shown = [year, service, folder, sub].filter(Boolean) as string[];
   const crumbs = [
     { name: "디자인 NAS", to: [] as string[] },
-    ...path.map((p, i) => ({ name: p, to: path.slice(0, i + 1) })),
+    ...(isPastList || (year && year !== CUR) ? [{ name: PAST, to: [PAST] }] : []),
+    ...shown.map((p, i) => ({ name: p, to: i === 0 && p === CUR ? [] : shown.slice(0, i + 1) })),
   ];
   const inProject = Boolean(folder);
   const projectAsset = inFolder[0]?.asset;
@@ -212,30 +237,43 @@ export function FolderView({
     <main className="page-shell finder-page">
       <div className="finder">
         <aside className="finder-side" aria-label="서비스 폴더">
-          <p className="finder-side-title">디자인 NAS</p>
-          <button
-            type="button"
-            className={!service ? "on" : ""}
-            onClick={() => onOpen([])}
-          >
+          <p className="finder-side-title">{CUR}년</p>
+          <button type="button" className={isRoot || (year === CUR && !service) ? "on" : ""} onClick={() => onOpen([])}>
             <HardDrive size={15} />
-            전체
+            <span>{CUR} 전체</span>
           </button>
-          {SERVICES.map((s) => {
-            const n = all.filter((l) => l.service === s).length;
+          {SERVICES.map((sv) => {
+            const n = all.filter((l) => l.year === CUR && l.service === sv).length;
             return (
               <button
                 type="button"
-                key={s}
-                className={`${service === s ? "on" : ""} ${n ? "" : "is-empty"}`}
-                onClick={() => onOpen([s])}
+                key={sv}
+                className={`${year === CUR && service === sv ? "on" : ""} ${n ? "" : "is-empty"}`}
+                onClick={() => onOpen([CUR, sv])}
               >
                 <FolderGlyph small />
-                <span>{s}</span>
+                <span>{sv}</span>
                 {n > 0 && <em>{n}</em>}
               </button>
             );
           })}
+          {pastYears.length > 0 && (
+            <>
+              <p className="finder-side-title finder-side-title--gap">{PAST}</p>
+              {pastYears.map((y) => (
+                <button
+                  type="button"
+                  key={y}
+                  className={year === y ? "on" : ""}
+                  onClick={() => onOpen([y])}
+                >
+                  <FolderGlyph small old />
+                  <span>{y}</span>
+                  <em>{all.filter((l) => l.year === y).length}</em>
+                </button>
+              ))}
+            </>
+          )}
         </aside>
 
         <section className="finder-main">
@@ -283,6 +321,12 @@ export function FolderView({
             </div>
           </header>
 
+          {isPastList && (
+            <p className="finder-note">
+              <History size={14} />
+              해가 바뀌면 지난 연도 폴더는 자동으로 여기로 옮겨져요.
+            </p>
+          )}
           {inProject && projectAsset && sub !== OLD && (
             <div className="finder-project">
               <div>

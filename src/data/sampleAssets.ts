@@ -57,7 +57,7 @@ const P = {
 function make(seed: Seed): DesignAsset {
   const f = seed.folder;
   const folderName = buildFolderName({ ...f, project: f.name, designer: f.lead });
-  const filePath = `/${seed.service}/${seed.year}/${folderName}/`;
+  const filePath = `/${seed.year}/${seed.service}/${folderName}/`;
   const nameFor = (version: string) =>
     buildDeliverableName({
       id: f.requestNo || f.date,

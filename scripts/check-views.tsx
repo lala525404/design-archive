@@ -151,24 +151,25 @@ for (const q of ["색채학", "아이티뱅크", "상세페이지 MO", "산돌 �
 const sampleFolder = "260120_15832_색채학 과정_산돌-AI_김다은";
 assert.deepEqual(
   (({ service, year, project, requestNo, designer, resources }) => ({ service, year, project, requestNo, designer, resources }))(
-    parseNasPath(`\\\\NAS\\디자인\\05_평생\\2026\\${sampleFolder}\\`),
+    parseNasPath(`\\\\NAS\\디자인\\2026\\05_평생\\${sampleFolder}\\`),
   ),
   { service: "05_평생", year: "2026", project: "색채학 과정", requestNo: "15832", designer: "김다은", resources: ["산돌", "AI"] },
   "Windows NAS path with new project folder",
 );
+assert.equal(parseNasPath(`\\\\NAS\\디자인\\05_평생\\2026\\${sampleFolder}\\`).service, "05_평생", "Old service-then-year order still parses");
 assert.equal(parseNasPath("/09_마케팅/261026_27702_가을 프로모션_산돌-AI_박정은/").year, "2026", "Year from folder date when no year folder");
 assert.equal(
-  findSameWork(assets, `/05_평생/2026/${sampleFolder}/`, "15832_상세_PC_v04.png")?.id,
+  findSameWork(assets, `/2026/05_평생/${sampleFolder}/`, "15832_상세_PC_v04.png")?.id,
   "asset-1",
   "Same folder + same type/device is a new version",
 );
 assert.equal(
-  findSameWork(assets, `/05_평생/2026/${sampleFolder}/`, "15832_상세_MO_v03.png")?.id,
+  findSameWork(assets, `/2026/05_평생/${sampleFolder}/`, "15832_상세_MO_v03.png")?.id,
   "asset-2",
   "MO version is tracked separately from PC",
 );
 assert.equal(
-  findSameWork(assets, `/05_평생/2026/${sampleFolder}/`, "15832_배너-서브_PC_v01.png"),
+  findSameWork(assets, `/2026/05_평생/${sampleFolder}/`, "15832_배너-서브_PC_v01.png"),
   undefined,
   "A different banner in the same project is a new work",
 );

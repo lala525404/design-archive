@@ -41,29 +41,32 @@ const segments = (path: string) =>
     .filter(Boolean);
 
 /**
- * NAS 경로에서 서비스 폴더/연도/프로젝트 폴더를 읽는다.
- * \\NAS\디자인\05_평생\2026\260714_21076_이룸 엑셀 패키지_산돌-게티_김다은\
+ * NAS 경로에서 연도/서비스 폴더/프로젝트 폴더를 읽는다.
+ * 실제 NAS: \\NAS\디자인\2026\05_평생\260714_21076_이룸 엑셀 패키지_산돌-게티_김다은\
+ * (예전처럼 서비스\연도 순서여도 읽는다)
  * 연도 폴더가 없으면 프로젝트 폴더 앞의 날짜에서 연도를 읽는다.
  */
 export function parseNasPath(path: string) {
   const parts = segments(path).filter((p) => !/\.[a-z0-9]{2,5}$/i.test(p));
   const serviceIdx = parts.findIndex((p) => /^\d{2}_\D/.test(p));
-  const yearIdx = parts.findIndex(
-    (p, i) => i > serviceIdx && /^\d{4}$/.test(p),
-  );
+  const yearIdx = parts.findIndex((p) => /^\d{4}$/.test(p));
   const service = serviceIdx >= 0 ? parts[serviceIdx] : "";
-  const after = yearIdx >= 0 ? yearIdx + 1 : serviceIdx >= 0 ? serviceIdx + 1 : parts.length - 1;
+  const last = Math.max(serviceIdx, yearIdx);
+  const after = last >= 0 ? last + 1 : parts.length - 1;
   const folder = parts[after] ?? "";
   const info = parseProjectFolder(folder);
   const year = yearIdx >= 0 ? parts[yearIdx] : yearFromDate(info.date);
   return { service, year, folder, ...info };
 }
 
-/** 비교용 경로: 서비스 폴더(없으면 연도)부터 슬래시로 통일 */
+/** 비교용 경로: 연도·서비스 폴더 중 앞에 오는 것부터 슬래시로 통일 */
 export function pathKey(path: string) {
   const parts = segments(path).filter((p) => !/\.[a-z0-9]{2,5}$/i.test(p));
-  let start = parts.findIndex((p) => /^\d{2}_\D/.test(p));
-  if (start < 0) start = Math.max(0, parts.findIndex((p) => /^\d{4}$/.test(p)));
+  const idx = [
+    parts.findIndex((p) => /^\d{2}_\D/.test(p)),
+    parts.findIndex((p) => /^\d{4}$/.test(p)),
+  ].filter((i) => i >= 0);
+  const start = idx.length ? Math.min(...idx) : 0;
   return parts.slice(start).join("/").toLowerCase();
 }
 
