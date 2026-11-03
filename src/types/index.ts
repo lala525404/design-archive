@@ -142,6 +142,8 @@ export interface JournalPost {
   date: string;
   /** 표지: 이미지가 없으면 팔레트나 기본 색으로 그린다 */
   coverUrl?: string;
+  /** 직접 그린 예시 그림을 표지로 (TrendArt 이름) */
+  coverArt?: string;
   palette?: JournalSwatch[];
   sources?: { title: string; url: string }[];
   /** 관련 프로젝트(폴더 경로 키) */

@@ -6,6 +6,7 @@ import {
   Link2,
   MessageCircle,
   PenLine,
+  Play,
   Plus,
   Send,
   Sparkles,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 import { DesignAsset, JournalCategory, JournalPost, JournalSwatch } from "../types";
 import { DesignThumbnail } from "../components/DesignThumbnail";
+import { TrendArt } from "../components/TrendArt";
 import { groupProjects, typeSummary } from "../lib/projects";
 import { serviceName } from "../lib/taxonomy";
 
@@ -37,6 +39,12 @@ function Cover({ post, large }: { post: JournalPost; large?: boolean }) {
         <img src={post.coverUrl} alt="" />
       </div>
     );
+  if (post.coverArt)
+    return (
+      <div className={`jr-cover is-art ${large ? "is-large" : ""}`}>
+        <TrendArt name={post.coverArt} />
+      </div>
+    );
   if (post.palette?.length)
     return (
       <div className={`jr-cover is-palette ${large ? "is-large" : ""}`}>
@@ -57,8 +65,22 @@ function Cover({ post, large }: { post: JournalPost; large?: boolean }) {
   );
 }
 
-/** 본문: 빈 줄 문단, '## ' 소제목, '- ' 목록 */
+const toSeconds = (t: string) =>
+  t.split(":").reduce((acc, n) => acc * 60 + (parseInt(n, 10) || 0), 0);
+
+/**
+ * 본문: 빈 줄 문단, '## ' 소제목, '- ' 목록
+ * 그림과 영상: ![설명](이미지주소) · [[art:이름|설명]] · [[youtube:영상ID]] · [[t:2:42|설명]](영상 그 시점부터 보기)
+ */
 function Body({ text }: { text: string }) {
+  const [start, setStart] = useState<number | null>(null);
+  const playerRef = useRef<HTMLDivElement>(null);
+  const videoId = text.match(/\[\[youtube:([\w-]{6,})\]\]/)?.[1];
+  const jump = (sec: number) => {
+    setStart(sec);
+    playerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
   const blocks: React.ReactNode[] = [];
   let list: string[] = [];
   let para: string[] = [];
@@ -78,7 +100,47 @@ function Body({ text }: { text: string }) {
   text.split("\n").forEach((raw) => {
     const line = raw.trim();
     if (!line) return flush();
-    if (line.startsWith("## ")) {
+    const img = line.match(/^!\[(.*?)\]\((\S+?)\)$/);
+    const art = line.match(/^\[\[art:([\w-]+)(?:\|(.*))?\]\]$/);
+    const yt = line.match(/^\[\[youtube:([\w-]+)\]\]$/);
+    const t = line.match(/^\[\[t:([\d:]+)(?:\|(.*))?\]\]$/);
+    if (img || art || yt || t) flush();
+    if (img) {
+      blocks.push(
+        <figure key={`i${blocks.length}`} className="jr-figure">
+          <img src={img[2]} alt={img[1]} loading="lazy" />
+          {img[1] && <figcaption>{img[1]}</figcaption>}
+        </figure>,
+      );
+    } else if (art) {
+      blocks.push(
+        <figure key={`a${blocks.length}`} className="jr-figure is-art">
+          <TrendArt name={art[1]} />
+          {art[2] && <figcaption>{art[2]}</figcaption>}
+        </figure>,
+      );
+    } else if (yt) {
+      blocks.push(
+        <div key={`y${blocks.length}`} className="jr-video" ref={playerRef}>
+          <iframe
+            key={start ?? 0}
+            src={`https://www.youtube-nocookie.com/embed/${yt[1]}?rel=0${start != null ? `&start=${start}&autoplay=1` : ""}`}
+            title="YouTube 영상"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            loading="lazy"
+          />
+        </div>,
+      );
+    } else if (t) {
+      if (videoId)
+        blocks.push(
+          <button key={`t${blocks.length}`} type="button" className="jr-jump" onClick={() => jump(toSeconds(t[1]))}>
+            <Play size={13} fill="currentColor" />
+            {t[2] || "영상"} {t[1]}부터 보기
+          </button>,
+        );
+    } else if (line.startsWith("## ")) {
       flush();
       blocks.push(<h2 key={`h${blocks.length}`}>{line.slice(3)}</h2>);
     } else if (line.startsWith("- ")) {
@@ -456,6 +518,23 @@ function Editor({
   const [related, setRelated] = useState<string[]>(initial?.relatedProjects ?? []);
   const [error, setError] = useState("");
   const coverInput = useRef<HTMLInputElement>(null);
+  const imageInput = useRef<HTMLInputElement>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  /** 커서 자리에 한 블록(앞뒤 빈 줄)으로 넣는다 */
+  const insertAtCursor = (snippet: string) => {
+    const el = bodyRef.current;
+    const pos = el ? el.selectionStart : body.length;
+    const before = body.slice(0, pos).replace(/\s*$/, "");
+    const after = body.slice(pos).replace(/^\s*/, "");
+    const next = `${before}${before ? "\n\n" : ""}${snippet}\n\n${after}`;
+    setBody(next);
+    requestAnimationFrame(() => {
+      if (!el) return;
+      const at = (before ? before.length + 2 : 0) + snippet.length + 2;
+      el.focus();
+      el.setSelectionRange(at, at);
+    });
+  };
   const projects = useMemo(
     () => groupProjects(assets).sort((a, b) => b.latestDate.localeCompare(a.latestDate)),
     [assets],
@@ -548,17 +627,55 @@ function Editor({
           <span className="review-hint">이미지가 없으면 팔레트나 카테고리 색으로 표지를 만들어요.</span>
         </div>
 
-        <label className="jr-body-input">
-          <span>
+        <div className="jr-body-input">
+          <span className="jr-body-label">
             본문 <small>빈 줄 = 문단 · ## 소제목 · - 목록</small>
           </span>
+          <div className="jr-body-tools">
+            <button type="button" className="proof-add" onClick={() => imageInput.current?.click()}>
+              <ImagePlus size={14} />
+              이미지 넣기
+            </button>
+            <button
+              type="button"
+              className="proof-add"
+              onClick={() => {
+                const url = window.prompt("유튜브 주소를 붙여 넣어 주세요");
+                const id = url?.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([\w-]{6,})/)?.[1];
+                if (id) insertAtCursor(`[[youtube:${id}]]`);
+              }}
+            >
+              <Play size={14} />
+              유튜브 넣기
+            </button>
+            <input
+              ref={imageInput}
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              onChange={(e) => {
+                const files = Array.from(e.target.files ?? []);
+                if (files.length)
+                  insertAtCursor(
+                    files.map((f) => `![${f.name.replace(/\.[^.]+$/, "")}](${URL.createObjectURL(f)})`).join("\n\n"),
+                  );
+                e.target.value = "";
+              }}
+            />
+          </div>
           <textarea
+            ref={bodyRef}
+            aria-label="본문"
             value={body}
             onChange={(e) => setBody(e.target.value)}
             rows={14}
             placeholder={"## 소제목\n내용을 적어 주세요.\n\n- 목록 항목"}
           />
-        </label>
+          <small className="jr-body-hint">
+            이미지는 넣은 자리에 보여요. 대괄호 안 글자(이미지 설명)는 사진 아래 설명으로 나와요.
+          </small>
+        </div>
 
         <fieldset className="jr-fieldset">
           <legend>컬러 팔레트 (선택)</legend>

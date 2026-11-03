@@ -6539,3 +6539,87 @@ button.version-line {
   letter-spacing: -0.03em;
   color: rgba(255, 255, 255, 0.92);
 }
+
+/* 저널 본문 그림·영상 */
+.trend-art {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.jr-cover.is-art .trend-art {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.jr-cover.is-art svg {
+  width: 100%;
+  height: 100%;
+}
+.jr-figure {
+  margin: 8px 0 4px;
+  display: grid;
+  gap: 8px;
+}
+.jr-figure img,
+.jr-figure .trend-art {
+  width: 100%;
+  border-radius: 16px;
+  background: #f5f5f7;
+}
+.jr-figure img {
+  max-height: 560px;
+  object-fit: contain;
+}
+.jr-figure figcaption {
+  font-size: 13px;
+  color: #86868b;
+  text-align: center;
+}
+.jr-video {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #000;
+  scroll-margin: 80px;
+}
+.jr-video iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.jr-jump {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 980px;
+  background: #f5f5f7;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1d1d1f;
+}
+.jr-jump svg {
+  color: #ff3b30;
+}
+.jr-jump:hover {
+  background: #ececf0;
+}
+.jr-body-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6e6e73;
+}
+.jr-body-tools {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.jr-body-hint {
+  font-size: 12px;
+  color: #aeaeb2;
+}
