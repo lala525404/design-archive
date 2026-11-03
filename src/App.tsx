@@ -16,14 +16,17 @@ import { LicenseManagementView } from "./views/LicenseManagementView";
 import { NamingRuleView } from "./views/NamingRuleView";
 import { ProjectView } from "./views/ProjectView";
 import { FolderView, folderPathOf } from "./views/FolderView";
+import { JournalView } from "./views/JournalView";
+import { INITIAL_POSTS } from "./data/journalPosts";
+import { JournalPost } from "./types";
 import { projectKey } from "./lib/projects";
 import { NavigationDrawer } from "./components/NavigationDrawer";
 import { BottomNav } from "./components/BottomNav";
 import { Header } from "./components/Chrome";
 import { CheckCircle2, AlertCircle } from "lucide-react";
 
-type View = "landing" | "search" | "browse" | "detail" | "project" | "upload" | "prompt" | "license" | "naming";
-const VIEWS: View[] = ["landing", "search", "browse", "detail", "project", "upload", "prompt", "license", "naming"];
+type View = "landing" | "search" | "browse" | "journal" | "detail" | "project" | "upload" | "prompt" | "license" | "naming";
+const VIEWS: View[] = ["landing", "search", "browse", "journal", "detail", "project", "upload", "prompt", "license", "naming"];
 
 /** 화면 위치를 주소(#)에 담는다 → 브라우저 뒤로/앞으로, 새로고침, 링크 공유가 된다 */
 interface Route {
@@ -79,6 +82,8 @@ export default function App() {
   const [fonts, setFonts] = useState<SandollFontItem[]>(INITIAL_SAN_DOLL_FONTS);
   const [userRole, setUserRole] = useState<UserRole>("designer");
   const [searchQuery, setSearchQuery] = useState(initial.q ?? "");
+  const [posts, setPosts] = useState<JournalPost[]>(INITIAL_POSTS);
+  const [postId, setPostId] = useState<string | undefined>(initial.view === "journal" ? initial.id : undefined);
   const [folderPath, setFolderPath] = useState<string[]>(
     initial.path ? initial.path.split("/").filter(Boolean) : [],
   );
@@ -99,6 +104,7 @@ export default function App() {
     if (r.view === "search") setSearchQuery(r.q ?? "");
     if (r.view === "detail" && r.id) setSelectedAssetId(r.id);
     if (r.view === "project" && r.key) setSelectedProjectKey(r.key);
+    if (r.view === "journal") setPostId(r.id);
     if (r.view === "browse") setFolderPath(r.path ? r.path.split("/").filter(Boolean) : []);
     if (r.view === "upload") setUploadPreset({ folder: r.folder, reviseId: r.revise });
   };
@@ -140,7 +146,7 @@ export default function App() {
     restoreTo.current = null;
     // 화면이 그려진 다음 위치를 맞춘다
     requestAnimationFrame(() => window.scrollTo(0, y));
-  }, [view, selectedAssetId, selectedProjectKey, folderPath.join("/")]);
+  }, [view, selectedAssetId, selectedProjectKey, folderPath.join("/"), postId]);
 
   const setView = (v: View) => navigate({ view: v });
   const openUpload = (preset: { folder?: string; reviseId?: string } = {}) =>
@@ -291,6 +297,31 @@ export default function App() {
           onSelectProject={handleSelectProject}
         />
       </div>
+
+      {view === "journal" && (
+        <JournalView
+          posts={posts}
+          assets={assets}
+          postId={postId}
+          me={CURRENT_DESIGNER}
+          canWrite={userRole !== "user"}
+          onOpen={(id) => navigate({ view: "journal", id })}
+          onBack={() => goBack({ view: "journal" })}
+          onSave={(post) => {
+            const exists = posts.some((p) => p.id === post.id);
+            setPosts(exists ? posts.map((p) => (p.id === post.id ? post : p)) : [post, ...posts]);
+            navigate({ view: "journal", id: post.id }, true);
+            showToast(exists ? "글을 수정했어요." : "저널에 글을 올렸어요.");
+          }}
+          onUpdate={(post) => setPosts(posts.map((p) => (p.id === post.id ? post : p)))}
+          onDelete={(id) => {
+            setPosts(posts.filter((p) => p.id !== id));
+            navigate({ view: "journal" }, true);
+            showToast("글을 삭제했어요.");
+          }}
+          onOpenProject={handleSelectProject}
+        />
+      )}
 
       {view === "browse" && (
         <FolderView

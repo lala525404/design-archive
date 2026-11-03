@@ -13,6 +13,7 @@ export type AppView =
   | "landing"
   | "search"
   | "browse"
+  | "journal"
   | "detail"
   | "project"
   | "upload"
@@ -58,6 +59,12 @@ export function Header({
             onClick={() => onNavigate("browse")}
           >
             폴더
+          </button>
+          <button
+            aria-current={view === "journal" ? "page" : undefined}
+            onClick={() => onNavigate("journal")}
+          >
+            저널
           </button>
           <button
             aria-current={view === "prompt" ? "page" : undefined}

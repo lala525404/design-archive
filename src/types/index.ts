@@ -112,3 +112,40 @@ export interface NamingRuleConfig {
 export type ViewMode = 'grid' | 'list';
 export type GroupMode = 'none' | 'project' | 'service';
 export type SortOption = 'latest' | 'oldest' | 'title';
+
+/** 디자인 저널 (트렌드·레퍼런스·작업 후기 공유) */
+export type JournalCategory = '트렌드' | '레퍼런스' | '작업 후기' | '툴·팁' | '공지';
+
+export interface JournalSwatch {
+  name: string;
+  hex: string;
+  /** 공식 코드 (예: Coloro 125-28-38) */
+  code?: string;
+}
+
+export interface JournalComment {
+  id: string;
+  author: string;
+  text: string;
+  date: string;
+}
+
+export interface JournalPost {
+  id: string;
+  title: string;
+  summary: string;
+  /** 본문: 빈 줄로 문단, '## '는 소제목, '- '는 목록 */
+  body: string;
+  category: JournalCategory;
+  tags: string[];
+  author: string;
+  date: string;
+  /** 표지: 이미지가 없으면 팔레트나 기본 색으로 그린다 */
+  coverUrl?: string;
+  palette?: JournalSwatch[];
+  sources?: { title: string; url: string }[];
+  /** 관련 프로젝트(폴더 경로 키) */
+  relatedProjects?: string[];
+  likes: string[];
+  comments: JournalComment[];
+}
