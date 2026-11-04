@@ -55,13 +55,13 @@ export function NavigationDrawer({
             [
               ["landing", "처음으로"],
               ["search", "자산 찾기"],
+              ...(currentRole !== "user" ? [["upload", "자산 등록"]] : []),
               ["browse", "폴더로 보기"],
               ["journal", "디자인 저널"],
-              ["guide", "사용 가이드"],
-              ...(currentRole !== "user" ? [["upload", "자산 등록"]] : []),
               ["prompt", "프롬프트 만들기"],
               ["license", "라이선스 확인"],
               ...(currentRole !== "user" ? [["naming", "네이밍 규칙"]] : []),
+              ["guide", "사용 가이드"],
             ] as const
           ).map(([v, label]) => (
             <button key={v} onClick={() => nav(v as any)}>
