@@ -35,13 +35,18 @@ const search = (query: string, records = assets) =>
       initialUnit="file"
     />,
   );
+// 결과 수는 툴바의 숫자로 센다 (화면에는 한 페이지 분량만 그린다)
 const resultCount = (html: string) =>
+  Number(html.match(/<strong>(\d+)<\/strong>개의 파일/)?.[1] ?? 0);
+const renderedCount = (html: string) =>
   (html.match(/class="asset-item"/g) || []).length;
 assert.equal(
   resultCount(search("")),
   assets.length,
   "All original samples remain searchable",
 );
+assert.equal(renderedCount(search("")), 9, "Results are paged 9 per page by default");
+assert.ok(search("").includes('class="pager"'), "Pager shows when results exceed one page");
 assert.equal(
   resultCount(search("색채학 상세페이지")),
   2,
@@ -232,5 +237,5 @@ assert.ok(uploadHtml.includes("NAS 프로젝트 폴더"), "Upload asks for the N
 }
 
 console.log(
-  "PASS: search, 7 views, 16 samples, naming rule + legacy names, folder landing, services, NAS path, PC/MO, versions, AI news",
+  "PASS: search, 7 views, 16 samples, naming rule + legacy names, folder landing, services, NAS path, PC/MO, versions, AI news, paging",
 );

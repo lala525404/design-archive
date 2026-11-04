@@ -5,7 +5,7 @@ import { ArrowUp } from "lucide-react";
 export function ScrollTop() {
   const [show, setShow] = useState(false);
   useEffect(() => {
-    const on = () => setShow(window.scrollY > 500);
+    const on = () => setShow(window.scrollY > 400);
     on();
     window.addEventListener("scroll", on, { passive: true });
     return () => window.removeEventListener("scroll", on);

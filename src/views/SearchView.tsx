@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Search,
   Filter,
@@ -26,6 +26,28 @@ import {
   serviceName,
 } from "../lib/taxonomy";
 import { DesignThumbnail } from "../components/DesignThumbnail";
+import { ScrollTop } from "../components/ScrollTop";
+
+const PER_PAGE_OPTIONS = [9, 18, 36, 0]; // 0 = 전체
+
+/** 묶음(섹션)을 유지한 채 한 페이지 분량만 잘라낸다 */
+function paginate<T>(sections: { groupTitle: string; items: T[] }[], perPage: number, page: number) {
+  const flat = sections.flatMap((s) => s.items.map((it) => ({ g: s.groupTitle, it, n: s.items.length })));
+  const total = flat.length;
+  const pages = perPage ? Math.max(1, Math.ceil(total / perPage)) : 1;
+  const cur = Math.min(Math.max(1, page), pages);
+  const slice = perPage ? flat.slice((cur - 1) * perPage, cur * perPage) : flat;
+  const out: { groupTitle: string; items: T[]; total: number }[] = [];
+  slice.forEach((x) => {
+    let last = out[out.length - 1];
+    if (!last || last.groupTitle !== x.g) {
+      last = { groupTitle: x.g, items: [], total: x.n };
+      out.push(last);
+    }
+    last.items.push(x.it);
+  });
+  return { sections: out, total, pages, cur, from: total ? (cur - 1) * (perPage || total) + 1 : 0, to: perPage ? Math.min(total, cur * perPage) : total };
+}
 
 interface SearchViewProps {
   assets: DesignAsset[];
@@ -285,6 +307,26 @@ export const SearchView: React.FC<SearchViewProps> = ({
   }, [assets, filteredAssets, sortBy, groupMode]);
   const projectCount = projectSections.reduce((n, s) => n + s.items.length, 0);
 
+  // 몇 개씩 보기 + 페이지
+  const [perPage, setPerPage] = useState<number>(() => {
+    try {
+      const v = localStorage.getItem("search-per-page");
+      return v !== null && PER_PAGE_OPTIONS.includes(Number(v)) ? Number(v) : 9;
+    } catch {
+      return 9;
+    }
+  });
+  const [page, setPage] = useState(1);
+  const resultsTop = useRef<HTMLDivElement>(null);
+  useEffect(() => setPage(1), [filteredAssets, unit, groupMode, perPage]);
+  const pagedProjects = paginate(projectSections, perPage, page);
+  const pagedFiles = paginate(groupedSections, perPage, page);
+  const paged = unit === "project" ? pagedProjects : pagedFiles;
+  const goPage = (n: number) => {
+    setPage(n);
+    requestAnimationFrame(() => resultsTop.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
+
   const count =
     selectedTypes.length +
     selectedServices.length +
@@ -488,7 +530,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
           </div>
         </section>
       )}
-      <div className="results-toolbar">
+      <div className="results-toolbar" ref={resultsTop}>
         <p aria-live="polite">
           {searchQuery && <span className="query-text">‘{searchQuery}’ </span>}
           {unit === "project" ? (
@@ -518,6 +560,25 @@ export const SearchView: React.FC<SearchViewProps> = ({
             <option value="none">묶지 않음</option>
             {unit === "file" && <option value="project">프로젝트별</option>}
             <option value="service">서비스별</option>
+          </select>
+          <select
+            aria-label="몇 개씩 보기"
+            value={perPage}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              setPerPage(v);
+              try {
+                localStorage.setItem("search-per-page", String(v));
+              } catch {
+                /* 저장 못 해도 동작 */
+              }
+            }}
+          >
+            {PER_PAGE_OPTIONS.map((n) => (
+              <option key={n} value={n}>
+                {n ? `${n}개씩` : "전체 보기"}
+              </option>
+            ))}
           </select>
           <select
             aria-label="결과 정렬"
@@ -585,12 +646,12 @@ export const SearchView: React.FC<SearchViewProps> = ({
           </button>
         </div>
       ) : unit === "project" ? (
-        projectSections.map((sec) => (
+        pagedProjects.sections.map((sec) => (
           <section key={sec.groupTitle || "all"} className="result-section">
             {sec.groupTitle && (
               <h2 className="group-title">
                 {sec.groupTitle}
-                <span>{sec.items.length}</span>
+                <span>{sec.total}</span>
               </h2>
             )}
             <div className="project-grid">
@@ -637,12 +698,12 @@ export const SearchView: React.FC<SearchViewProps> = ({
           </section>
         ))
       ) : (
-        groupedSections.map((sec) => (
+        pagedFiles.sections.map((sec) => (
           <section key={sec.groupTitle} className="result-section">
             {sec.groupTitle && (
               <h2 className="group-title">
                 {sec.groupTitle}
-                <span>{sec.items.length}</span>
+                <span>{sec.total}</span>
               </h2>
             )}
             <div className={viewMode === "grid" ? "asset-grid" : "asset-list"}>
@@ -704,6 +765,40 @@ export const SearchView: React.FC<SearchViewProps> = ({
           </section>
         ))
       )}
+      {filteredAssets.length > 0 && paged.pages > 1 && (
+        <nav className="pager" aria-label="페이지">
+          <button type="button" disabled={paged.cur === 1} onClick={() => goPage(paged.cur - 1)} aria-label="이전 페이지">
+            ‹
+          </button>
+          {Array.from({ length: paged.pages }, (_, i) => i + 1)
+            .filter((n) => n === 1 || n === paged.pages || Math.abs(n - paged.cur) <= 2)
+            .map((n, i, arr) => (
+              <React.Fragment key={n}>
+                {i > 0 && n - arr[i - 1] > 1 && <span className="pager-gap">…</span>}
+                <button
+                  type="button"
+                  className={n === paged.cur ? "on" : ""}
+                  aria-current={n === paged.cur ? "page" : undefined}
+                  onClick={() => goPage(n)}
+                >
+                  {n}
+                </button>
+              </React.Fragment>
+            ))}
+          <button
+            type="button"
+            disabled={paged.cur === paged.pages}
+            onClick={() => goPage(paged.cur + 1)}
+            aria-label="다음 페이지"
+          >
+            ›
+          </button>
+          <span className="pager-info">
+            {paged.from}–{paged.to} / {paged.total}
+          </span>
+        </nav>
+      )}
+      <ScrollTop />
     </main>
   );
 };
