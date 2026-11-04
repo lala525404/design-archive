@@ -7487,3 +7487,56 @@ button.version-line {
 .results-toolbar {
   scroll-margin-top: 20px;
 }
+
+/* 자산 찾기: 프로젝트 목록형 */
+.project-list {
+  border-top: 1px solid var(--line);
+}
+.project-list .project-item {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+.project-list .project-cover {
+  flex: 0 0 auto;
+  width: 150px;
+  border-radius: 14px;
+}
+.project-list .project-cover-card {
+  top: 10%;
+  border-radius: 8px;
+  padding: 2px;
+}
+.project-list .project-cover-card .design-thumbnail {
+  border-radius: 6px;
+}
+.project-list .image-status {
+  top: 5px;
+  right: 5px;
+}
+.project-list .image-status .status {
+  font-size: 9px;
+  padding: 3px 5px;
+}
+.project-list .project-caption {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+}
+.project-list .asset-title {
+  font-size: 16px;
+  margin: 2px 0 4px;
+}
+.project-list-meta {
+  margin: 0 0 6px;
+}
+@media (max-width: 600px) {
+  .project-list .project-cover {
+    width: 104px;
+  }
+  .project-list .project-item {
+    gap: 14px;
+  }
+}

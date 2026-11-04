@@ -45,6 +45,7 @@ assert.equal(
   assets.length,
   "All original samples remain searchable",
 );
+assert.equal(assets.length, 40, "40 sample files");
 assert.equal(renderedCount(search("")), 9, "Results are paged 9 per page by default");
 assert.ok(search("").includes('class="pager"'), "Pager shows when results exceed one page");
 assert.equal(
@@ -237,5 +238,5 @@ assert.ok(uploadHtml.includes("NAS 프로젝트 폴더"), "Upload asks for the N
 }
 
 console.log(
-  "PASS: search, 7 views, 16 samples, naming rule + legacy names, folder landing, services, NAS path, PC/MO, versions, AI news, paging",
+  "PASS: search, 7 views, 40 samples, naming rule + legacy names, folder landing, services, NAS path, PC/MO, versions, AI news, paging",
 );

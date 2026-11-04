@@ -52,6 +52,14 @@ const P = {
   연말행사: { date: '260120', requestNo: '', name: '전사 연말 행사', resources: [], lead: '김다은' },
   지하철광고: { date: '260828', requestNo: '23310', name: '지하철 역사 광고', resources: ['게티'], lead: '박지원' },
   가을프로모션: { date: '261026', requestNo: '27702', name: '가을 프로모션', resources: ['산돌', 'AI'], lead: '박정은' },
+  데이터분석: { date: '260915', requestNo: '25118', name: '데이터 분석 입문 과정', resources: ['산돌', 'AI'], lead: '이혜진' },
+  엑셀실무: { date: '260601', requestNo: '19870', name: '엑셀 실무 과정', resources: ['산돌'], lead: '박지원' },
+  겨울특강: { date: '261201', requestNo: '28105', name: '교원 겨울 특강', resources: ['산돌', '게티'], lead: '이혜진' },
+  고객사세미나: { date: '260520', requestNo: '18342', name: 'HRD 고객사 세미나', resources: ['AI'], lead: '김다은' },
+  사내캠페인: { date: '260401', requestNo: '00000', name: '사내 안전 캠페인', resources: [], lead: '방수림' },
+  연말프로모션: { date: '261201', requestNo: '28011', name: '연말 프로모션', resources: ['산돌', 'AI', '게티'], lead: '박정은' },
+  경영자과정: { date: '260310', requestNo: '16520', name: '최고경영자 과정', resources: ['산돌'], lead: '양현보' },
+  봄학기: { date: '250303', requestNo: '11204', name: '봄학기 평생교육 과정', resources: ['산돌'], lead: '김다은' },
 } satisfies Record<string, ProjectFolder>;
 
 function make(seed: Seed): DesignAsset {
@@ -443,6 +451,96 @@ const SEEDED: DesignAsset[] = [
   }),
 ];
 
+
+/** 샘플을 넉넉하게: 프로젝트 8개, 파일 24개 추가 (모두 40개) */
+type Quick = [
+  id: number,
+  folder: ProjectFolder,
+  service: string,
+  type: AssetType,
+  device: 'PC' | 'MO' | undefined,
+  label: string | undefined,
+  title: string,
+  designer: string,
+  uploadDate: string,
+  tools: string[],
+  summary: string,
+  more?: Partial<Seed>,
+];
+const QUICK: Quick[] = [
+  [17, P.데이터분석, '02_아이티뱅크', '상세페이지', 'PC', undefined, '데이터 분석 입문 상세페이지', '이혜진', '2026-09-15', ['포토샵', 'AI', '산돌'], '파이썬·엑셀로 시작하는 데이터 분석 입문 과정 상세페이지입니다.', {
+    version: 'v02',
+    versions: [
+      { version: 'v01', uploadDate: '2026-08-28', reason: '최초 제작', originalKept: true },
+      { version: 'v02', uploadDate: '2026-09-15', reason: '문구 수정', note: '수강료 할인 문구 추가', originalKept: true },
+    ],
+  }],
+  [18, P.데이터분석, '02_아이티뱅크', '상세페이지', 'MO', undefined, '데이터 분석 입문 상세페이지', '이혜진', '2026-09-15', ['포토샵', 'AI'], '같은 과정의 모바일 상세페이지입니다.'],
+  [19, P.데이터분석, '02_아이티뱅크', '배너', 'PC', '메인', '데이터 분석 메인 배너', '이혜진', '2026-09-16', ['포토샵'], '아이티뱅크 메인 상단 배너입니다.'],
+  [20, P.데이터분석, '02_아이티뱅크', '팝업', 'MO', undefined, '데이터 분석 얼리버드 팝업', '박정은', '2026-09-20', ['포토샵', 'AI'], '얼리버드 마감 안내 모바일 팝업입니다.', {
+    licenseStatus: 'needs_review',
+    licenseNote: 'AI 생성 이미지 사용 표기 여부를 확인해야 합니다.',
+  }],
+  [21, P.엑셀실무, '05_평생', '풀페이지', 'PC', undefined, '엑셀 실무 과정 풀페이지', '박지원', '2026-06-01', ['포토샵', '산돌'], '직장인 대상 엑셀 실무 과정 모집 풀페이지입니다.', {
+    version: 'v03',
+    versions: [
+      { version: 'v01', uploadDate: '2026-05-12', reason: '최초 제작', originalKept: true },
+      { version: 'v02', uploadDate: '2026-05-26', reason: '일자 변경', note: '개강일 6월 3일 → 6월 10일', originalKept: true },
+      { version: 'v03', uploadDate: '2026-06-01', reason: '디자인 수정', note: '후기 섹션 추가', originalKept: true },
+    ],
+  }],
+  [22, P.엑셀실무, '05_평생', '풀페이지', 'MO', undefined, '엑셀 실무 과정 풀페이지', '박지원', '2026-06-01', ['포토샵'], '같은 과정의 모바일 풀페이지입니다.'],
+  [23, P.엑셀실무, '05_평생', '카드뉴스', undefined, undefined, '엑셀 단축키 카드뉴스', '방수림', '2026-06-05', ['일러스트', 'AI'], 'SNS 홍보용 엑셀 단축키 카드뉴스 5장입니다.'],
+  [24, P.겨울특강, '01_교원', '포스터', undefined, undefined, '교원 겨울 특강 포스터', '이혜진', '2026-11-02', ['일러스트', '산돌'], '학교 배포용 A3 포스터입니다.'],
+  [25, P.겨울특강, '01_교원', '편집', undefined, undefined, '교원 겨울 특강 리플렛', '이혜진', '2026-11-02', ['일러스트', '산돌'], '포스터와 함께 배포하는 2단 리플렛입니다.', {
+    licenseStatus: 'restricted',
+    licenseNote: '게티 이미지가 인쇄물 전용으로 구매되어 웹 게시 시 교체가 필요합니다.',
+  }],
+  [26, P.겨울특강, '01_교원', '배너', 'PC', undefined, '교원 겨울 특강 배너', '박정은', '2026-11-03', ['포토샵'], '연수원 홈페이지 배너입니다.'],
+  [27, P.고객사세미나, '03_HRD고객사', 'PPT', undefined, undefined, 'HRD 고객사 세미나 발표 자료', '김다은', '2026-05-20', ['AI', '산돌'], '고객사 HRD 담당자 대상 세미나 발표 자료입니다.'],
+  [28, P.고객사세미나, '03_HRD고객사', '배너', 'PC', undefined, 'HRD 세미나 신청 배너', '김다은', '2026-05-08', ['포토샵', 'AI'], '세미나 신청 페이지 배너입니다.'],
+  [29, P.고객사세미나, '03_HRD고객사', '썸네일', undefined, undefined, 'HRD 세미나 다시보기 썸네일', '박지원', '2026-05-27', ['포토샵'], '세미나 다시보기 영상 썸네일입니다.'],
+  [30, P.사내캠페인, '07_전사', '포스터', undefined, undefined, '사내 안전 캠페인 포스터', '방수림', '2026-04-01', ['일러스트'], '사무실 게시용 안전 캠페인 포스터입니다.'],
+  [31, P.사내캠페인, '07_전사', '카드뉴스', undefined, undefined, '사내 안전 수칙 카드뉴스', '방수림', '2026-04-03', ['일러스트'], '사내 메신저 공유용 안전 수칙 카드뉴스입니다.'],
+  [32, P.연말프로모션, '09_마케팅', '상세페이지', 'PC', undefined, '연말 프로모션 상세페이지', '박정은', '2026-11-04', ['포토샵', 'AI', '산돌'], '연말 전 과정 할인 프로모션 상세페이지입니다.', {
+    version: 'v02',
+    versions: [
+      { version: 'v01', uploadDate: '2026-10-28', reason: '최초 제작', originalKept: true },
+      { version: 'v02', uploadDate: '2026-11-04', reason: '문구 수정', note: '할인율 20% → 25%', originalKept: true },
+    ],
+  }],
+  [33, P.연말프로모션, '09_마케팅', '배너', 'MO', '검색광고', '연말 프로모션 검색광고 배너', '박정은', '2026-11-04', ['포토샵'], '포털 검색광고 모바일 배너입니다.'],
+  [34, P.연말프로모션, '09_마케팅', '팝업', 'PC', undefined, '연말 프로모션 팝업', '양현보', '2026-11-04', ['포토샵', 'AI'], '메인 진입 팝업입니다.'],
+  [35, P.연말프로모션, '09_마케팅', '팝업', 'MO', undefined, '연말 프로모션 팝업', '양현보', '2026-11-04', ['포토샵', 'AI'], '모바일 진입 팝업입니다.'],
+  [36, P.연말프로모션, '09_마케팅', '썸네일', undefined, undefined, '연말 프로모션 유튜브 썸네일', '박지원', '2026-11-04', ['포토샵', 'AI'], '프로모션 안내 영상 썸네일입니다.', {
+    licenseStatus: 'needs_review',
+    licenseNote: '게티 이미지 라이선스 범위(영상 썸네일)를 확인해야 합니다.',
+  }],
+  [37, P.경영자과정, '06_미래경영', '상세페이지', 'PC', undefined, '최고경영자 과정 상세페이지', '양현보', '2026-03-10', ['포토샵', '산돌'], '최고경영자 과정 모집 상세페이지입니다.'],
+  [38, P.경영자과정, '06_미래경영', '상세페이지', 'MO', undefined, '최고경영자 과정 상세페이지', '양현보', '2026-03-10', ['포토샵', '산돌'], '같은 과정의 모바일 상세페이지입니다.'],
+  [39, P.봄학기, '05_평생', '상세페이지', 'PC', undefined, '봄학기 평생교육 상세페이지', '김다은', '2025-03-03', ['포토샵', '산돌'], '2025 봄학기 평생교육 과정 안내 상세페이지입니다.'],
+  [40, P.봄학기, '05_평생', '배너', 'PC', undefined, '봄학기 평생교육 배너', '김다은', '2025-03-03', ['포토샵'], '평생교육원 메인 배너입니다.'],
+];
+const MORE: DesignAsset[] = QUICK.map(
+  ([id, folder, service, type, device, label, title, designer, uploadDate, tools, summary, more]) =>
+    make({
+      id: `asset-${id}`,
+      title,
+      service,
+      year: Number(uploadDate.slice(0, 4)),
+      folder,
+      type,
+      device,
+      label,
+      tools,
+      designer,
+      version: 'v01',
+      uploadDate,
+      summary,
+      ...more,
+    }),
+);
+
 /** 같은 프로젝트 파일들의 유형을 모아 패키지 구성으로 저장 */
 function withPackageTypes(list: DesignAsset[]): DesignAsset[] {
   const byProject = new Map<string, Set<AssetType>>();
@@ -454,7 +552,7 @@ function withPackageTypes(list: DesignAsset[]): DesignAsset[] {
   return list.map((a) => ({ ...a, packageTypes: [...byProject.get(key(a))!] }));
 }
 
-export const INITIAL_ASSETS: DesignAsset[] = withPackageTypes(SEEDED);
+export const INITIAL_ASSETS: DesignAsset[] = withPackageTypes([...SEEDED, ...MORE]);
 
 export const INITIAL_SAN_DOLL_FONTS: SandollFontItem[] = [
   {

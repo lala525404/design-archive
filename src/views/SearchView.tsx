@@ -654,7 +654,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
                 <span>{sec.total}</span>
               </h2>
             )}
-            <div className="project-grid">
+            <div className={viewMode === "grid" ? "project-grid" : "project-list"}>
               {sec.items.map((p) => (
                 <article key={p.key} className="project-item">
                   <button
@@ -681,6 +681,11 @@ export const SearchView: React.FC<SearchViewProps> = ({
                     <button className="asset-title" onClick={() => onSelectProject?.(p.key)}>
                       {highlightText(p.project, searchQuery)}
                     </button>
+                    {viewMode === "list" && (
+                      <p className="asset-meta project-list-meta">
+                        {p.designers.join(", ")} · 최근 수정 {p.latestDate}
+                      </p>
+                    )}
                     <p className="project-types">
                       {typeSummary(p.files).map((t) => (
                         <span key={t}>{t}</span>
