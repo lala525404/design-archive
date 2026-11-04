@@ -7,7 +7,7 @@ interface Props {
   currentRole: UserRole;
   onRoleChange: (r: UserRole) => void;
   onNavigate: (
-    v: "landing" | "search" | "browse" | "journal" | "upload" | "prompt" | "license" | "naming",
+    v: "landing" | "search" | "browse" | "journal" | "guide" | "upload" | "prompt" | "license" | "naming",
   ) => void;
   myUploadsCount: number;
 }
@@ -57,6 +57,7 @@ export function NavigationDrawer({
               ["search", "자산 찾기"],
               ["browse", "폴더로 보기"],
               ["journal", "디자인 저널"],
+              ["guide", "사용 가이드"],
               ...(currentRole !== "user" ? [["upload", "자산 등록"]] : []),
               ["prompt", "프롬프트 만들기"],
               ["license", "라이선스 확인"],

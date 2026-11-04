@@ -11,7 +11,7 @@ interface Props {
   onOpenMenu: () => void;
   onSelectAsset: (id: string) => void;
   onNavigateToLicense: () => void;
-  onNavigate?: (view: "upload" | "prompt" | "license" | "browse") => void;
+  onNavigate?: (view: "upload" | "prompt" | "license" | "browse" | "guide") => void;
   onSelectProject?: (key: string) => void;
   canUpload?: boolean;
 }
@@ -145,6 +145,12 @@ export function LandingView({
             폴더로 보기
           </button>
         </div>
+
+        <button className="hero-first" onClick={() => onNavigate?.("guide")}>
+          <span className="hero-first-dot" aria-hidden="true">?</span>
+          처음이신가요? <b>역할별 사용 가이드</b>
+          <ChevronRight size={14} strokeWidth={2.4} />
+        </button>
       </section>
     </main>
   );

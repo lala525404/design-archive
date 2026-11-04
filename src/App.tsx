@@ -17,6 +17,7 @@ import { NamingRuleView } from "./views/NamingRuleView";
 import { ProjectView } from "./views/ProjectView";
 import { FolderView, folderPathOf } from "./views/FolderView";
 import { JournalView } from "./views/JournalView";
+import { GuideView, GuideRole } from "./views/GuideView";
 import { INITIAL_POSTS } from "./data/journalPosts";
 import { JournalPost } from "./types";
 import { projectKey } from "./lib/projects";
@@ -25,8 +26,8 @@ import { BottomNav } from "./components/BottomNav";
 import { Header } from "./components/Chrome";
 import { CheckCircle2, AlertCircle } from "lucide-react";
 
-type View = "landing" | "search" | "browse" | "journal" | "detail" | "project" | "upload" | "prompt" | "license" | "naming";
-const VIEWS: View[] = ["landing", "search", "browse", "journal", "detail", "project", "upload", "prompt", "license", "naming"];
+type View = "landing" | "search" | "browse" | "journal" | "guide" | "detail" | "project" | "upload" | "prompt" | "license" | "naming";
+const VIEWS: View[] = ["landing", "search", "browse", "journal", "guide", "detail", "project", "upload", "prompt", "license", "naming"];
 
 /** 화면 위치를 주소(#)에 담는다 → 브라우저 뒤로/앞으로, 새로고침, 링크 공유가 된다 */
 interface Route {
@@ -38,6 +39,8 @@ interface Route {
   revise?: string;
   /** 폴더 화면 경로: 서비스/연도/프로젝트 폴더 */
   path?: string;
+  /** 가이드 역할 */
+  role?: string;
 }
 
 function routeToHash(r: Route) {
@@ -48,6 +51,7 @@ function routeToHash(r: Route) {
   if (r.folder) params.set("folder", r.folder);
   if (r.revise) params.set("revise", r.revise);
   if (r.path) params.set("path", r.path);
+  if (r.role) params.set("role", r.role);
   const qs = params.toString();
   return r.view === "landing" && !qs ? "#/" : `#/${r.view}${qs ? `?${qs}` : ""}`;
 }
@@ -64,6 +68,7 @@ function hashToRoute(hash: string): Route {
     folder: p.get("folder") ?? undefined,
     revise: p.get("revise") ?? undefined,
     path: p.get("path") ?? undefined,
+    role: p.get("role") ?? undefined,
   };
 }
 
@@ -82,6 +87,9 @@ export default function App() {
   const [fonts, setFonts] = useState<SandollFontItem[]>(INITIAL_SAN_DOLL_FONTS);
   const [userRole, setUserRole] = useState<UserRole>("designer");
   const [searchQuery, setSearchQuery] = useState(initial.q ?? "");
+  const toRole = (r?: string): GuideRole =>
+    r === "planner" || r === "admin" ? r : "uploader";
+  const [guideRole, setGuideRole] = useState<GuideRole>(toRole(initial.role));
   const [posts, setPosts] = useState<JournalPost[]>(INITIAL_POSTS);
   const [postId, setPostId] = useState<string | undefined>(initial.view === "journal" ? initial.id : undefined);
   const [folderPath, setFolderPath] = useState<string[]>(
@@ -105,6 +113,7 @@ export default function App() {
     if (r.view === "detail" && r.id) setSelectedAssetId(r.id);
     if (r.view === "project" && r.key) setSelectedProjectKey(r.key);
     if (r.view === "journal") setPostId(r.id);
+    if (r.view === "guide") setGuideRole(toRole(r.role));
     if (r.view === "browse") setFolderPath(r.path ? r.path.split("/").filter(Boolean) : []);
     if (r.view === "upload") setUploadPreset({ folder: r.folder, reviseId: r.revise });
   };
@@ -297,6 +306,18 @@ export default function App() {
           onSelectProject={handleSelectProject}
         />
       </div>
+
+      {view === "guide" && (
+        <GuideView
+          role={guideRole}
+          onRole={(r) => {
+            setGuideRole(r);
+            window.history.replaceState(window.history.state, "", routeToHash({ view: "guide", role: r }));
+          }}
+          onGo={(v) => (v === "upload" ? openUpload() : setView(v))}
+          onSearch={handleSearch}
+        />
+      )}
 
       {view === "journal" && (
         <JournalView

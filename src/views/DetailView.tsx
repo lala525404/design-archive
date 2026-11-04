@@ -50,6 +50,7 @@ export function DetailView({
     designer: asset.designer,
     version: asset.version,
   });
+  const [license, setLicense] = useState({ status: asset.licenseStatus, note: asset.licenseNote ?? "" });
   const [kind, setKind] = useState<{ type: AssetType; device?: "PC" | "MO" }>({
     type: asset.type,
     device: asset.device,
@@ -240,6 +241,9 @@ export function DetailView({
                   ...form,
                   type: kind.type,
                   device: DEVICE_TYPES.includes(kind.type) ? (kind.device ?? "PC") : undefined,
+                  ...(userRole === "admin"
+                    ? { licenseStatus: license.status, licenseNote: license.note.trim() || undefined }
+                    : {}),
                 });
                 setEditing(false);
               }}
@@ -295,6 +299,27 @@ export function DetailView({
                   )}
                 </div>
               </div>
+              {userRole === "admin" && (
+                <div className="field">
+                  라이선스 (관리자)
+                  <select
+                    value={license.status}
+                    onChange={(e) => setLicense({ ...license, status: e.target.value as DesignAsset["licenseStatus"] })}
+                    aria-label="라이선스 상태"
+                  >
+                    <option value="verified">확인 완료</option>
+                    <option value="needs_review">확인 필요</option>
+                    <option value="restricted">사용 제한</option>
+                    <option value="expired">기간 만료</option>
+                  </select>
+                  <textarea
+                    value={license.note}
+                    placeholder="라이선스 메모 (예: 산돌 기업용 범위 확인 완료)"
+                    onChange={(e) => setLicense({ ...license, note: e.target.value })}
+                    aria-label="라이선스 메모"
+                  />
+                </div>
+              )}
               <button className="btn btn-primary">저장</button>
             </form>
           )}

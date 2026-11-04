@@ -14,6 +14,7 @@ export type AppView =
   | "search"
   | "browse"
   | "journal"
+  | "guide"
   | "detail"
   | "project"
   | "upload"
