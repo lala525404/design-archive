@@ -10,9 +10,9 @@ import {
 
 /*
  * 회사 NAS 네이밍 규칙
- *   폴더(프로젝트): 날짜_요청번호_프로젝트명_리소스_디자이너
+ *   폴더(프로젝트): 오픈일(YYMMDD)_요청번호_프로젝트명_리소스_디자이너
  *     260714_21076_이룸 엑셀파워포인트AI 패키지_산돌-게티_김다은
- *   파일(결과물):   요청번호_유형-세부_PC|MO_v01.확장자   (요청번호 없으면 날짜)
+ *   파일(결과물):   요청번호_유형-세부_PC|MO_v01.확장자   (요청번호 없으면 오픈일)
  *     21076_배너-메인_PC_v01.png
  *
  * 규칙 이전에 만든 폴더(260102_제목(11340)_산돌,게티_방수림)도 읽는다.
@@ -88,11 +88,11 @@ export function parseProjectFolder(raw: string): FolderInfo {
     .replace(/\s+/g, " ")
     .trim();
 
-  if (!date) issues.push("맨 앞에 날짜(YYMMDD)가 없어요");
+  if (!date) issues.push("맨 앞에 오픈일(YYMMDD)이 없어요");
   if (!requestNo) issues.push("요청번호가 없어요 (없으면 00000)");
   if (!designer) issues.push("맨 끝에 디자이너 이름이 없어요");
   if (/\[|\]/.test(titleRaw)) issues.push("[부서] 태그는 상위 폴더가 알려주니 빼주세요");
-  if (/\(\d{4,6}\)/.test(titleRaw)) issues.push("요청번호는 날짜 다음 칸으로 옮겨주세요");
+  if (/\(\d{4,6}\)/.test(titleRaw)) issues.push("요청번호는 오픈일 다음 칸으로 옮겨주세요");
   return {
     date,
     requestNo,
@@ -105,7 +105,7 @@ export function parseProjectFolder(raw: string): FolderInfo {
 }
 
 export interface FileInfo {
-  id: string; // 요청번호 또는 날짜
+  id: string; // 요청번호 또는 오픈일
   type: AssetType | "";
   label: string; // 배너-메인 의 "메인"
   device?: "PC" | "MO";

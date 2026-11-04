@@ -669,7 +669,7 @@ export const UploadView: React.FC<UploadViewProps> = ({
                 />
               </label>
               <p className="quick-help">
-                폴더 이름에서 서비스·날짜·요청번호·프로젝트·리소스·디자이너를, 파일 이름에서
+                폴더 이름에서 서비스·오픈일·요청번호·프로젝트·리소스·디자이너를, 파일 이름에서
                 유형·PC/MO·버전을 자동으로 채워요. 다음 화면에서 모두 확인하고 고칠 수 있어요.{" "}
                 <button
                   type="button"

@@ -44,7 +44,7 @@ const segments = (path: string) =>
  * NAS 경로에서 연도/서비스 폴더/프로젝트 폴더를 읽는다.
  * 실제 NAS: \\NAS\디자인\2026\05_평생\260714_21076_이룸 엑셀 패키지_산돌-게티_김다은\
  * (예전처럼 서비스\연도 순서여도 읽는다)
- * 연도 폴더가 없으면 프로젝트 폴더 앞의 날짜에서 연도를 읽는다.
+ * 연도 폴더가 없으면 프로젝트 폴더 앞의 오픈일에서 연도를 읽는다.
  */
 export function parseNasPath(path: string) {
   const parts = segments(path).filter((p) => !/\.[a-z0-9]{2,5}$/i.test(p));

@@ -45,7 +45,7 @@ export interface DesignAsset {
   project: string;
   /** 업무 요청번호 (없으면 빈 값) */
   requestNo?: string;
-  /** 프로젝트 폴더 날짜 YYMMDD */
+  /** 프로젝트 오픈일 YYMMDD (폴더 이름 맨 앞) */
   projectDate?: string;
   /** 리소스(라이선스) 코드: 산돌, 게티, AI, 기타 */
   resources?: string[];

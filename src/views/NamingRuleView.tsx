@@ -114,7 +114,7 @@ export const NamingRuleView: React.FC<NamingRuleViewProps> = ({ onBack }) => {
             ok: p.followsRule,
             issues: p.issues,
             read: [
-              p.date && `날짜 ${p.date}`,
+              p.date && `오픈일 ${p.date}`,
               `요청 ${p.requestNo || "없음"}`,
               p.project && `"${p.project}"`,
               p.resources.length ? p.resources.join("·") : "리소스 없음",
@@ -142,20 +142,20 @@ export const NamingRuleView: React.FC<NamingRuleViewProps> = ({ onBack }) => {
           <header>
             <span className="rule-kicker">프로젝트 폴더</span>
             <code className="rule-pattern">
-              <b>날짜</b>_<b>요청번호</b>_<b>프로젝트명</b>_<b>리소스</b>_<b>디자이너</b>
+              <b>오픈일</b>_<b>요청번호</b>_<b>프로젝트명</b>_<b>리소스</b>_<b>디자이너</b>
             </code>
           </header>
           <ul className="rule-notes">
-            <li>날짜는 YYMMDD 6자리, 요청번호는 5자리 (없으면 00000)</li>
+            <li>오픈일(과정·행사·페이지가 열리는 날)은 YYMMDD 6자리, 요청번호는 5자리 (없으면 00000)</li>
             <li>프로젝트명에는 _ , [ ] ( ) &amp; 를 쓰지 않아요. 띄어쓰기는 괜찮아요</li>
             <li>리소스는 {RESOURCES.join(" · ")} 중에서 - 로 연결, 없으면 "없음"</li>
-            <li>상위 폴더: {SERVICES[4]} / 2026 / 프로젝트 폴더</li>
+            <li>상위 폴더: 2026 / {SERVICES[4]} / 프로젝트 폴더 (연도는 오픈일 기준)</li>
           </ul>
 
           <div className="builder">
             <div className="builder-row">
               <label>
-                날짜
+                오픈일
                 <input value={date} maxLength={6} inputMode="numeric" onChange={(e) => setDate(e.target.value.replace(/\D/g, ""))} />
               </label>
               <label>
@@ -211,7 +211,7 @@ export const NamingRuleView: React.FC<NamingRuleViewProps> = ({ onBack }) => {
             </code>
           </header>
           <ul className="rule-notes">
-            <li>요청번호가 없으면 맨 앞에 날짜(YYMMDD)를 써요</li>
+            <li>요청번호가 없으면 맨 앞에 오픈일(YYMMDD)을 써요</li>
             <li>
               유형: {ASSET_TYPES.map(typeCode).join(" · ")}
             </li>

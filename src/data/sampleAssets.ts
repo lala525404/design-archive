@@ -16,7 +16,7 @@ interface Seed {
   year: number;
   type: AssetType;
   device?: 'PC' | 'MO';
-  /** 프로젝트 폴더: 날짜_요청번호_프로젝트명_리소스_담당디자이너 */
+  /** 프로젝트 폴더: 오픈일_요청번호_프로젝트명_리소스_담당디자이너 */
   folder: ProjectFolder;
   /** 같은 프로젝트에 같은 유형이 여러 개일 때 구분 (예: 메인, 02) */
   label?: string;

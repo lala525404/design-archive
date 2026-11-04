@@ -1,7 +1,7 @@
 # 가이드 캡처 다시 만들기: npm run build && npx vite preview --port 4190 실행 후 python3 scripts/capture-guide.py
 import asyncio, json, urllib.parse
 from playwright.async_api import async_playwright
-BASE='http://localhost:4190/'
+BASE=__import__('os').environ.get('GUIDE_BASE','http://localhost:4190/')
 import os
 ROOT=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT=os.path.join(ROOT,'public','guide')+'/'
