@@ -15,6 +15,7 @@ import {
   ZoomIn,
 } from "lucide-react";
 import { Status } from "../components/Chrome";
+import { ScrollTop } from "../components/ScrollTop";
 
 export type GuideRole = "uploader" | "planner" | "admin";
 type Go = "upload" | "search" | "browse" | "journal" | "naming" | "license";
@@ -81,6 +82,7 @@ export function GuideView({ role, onRole, onGo, onSearch }: Props) {
       </div>
 
       <RoleGuide key={role} role={role} onGo={onGo} onSearch={onSearch} />
+      <ScrollTop />
     </main>
   );
 }

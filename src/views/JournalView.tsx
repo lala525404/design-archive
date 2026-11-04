@@ -16,6 +16,7 @@ import {
 import { DesignAsset, JournalCategory, JournalPost, JournalSwatch } from "../types";
 import { DesignThumbnail } from "../components/DesignThumbnail";
 import { TrendArt } from "../components/TrendArt";
+import { ScrollTop } from "../components/ScrollTop";
 import { groupProjects, typeSummary } from "../lib/projects";
 import { serviceName } from "../lib/taxonomy";
 
@@ -176,14 +177,21 @@ interface Props {
 
 export function JournalView(props: Props) {
   const { posts, postId } = props;
-  if (postId === "new") return <Editor {...props} />;
-  if (postId?.startsWith("edit:")) {
+  let page: React.ReactNode;
+  if (postId === "new") page = <Editor {...props} />;
+  else if (postId?.startsWith("edit:")) {
     const p = posts.find((x) => x.id === postId.slice(5));
-    return <Editor {...props} initial={p} />;
+    page = <Editor {...props} initial={p} />;
+  } else {
+    const post = postId ? posts.find((p) => p.id === postId) : undefined;
+    page = post ? <PostPage {...props} post={post} /> : <JournalList {...props} />;
   }
-  const post = postId ? posts.find((p) => p.id === postId) : undefined;
-  if (post) return <PostPage {...props} post={post} />;
-  return <JournalList {...props} />;
+  return (
+    <>
+      {page}
+      <ScrollTop />
+    </>
+  );
 }
 
 function JournalList({ posts, onOpen, canWrite }: Props) {
