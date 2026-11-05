@@ -7540,3 +7540,13 @@ button.version-line {
     gap: 14px;
   }
 }
+
+.drawer-lock {
+  font-size: 13px;
+  color: #6e6e73;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.drawer-lock:hover {
+  color: var(--blue);
+}

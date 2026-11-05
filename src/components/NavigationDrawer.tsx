@@ -72,6 +72,9 @@ export function NavigationDrawer({
         </nav>
         <div className="drawer-bottom">
           <span>내가 등록한 작업 {myUploadsCount}개</span>
+          <a className="drawer-lock" href="/__logout">
+            잠그기
+          </a>
           <details>
             <summary>사용자 모드</summary>
             <select
