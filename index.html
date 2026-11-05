@@ -14,7 +14,11 @@
           ok = sessionStorage.getItem("da_unlocked") === "1";
           sessionStorage.removeItem("da_unlocked");
         } catch (e) {}
-        if (!ok) location.replace("/__logout?next=" + encodeURIComponent(location.pathname + location.search + location.hash));
+        if (ok) return;
+        // 새로고침이면 잠금을 풀고 첫 화면으로, 링크로 들어온 거면 그 화면으로 돌아간다
+        var nav = (performance.getEntriesByType && performance.getEntriesByType("navigation")[0]) || {};
+        var back = nav.type === "reload" ? "/" : location.pathname + location.search + location.hash;
+        location.replace("/__logout?next=" + encodeURIComponent(back));
       })();
     </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
