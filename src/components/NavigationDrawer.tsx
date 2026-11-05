@@ -58,7 +58,7 @@ export function NavigationDrawer({
               ...(currentRole !== "user" ? [["upload", "자산 등록"]] : []),
               ["browse", "폴더로 보기"],
               ["journal", "디자인 저널"],
-              ["prompt", "프롬프트 만들기"],
+              ["prompt", "제작 도구"],
               ["license", "라이선스 확인"],
               ...(currentRole !== "user" ? [["naming", "네이밍 규칙"]] : []),
               ["guide", "사용 가이드"],
@@ -102,3 +102,4 @@ export function NavigationDrawer({
     </dialog>
   );
 }
+

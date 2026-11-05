@@ -71,7 +71,7 @@ export function Header({
             aria-current={view === "prompt" ? "page" : undefined}
             onClick={() => onNavigate("prompt")}
           >
-            프롬프트
+            제작 도구
           </button>
           <button
             aria-current={view === "license" ? "page" : undefined}
@@ -250,3 +250,4 @@ export function Modal({
     </dialog>
   );
 }
+

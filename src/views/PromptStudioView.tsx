@@ -16,6 +16,7 @@ import {
 import { PageTitle, Disclosure } from "../components/Chrome";
 import { DesignAsset } from "../types";
 import { DesignThumbnail } from "../components/DesignThumbnail";
+import { CourseStudioView } from "./CourseStudioView";
 
 interface PromptStudioViewProps {
   initialAsset?: DesignAsset;
@@ -24,7 +25,7 @@ interface PromptStudioViewProps {
   onOpenMenu: () => void;
 }
 
-export const PromptStudioView: React.FC<PromptStudioViewProps> = ({
+const ImagePromptView: React.FC<PromptStudioViewProps> = ({
   initialAsset,
   allAssets,
   onBack,
@@ -423,3 +424,15 @@ export const PromptStudioView: React.FC<PromptStudioViewProps> = ({
     </main>
   );
 };
+
+export const PromptStudioView: React.FC<PromptStudioViewProps> = (props) => {
+  const [mode, setMode] = useState<"course" | "prompt">("course");
+  return <>
+    <div className="creation-tabs" role="tablist" aria-label="제작 도구">
+      <button type="button" role="tab" aria-selected={mode === "course"} onClick={() => setMode("course")}>교안 만들기</button>
+      <button type="button" role="tab" aria-selected={mode === "prompt"} onClick={() => setMode("prompt")}>디자인 프롬프트</button>
+    </div>
+    {mode === "course" ? <CourseStudioView onBack={props.onBack} /> : <ImagePromptView {...props} />}
+  </>;
+};
+
