@@ -60,8 +60,9 @@ export const toggleReference = (ids: string[], id: string) =>
 
 export type SampleJob = { status: "idle" | "running" | "complete"; startedAt: number; progress: number };
 export const sampleProgressAt = (elapsedMs: number) => Math.min(SAMPLE_PAGE_COUNT, Math.max(0, Math.floor(elapsedMs / 8000 * SAMPLE_PAGE_COUNT)));
+export const showSampleJobIndicator = (courseVisible: boolean, status: SampleJob["status"]) => !courseVisible && status !== "idle";
 const idleJob: SampleJob = { status: "idle", startedAt: 0, progress: 0 };
-export function CourseStudioView({ onBack, allAssets, sampleJob = idleJob, onStartSample, onResetSample, visible = true, onProgressVisibilityChange, openJobRequest = 0 }: { onBack: () => void; allAssets: DesignAsset[]; sampleJob?: SampleJob; onStartSample?: () => void; onResetSample?: () => void; visible?: boolean; onProgressVisibilityChange?: (visible: boolean) => void; openJobRequest?: number }) {
+export function CourseStudioView({ onBack, allAssets, sampleJob = idleJob, onStartSample, onResetSample, visible = true, onCourseVisibilityChange, openJobRequest = 0 }: { onBack: () => void; allAssets: DesignAsset[]; sampleJob?: SampleJob; onStartSample?: () => void; onResetSample?: () => void; visible?: boolean; onCourseVisibilityChange?: (visible: boolean) => void; openJobRequest?: number }) {
   const [slides, setSlides] = useState<Slide[]>([makeSlide(1)]);
   const [currentId, setCurrentId] = useState(1);
   const [printError, setPrintError] = useState("");
@@ -84,9 +85,9 @@ export function CourseStudioView({ onBack, allAssets, sampleJob = idleJob, onSta
   const visibleReferences = matches.slice(referencePage * 4, referencePage * 4 + 4);
   const current = slides.find(slide => slide.id === currentId) || slides[0];
   useEffect(() => {
-    onProgressVisibilityChange?.(visible && stage === "progress");
-    return () => onProgressVisibilityChange?.(false);
-  }, [visible, stage, onProgressVisibilityChange]);
+    onCourseVisibilityChange?.(visible);
+    return () => onCourseVisibilityChange?.(false);
+  }, [visible, onCourseVisibilityChange]);
   useEffect(() => {
     if (openJobRequest > 0) setStage(sampleJob.status === "complete" ? "review" : "progress");
   }, [openJobRequest]);

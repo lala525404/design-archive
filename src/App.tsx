@@ -12,7 +12,7 @@ import { DetailView } from "./views/DetailView";
 import { UploadView, UploadResult } from "./views/UploadView";
 import { CURRENT_DESIGNER } from "./lib/taxonomy";
 import { PromptStudioView } from "./views/PromptStudioView";
-import { SAMPLE_PAGE_COUNT, SampleJob, sampleProgressAt } from "./views/CourseStudioView";
+import { SAMPLE_PAGE_COUNT, SampleJob, sampleProgressAt, showSampleJobIndicator } from "./views/CourseStudioView";
 import { LicenseManagementView } from "./views/LicenseManagementView";
 import { NamingRuleView } from "./views/NamingRuleView";
 import { ProjectView } from "./views/ProjectView";
@@ -102,13 +102,14 @@ export default function App() {
   );
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [sampleJob, setSampleJob] = useState<SampleJob>({ status: "idle", startedAt: 0, progress: 0 });
-  const [sampleProgressVisible, setSampleProgressVisible] = useState(false);
-  const progressVisibleRef = useRef(false);
+  const [sampleCourseVisible, setSampleCourseVisible] = useState(false);
+  const courseVisibleRef = useRef(false);
   const [sampleNotice, setSampleNotice] = useState(false);
   const [openJobRequest, setOpenJobRequest] = useState(0);
-  const onProgressVisibilityChange = useCallback((visible: boolean) => {
-    progressVisibleRef.current = visible;
-    setSampleProgressVisible(visible);
+  const onCourseVisibilityChange = useCallback((visible: boolean) => {
+    courseVisibleRef.current = visible;
+    setSampleCourseVisible(visible);
+    if (visible) setSampleNotice(false);
   }, []);
   const startSampleJob = () => {
     setSampleNotice(false);
@@ -123,7 +124,7 @@ export default function App() {
       if (elapsed >= 8000) {
         window.clearInterval(timer);
         setSampleJob({ status: "complete", startedAt, progress: SAMPLE_PAGE_COUNT });
-        if (!progressVisibleRef.current) setSampleNotice(true);
+        if (!courseVisibleRef.current) setSampleNotice(true);
       } else {
         setSampleJob(current => current.status === "running" && current.startedAt === startedAt ? { ...current, progress } : current);
       }
@@ -424,7 +425,7 @@ export default function App() {
           onStartSample={startSampleJob}
           onResetSample={() => { setSampleNotice(false); setSampleJob({ status: "idle", startedAt: 0, progress: 0 }); }}
           visible={view === "prompt"}
-          onProgressVisibilityChange={onProgressVisibilityChange}
+          onCourseVisibilityChange={onCourseVisibilityChange}
           openJobRequest={openJobRequest}
         />
       </div>
@@ -463,7 +464,7 @@ export default function App() {
         onOpenMenu={() => setIsDrawerOpen(true)}
         userRole={userRole}
       />
-      {!sampleProgressVisible && sampleJob.status !== "idle" && <div className="sample-job-floating">
+      {showSampleJobIndicator(sampleCourseVisible, sampleJob.status) && <div className="sample-job-floating">
         {sampleNotice && sampleJob.status === "complete" && <div className="sample-job-notice" role="status"><button type="button" className="sample-job-close" aria-label="샘플 알림 닫기" onClick={() => setSampleNotice(false)}>×</button><strong>샘플 교안이 준비됐어요</strong><span>미리 준비한 {SAMPLE_PAGE_COUNT}장 예시를 확인해 보세요.</span></div>}
         <button type="button" className="sample-job-link" onClick={() => { setSampleNotice(false); if (view !== "prompt") setView("prompt"); setOpenJobRequest(value => value + 1); }}>{sampleJob.status === "running" ? `샘플 체험 중 · ${sampleJob.progress}/${SAMPLE_PAGE_COUNT}` : "샘플 교안 확인하기"}</button>
       </div>}

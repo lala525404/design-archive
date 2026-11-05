@@ -11,7 +11,7 @@ import { SearchView } from "../src/views/SearchView";
 import { DetailView } from "../src/views/DetailView";
 import { UploadView } from "../src/views/UploadView";
 import { PromptStudioView } from "../src/views/PromptStudioView";
-import { CourseSlidePreview, courseSlideClassName, makeSampleSlides, makeTemplateSlide, sampleProgressAt, slideTemplates, toggleReference } from "../src/views/CourseStudioView";
+import { CourseSlidePreview, courseSlideClassName, makeSampleSlides, makeTemplateSlide, sampleProgressAt, showSampleJobIndicator, slideTemplates, toggleReference } from "../src/views/CourseStudioView";
 import { LicenseManagementView } from "../src/views/LicenseManagementView";
 import { NamingRuleView } from "../src/views/NamingRuleView";
 import { SERVICES, guessType, normalizeTool } from "../src/lib/taxonomy";
@@ -39,6 +39,9 @@ for (const [index, slide] of sampleSlides.entries()) {
 assert.deepEqual(slideTemplates.map(template => makeTemplateSlide(template.variant, 99).variant), ["cover", "contents", "section", "body", "table"], "Each picker option creates its own page type");
 assert.equal(makeTemplateSlide("table", 99).table?.[1][1], "설명을 입력하세요", "New table page has editable cells");
 assert.deepEqual([sampleProgressAt(0), sampleProgressAt(4000), sampleProgressAt(8000), sampleProgressAt(10000)], [0, 2, 5, 5], "Sample progress is bounded and completes");
+assert.equal(showSampleJobIndicator(true, "complete"), false, "Do not show a redundant sample button inside the course tool");
+assert.equal(showSampleJobIndicator(false, "complete"), true, "Completed sample remains accessible from other menus");
+assert.equal(showSampleJobIndicator(false, "idle"), false, "Do not show an indicator without a sample");
 assert.deepEqual(toggleReference(["a", "b", "c"], "d"), ["a", "b", "c"], "At most three references");
 assert.deepEqual(toggleReference(["a", "b", "c"], "b"), ["a", "c"], "Selected reference can be removed");
 assert.deepEqual(toggleReference(["a", "c"], "d"), ["a", "c", "d"], "A different reference can be selected after removal");

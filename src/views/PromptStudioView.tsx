@@ -27,7 +27,7 @@ interface PromptStudioViewProps {
   onStartSample?: () => void;
   onResetSample?: () => void;
   visible?: boolean;
-  onProgressVisibilityChange?: (visible: boolean) => void;
+  onCourseVisibilityChange?: (visible: boolean) => void;
   openJobRequest?: number;
 }
 
@@ -439,7 +439,7 @@ export const PromptStudioView: React.FC<PromptStudioViewProps> = (props) => {
       <button type="button" role="tab" aria-selected={mode === "course"} onClick={() => setMode("course")}>교안 만들기</button>
       <button type="button" role="tab" aria-selected={mode === "prompt"} onClick={() => setMode("prompt")}>디자인 프롬프트</button>
     </div>
-    <div hidden={mode !== "course"}><CourseStudioView onBack={props.onBack} allAssets={props.allAssets} sampleJob={props.sampleJob} onStartSample={props.onStartSample} onResetSample={props.onResetSample} visible={props.visible !== false && mode === "course"} onProgressVisibilityChange={props.onProgressVisibilityChange} openJobRequest={props.openJobRequest} /></div>
+    <div hidden={mode !== "course"}><CourseStudioView onBack={props.onBack} allAssets={props.allAssets} sampleJob={props.sampleJob} onStartSample={props.onStartSample} onResetSample={props.onResetSample} visible={props.visible !== false && mode === "course"} onCourseVisibilityChange={props.onCourseVisibilityChange} openJobRequest={props.openJobRequest} /></div>
     {mode === "prompt" && <ImagePromptView {...props} />}
   </>;
 };
