@@ -7,6 +7,8 @@ import { DesignAsset } from "../types";
 type Slide = { id: number; title: string; body: string; layout: "basic" | "split" };
 const makeSlide = (id: number): Slide => ({ id, title: "", body: "", layout: "basic" });
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] || c));
+export const toggleReference = (ids: string[], id: string) =>
+  ids.includes(id) ? ids.filter(item => item !== id) : ids.length < 3 ? [...ids, id] : ids;
 
 export function CourseStudioView({ onBack, allAssets }: { onBack: () => void; allAssets: DesignAsset[] }) {
   const [slides, setSlides] = useState<Slide[]>([makeSlide(1)]);
@@ -15,10 +17,11 @@ export function CourseStudioView({ onBack, allAssets }: { onBack: () => void; al
   const [sourceFile, setSourceFile] = useState<File | null>(null);
   const [sourceError, setSourceError] = useState("");
   const [search, setSearch] = useState("");
-  const [referenceId, setReferenceId] = useState<string | null>(null);
+  const [referenceIds, setReferenceIds] = useState<string[]>([]);
+  const [manualStarted, setManualStarted] = useState(false);
   const [instructions, setInstructions] = useState("");
   const [exclusions, setExclusions] = useState("");
-  const reference = allAssets.find(asset => asset.id === referenceId);
+  const selectedReferences = referenceIds.map(id => allAssets.find(asset => asset.id === id)).filter((asset): asset is DesignAsset => Boolean(asset));
   const query = search.trim().toLocaleLowerCase();
   const matches = allAssets.filter(asset => !query || [asset.id, asset.title, asset.project, asset.requestNo || "", asset.type].some(value => value.toLocaleLowerCase().includes(query))).slice(0, 6);
   const current = slides.find(slide => slide.id === currentId) || slides[0];
@@ -56,9 +59,11 @@ export function CourseStudioView({ onBack, allAssets }: { onBack: () => void; al
             {sourceFile && <div className="source-file"><FileText size={16}/><span>{sourceFile.name}</span><button type="button" onClick={() => setSourceFile(null)} aria-label="선택 파일 제거"><X size={16}/></button></div>}
             <p className="brief-hint">PPT·PDF·Word·텍스트 파일 선택 가능 · 최대 20MB<br/>선택한 파일은 서버에 전송되거나 분석되지 않습니다.</p><p role="status" className="course-error">{sourceError}</p>
           </div>
-          <div className="brief-section"><span className="course-overline">02 · 참고 디자인</span><h2>아카이브에서 가져오기</h2><p>작업명, 요청번호 또는 자산 ID로 검색하고 썸네일을 선택하세요.</p>
+          <div className="brief-section"><span className="course-overline">02 · 참고 디자인</span><h2>아카이브에서 가져오기</h2><p>마음에 드는 디자인을 1~3개 선택해 주세요. <strong>{referenceIds.length} / 3개 선택</strong></p>
             <label className="reference-search"><Search size={17}/><span className="sr-only">레퍼런스 검색</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder="작업명 · 요청번호 · 자산 ID" /></label>
-            {reference ? <div className="selected-reference"><div className="reference-image"><DesignThumbnail asset={reference}/></div><div><strong>{reference.title}</strong><small>{reference.id} · {reference.type}{reference.device ? ` ${reference.device}` : ""} · {reference.version}</small><button type="button" onClick={() => setReferenceId(null)}>다른 레퍼런스 선택</button></div></div> : <div className="reference-results">{matches.map(asset => <button type="button" className="reference-choice" key={asset.id} onClick={() => setReferenceId(asset.id)}><div className="reference-image"><DesignThumbnail asset={asset}/></div><span><strong>{asset.title}</strong><small>{asset.id} · {asset.type}{asset.device ? ` ${asset.device}` : ""}</small></span></button>)}{matches.length === 0 && <p>일치하는 작업이 없어요. 다른 검색어를 입력해 주세요.</p>}</div>}
+            {selectedReferences.length > 0 && <div className="selected-reference-list" aria-label="선택한 레퍼런스">{selectedReferences.map(asset => <div className="selected-reference" key={asset.id}><div className="reference-image"><DesignThumbnail asset={asset}/></div><div><strong>{asset.title}</strong><small>{asset.id} · {asset.type}{asset.device ? ` ${asset.device}` : ""} · {asset.version}</small></div><button type="button" aria-label={`${asset.title} 선택 해제`} onClick={() => setReferenceIds(ids => ids.filter(id => id !== asset.id))}><X size={16}/></button></div>)}</div>}
+            <div className="reference-results">{matches.map(asset => { const selected = referenceIds.includes(asset.id); return <button type="button" className={`reference-choice ${selected ? "is-selected" : ""}`} key={asset.id} aria-pressed={selected} disabled={!selected && referenceIds.length >= 3} onClick={() => setReferenceIds(ids => toggleReference(ids, asset.id))}><div className="reference-image"><DesignThumbnail asset={asset}/></div><span><strong>{asset.title}</strong><small>{asset.id} · {asset.type}{asset.device ? ` ${asset.device}` : ""}</small><small>{selected ? "선택됨" : "선택하기"}</small></span></button>})}{matches.length === 0 && <p>일치하는 작업이 없어요. 다른 검색어를 입력해 주세요.</p>}</div>
+            {referenceIds.length === 3 && <p className="brief-hint" role="status">최대 3개까지 선택할 수 있어요. 다른 작업을 선택하려면 기존 선택을 해제해 주세요.</p>}
             <p className="brief-hint">원본 이미지가 없는 작업은 샘플 그래픽으로 표시됩니다. 현재 ID는 임시 식별자이며, 요청번호는 여러 작업에 공통으로 쓰일 수 있어요.</p>
           </div>
           <div className="brief-section"><span className="course-overline">03 · 제작 방향</span><h2>어떻게 꾸밀까요?</h2><p>참고할 요소와 적용하지 않을 요소를 짧고 구체적으로 적어 주세요.</p>
@@ -67,28 +72,23 @@ export function CourseStudioView({ onBack, allAssets }: { onBack: () => void; al
             <div className="prompt-example"><strong>이렇게 적으면 좋아요</strong><p>“레퍼런스의 차분한 컬러와 여백을 참고해 주세요. 제목은 더 굵게 하고, 파란색과 장식 아이콘은 제외해 주세요.”</p></div>
             <button type="button" className="btn btn-primary course-pending" disabled>AI 교안 만들기 · 연결 준비 중</button><p className="brief-hint">입력한 요청은 아직 AI로 전송되지 않으며 미리보기에 적용되지 않습니다.</p>
           </div>
-          <details className="manual-course"><summary>직접 교안 내용 편집하기</summary>
-          <div className="course-panel-heading"><div><span className="course-overline">내용 편집</span><h2>교안 내용</h2></div><span className="course-page-count">{slides.findIndex(s => s.id === current.id) + 1} / {slides.length}</span></div>
+        </section>
+        <section className="course-preview-panel" aria-label="교안 미리보기">
+          <div className="course-panel-heading"><div><span className="course-overline">{manualStarted ? "기본 템플릿 · 직접 편집" : "디자인 결과"}</span><h2>미리보기</h2></div><span className="course-preview-label">16:9</span></div>
+          {!manualStarted ? <div className="course-preview-empty"><FileText size={28}/><strong>만들어진 교안을 이곳에서 확인해요</strong><p>AI 교안 생성은 준비 중이에요.<br/>기본 템플릿으로 직접 편집을 체험할 수 있습니다.</p><button type="button" className="btn" onClick={() => setManualStarted(true)}>기본 템플릿 열기</button></div> : <>
           <div className="course-slide-list" aria-label="교안 페이지">
             {slides.map((slide, index) => <button key={slide.id} type="button" className={slide.id === current.id ? "active" : ""} aria-pressed={slide.id === current.id} onClick={() => setCurrentId(slide.id)}>{index + 1}페이지</button>)}
             <button type="button" onClick={addSlide} aria-label="페이지 추가"><Plus size={15}/> 추가</button>
           </div>
-          <label className="course-field">페이지 제목<input value={current.title} onChange={event => update({ title: event.target.value })} placeholder="예: 고객 상담의 이해" maxLength={100}/></label>
-          <label className="course-field">학습 내용<textarea value={current.body} onChange={event => update({ body: event.target.value })} placeholder={"교안에 넣을 내용을 입력해 주세요.\n줄을 바꿔 내용을 구분할 수 있어요."} rows={8} maxLength={1500}/></label>
-          <p className="course-hint">원본 교안의 내용을 확인하며 입력하고, 출력 전 정확성을 검수해 주세요.</p>
-          <div className="course-template-title">템플릿 선택</div>
-          <div className="course-templates">
+          <p className="brief-hint preview-instruction">제목이나 본문을 눌러 화면에서 직접 수정하세요.</p>
+          <div className={`course-preview ${current.layout}`}><div className="course-preview-inner"><span>학습 교안 · {String(slides.findIndex(s => s.id === current.id) + 1).padStart(2, "0")}</span><h3 key={`title-${current.id}`} contentEditable suppressContentEditableWarning role="textbox" aria-label="교안 제목 수정" data-placeholder="제목을 입력하세요" onBlur={event => update({title: event.currentTarget.innerText})}>{current.title}</h3><div className="course-preview-line"/><p key={`body-${current.id}`} contentEditable suppressContentEditableWarning role="textbox" aria-multiline="true" aria-label="교안 본문 수정" data-placeholder="학습 내용을 입력하세요" onBlur={event => update({body: event.currentTarget.innerText})}>{current.body}</p></div></div>
+          <div className="preview-controls"><div className="course-template-title">템플릿 선택</div><div className="course-templates">
             <button type="button" className={current.layout === "basic" ? "active" : ""} aria-pressed={current.layout === "basic"} onClick={() => update({ layout: "basic" })}><span className="template-icon"><i/><i/><i/></span><strong>기본형</strong><small>제목과 내용을 간결하게</small></button>
             <button type="button" className={current.layout === "split" ? "active" : ""} aria-pressed={current.layout === "split"} onClick={() => update({ layout: "split" })}><span className="template-icon split"><i/><i/><i/></span><strong>분할형</strong><small>여백으로 구성을 나누어</small></button>
-          </div>
-          <button type="button" className="course-remove" onClick={removeSlide} disabled={slides.length === 1}><Trash2 size={15}/> 현재 페이지 삭제</button>
-          </details>
-        </section>
-        <section className="course-preview-panel" aria-label="교안 미리보기">
-          <div className="course-panel-heading"><div><span className="course-overline">직접 편집한 내용</span><h2>미리보기</h2></div><span className="course-preview-label">16:9</span></div>
-          <div className={`course-preview ${current.layout}`}><div className="course-preview-inner"><span>학습 교안 · {String(slides.findIndex(s => s.id === current.id) + 1).padStart(2, "0")}</span><h3>{current.title || "페이지 제목을 입력해 주세요"}</h3><div className="course-preview-line"/><p>{current.body || "학습 내용을 입력하면 이곳에서 확인할 수 있어요."}</p></div></div>
+          </div><button type="button" className="course-remove" onClick={removeSlide} disabled={slides.length === 1}><Trash2 size={15}/> 현재 페이지 삭제</button></div>
           <div className="course-preview-bottom"><p>인쇄 화면에서 PDF로 저장할 수 있어요.<br/>입력 내용은 페이지를 벗어나거나 새로고침하면 사라집니다.</p><button type="button" className="btn btn-primary" onClick={print}><Printer size={16}/> 인쇄 · PDF 저장</button></div>
           <p role="status" className="course-error">{printError}</p>
+          </>}
         </section>
       </div>
       <div className="course-future"><strong>앞으로의 제작 도구</strong><span>교안 템플릿과 디자인 소스를 활용하는 기능을 시작으로, 이미지 제작까지 확장할 수 있도록 준비하고 있어요.</span></div>
