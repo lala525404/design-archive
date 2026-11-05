@@ -112,16 +112,58 @@ function loginPage(wrong: boolean) {
     background: #fff; color: #1d1d1f; -webkit-font-smoothing: antialiased;
   }
   main { width: 100%; max-width: 380px; text-align: center; }
-  .mark {
-    width: 76px; height: 76px; margin: 0 auto 26px; border-radius: 50%;
-    display: grid; place-items: center; background: #1d1d1f; color: #fff;
-    transition: transform .35s cubic-bezier(.2,.8,.3,1), background .25s;
+  /* 노이즈 글래스 돋보기 + 차오르는 파란 물결 */
+  .orb {
+    position: relative; width: 128px; height: 128px; margin: 0 auto 28px; border-radius: 50%;
+    overflow: hidden; isolation: isolate;
+    background: radial-gradient(circle at 50% 30%, #f7fbff, #e6f0fc);
+    box-shadow: 0 18px 40px rgba(0, 113, 227, .18), 0 2px 6px rgba(0, 0, 0, .06);
+    transition: transform .4s cubic-bezier(.2,.8,.3,1);
   }
-  .mark svg { transition: transform .35s cubic-bezier(.2,.8,.3,1); }
-  body.typing .mark svg { transform: rotate(-14deg) scale(1.06); }
-  body.ok .mark { background: #0071e3; transform: scale(1.08); }
-  body.wrong .mark { animation: shake .45s ease; }
+  .liquid {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 0%;
+    background: linear-gradient(180deg, #2b8cff, #0071e3 60%, #0058b8);
+    transition: height 2.2s cubic-bezier(.2,.7,.2,1);
+  }
+  body.loaded .liquid { height: 46%; }
+  body.loaded.typing .liquid { height: 60%; }
+  body.ok .liquid { height: 112%; transition-duration: .7s; }
+  .wave {
+    position: absolute; left: 0; bottom: 100%; width: 200%; height: 18px; margin-bottom: -1px;
+    animation: drift 3.2s linear infinite;
+  }
+  .wave.back { opacity: .45; height: 22px; animation-duration: 5s; animation-direction: reverse; }
+  @keyframes drift { to { transform: translateX(-50%); } }
+  .glass {
+    position: absolute; inset: 0; border-radius: 50%; z-index: 2;
+    background:
+      radial-gradient(90% 60% at 30% 12%, rgba(255,255,255,.7), rgba(255,255,255,0) 50%),
+      linear-gradient(160deg, rgba(255,255,255,.22), rgba(255,255,255,0)),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: auto, auto, 140px 140px;
+    -webkit-backdrop-filter: blur(2.5px) saturate(1.3); backdrop-filter: blur(2.5px) saturate(1.3);
+    box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.7), inset 0 -10px 24px rgba(0, 60, 140, .18);
+    mix-blend-mode: normal;
+  }
+  .glyph {
+    position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; color: #fff;
+    filter: drop-shadow(0 1px 1px rgba(0, 40, 100, .35)) drop-shadow(0 4px 10px rgba(0, 60, 140, .35));
+    transition: transform .4s cubic-bezier(.2,.8,.3,1);
+  }
+  .glyph svg { width: 46px; height: 46px; }
+    .glyph { transition: transform .4s cubic-bezier(.2,.8,.3,1), color 1.2s ease .6s; }
+  body.typing .glyph { transform: rotate(-14deg) scale(1.06); }
+  body.ok .orb { transform: scale(1.06); }
+  body.wrong .orb { animation: shake .45s ease; }
   @keyframes shake { 20% { transform: translateX(-8px) } 60% { transform: translateX(8px) } }
+  /* 화면 아래에도 은은하게 차오르는 물결 */
+  .sea { position: fixed; left: 0; right: 0; bottom: 0; height: 0; pointer-events: none; z-index: -1; transition: height 2.6s cubic-bezier(.2,.7,.2,1) .2s; }
+  body.loaded .sea { height: 15vh; }
+  body.ok .sea { height: 32vh; transition-duration: .8s; transition-delay: 0s; }
+  .sea .body { position: absolute; inset: 0; background: linear-gradient(180deg, #e6f1fc, #d6e8fb); }
+  .sea .wave { margin-bottom: -2px; }
+  .sea .wave { height: 26px; animation-duration: 7s; }
+  .sea .wave.back { height: 34px; animation-duration: 11s; }
   h1 { font-size: 26px; font-weight: 700; letter-spacing: -.035em; }
   .lead { margin-top: 8px; font-size: 15px; line-height: 1.55; color: #6e6e73; word-break: keep-all; }
   form { margin-top: 32px; }
@@ -155,11 +197,23 @@ function loginPage(wrong: boolean) {
 </style>
 </head>
 <body class="${wrong ? "wrong" : ""}">
+  <div class="sea" aria-hidden="true">
+    <svg class="wave back" viewBox="0 0 200 30" preserveAspectRatio="none"><path d="M0 9 Q 12.5 0 25 9 T 50 9 T 75 9 T 100 9 T 125 9 T 150 9 T 175 9 T 200 9 V 30 H 0 Z" fill="#f0f6fe" /></svg>
+    <svg class="wave" viewBox="0 0 200 30" preserveAspectRatio="none"><path d="M0 9 Q 12.5 0 25 9 T 50 9 T 75 9 T 100 9 T 125 9 T 150 9 T 175 9 T 200 9 V 30 H 0 Z" fill="#e6f1fc" /></svg>
+    <div class="body"></div>
+  </div>
   <main>
-    <div class="mark" aria-hidden="true">
-      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 L20 20" />
-      </svg>
+    <div class="orb" aria-hidden="true">
+      <div class="liquid">
+        <svg class="wave back" viewBox="0 0 200 30" preserveAspectRatio="none"><path d="M0 9 Q 12.5 0 25 9 T 50 9 T 75 9 T 100 9 T 125 9 T 150 9 T 175 9 T 200 9 V 30 H 0 Z" fill="#5aa9ff" /></svg>
+        <svg class="wave" viewBox="0 0 200 30" preserveAspectRatio="none"><path d="M0 9 Q 12.5 0 25 9 T 50 9 T 75 9 T 100 9 T 125 9 T 150 9 T 175 9 T 200 9 V 30 H 0 Z" fill="#2b8cff" /></svg>
+      </div>
+      <div class="glass"></div>
+      <div class="glyph">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 L20 20" />
+        </svg>
+      </div>
     </div>
     <h1>디자인 자산 아카이브</h1>
     <p class="lead">사내 전용 페이지예요. 비밀번호를 입력해 주세요.</p>
@@ -180,6 +234,7 @@ function loginPage(wrong: boolean) {
   </main>
   <script>
     var b = document.body, pw = document.getElementById("pw");
+    requestAnimationFrame(function () { requestAnimationFrame(function () { b.classList.add("loaded"); }); });
     pw.addEventListener("focus", function () { b.classList.add("typing"); });
     pw.addEventListener("blur", function () { b.classList.remove("typing"); });
     pw.addEventListener("input", function () { b.classList.remove("wrong"); });
