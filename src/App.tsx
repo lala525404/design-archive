@@ -100,6 +100,7 @@ export default function App() {
   const [promptAsset, setPromptAsset] = useState<DesignAsset>(
     INITIAL_ASSETS[0],
   );
+  const [openDesignRequest, setOpenDesignRequest] = useState(0);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [sampleJob, setSampleJob] = useState<SampleJob>({ status: "idle", startedAt: 0, progress: 0 });
   const [sampleCourseVisible, setSampleCourseVisible] = useState(false);
@@ -223,6 +224,7 @@ export default function App() {
 
   const handleOpenPromptStudio = (asset: DesignAsset) => {
     setPromptAsset(asset);
+    setOpenDesignRequest(value => value + 1);
     setView("prompt");
   };
 
@@ -427,6 +429,7 @@ export default function App() {
           visible={view === "prompt"}
           onCourseVisibilityChange={onCourseVisibilityChange}
           openJobRequest={openJobRequest}
+          openDesignRequest={openDesignRequest}
         />
       </div>
 

@@ -17,6 +17,7 @@ import { PageTitle, Disclosure } from "../components/Chrome";
 import { DesignAsset } from "../types";
 import { DesignThumbnail } from "../components/DesignThumbnail";
 import { CourseStudioView, SampleJob } from "./CourseStudioView";
+import { DesignMakerView } from "./DesignMakerView";
 
 interface PromptStudioViewProps {
   initialAsset?: DesignAsset;
@@ -29,6 +30,7 @@ interface PromptStudioViewProps {
   visible?: boolean;
   onCourseVisibilityChange?: (visible: boolean) => void;
   openJobRequest?: number;
+  openDesignRequest?: number;
 }
 
 const ImagePromptView: React.FC<PromptStudioViewProps> = ({
@@ -434,13 +436,14 @@ const ImagePromptView: React.FC<PromptStudioViewProps> = ({
 export const PromptStudioView: React.FC<PromptStudioViewProps> = (props) => {
   const [mode, setMode] = useState<"course" | "prompt">("course");
   useEffect(() => { if (props.openJobRequest) setMode("course"); }, [props.openJobRequest]);
+  useEffect(() => { if (props.openDesignRequest) setMode("prompt"); }, [props.openDesignRequest]);
   return <>
     <div className="creation-tabs" role="tablist" aria-label="제작 도구">
       <button type="button" role="tab" aria-selected={mode === "course"} onClick={() => setMode("course")}>교안 만들기</button>
-      <button type="button" role="tab" aria-selected={mode === "prompt"} onClick={() => setMode("prompt")}>디자인 프롬프트</button>
+      <button type="button" role="tab" aria-selected={mode === "prompt"} onClick={() => setMode("prompt")}>2차 디자인 만들기</button>
     </div>
     <div hidden={mode !== "course"}><CourseStudioView onBack={props.onBack} allAssets={props.allAssets} sampleJob={props.sampleJob} onStartSample={props.onStartSample} onResetSample={props.onResetSample} visible={props.visible !== false && mode === "course"} onCourseVisibilityChange={props.onCourseVisibilityChange} openJobRequest={props.openJobRequest} /></div>
-    {mode === "prompt" && <ImagePromptView {...props} />}
+    <div hidden={mode !== "prompt"}><DesignMakerView allAssets={props.allAssets} onBack={props.onBack} requestedReferenceId={props.initialAsset?.id} openDesignRequest={props.openDesignRequest}/><details className="maker-legacy"><summary>기존 프롬프트 도구 열기</summary>{mode === "prompt" && <ImagePromptView {...props} />}</details></div>
   </>;
 };
 

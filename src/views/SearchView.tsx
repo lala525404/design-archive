@@ -756,8 +756,8 @@ export const SearchView: React.FC<SearchViewProps> = ({
                         <Search size={16} />
                       </button>
                       <button
-                        aria-label={`${asset.title} 프롬프트 만들기`}
-                        title="프롬프트 만들기"
+                        aria-label={`${asset.title} 2차 디자인 만들기`}
+                        title="2차 디자인 만들기"
                         onClick={() => onOpenPromptStudio(asset)}
                       >
                         <Sparkles size={16} />
@@ -807,3 +807,4 @@ export const SearchView: React.FC<SearchViewProps> = ({
     </main>
   );
 };
+

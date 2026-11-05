@@ -192,7 +192,7 @@ export function DetailView({
             </button>
             <button className="btn" onClick={() => onOpenPromptStudio(asset)}>
               <Sparkles size={17} />
-              프롬프트 만들기
+              2차 디자인 만들기
             </button>
           </div>
           <div className="detail-secondary">
@@ -455,3 +455,4 @@ export function DetailView({
     </main>
   );
 }
+
