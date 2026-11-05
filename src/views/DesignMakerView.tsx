@@ -164,6 +164,7 @@ export function DesignMakerView({ allAssets, onBack, requestedReferenceId, openD
     <div className="maker-back-row"><button type="button" className="maker-outline" onClick={() => setStage("brief")}>← 디자인 방향으로 돌아가기</button><span>이 화면을 오가도 현재 작업은 유지됩니다.</span></div>
     <div className="maker-banner">직접 편집하는 체험 화면입니다. 레퍼런스 자동 분석과 AI 디자인 생성은 아직 연결되지 않았어요.</div>
     <div className={`maker-layout ${width / height >= 2 ? "maker-wide" : ""}`}>
+      <div className="maker-main-column">
       <aside className="maker-panel maker-left">
         <h2>작업 설정</h2>
         <label className="maker-label">작업 크기 <span>픽셀</span></label>
@@ -195,6 +196,7 @@ export function DesignMakerView({ allAssets, onBack, requestedReferenceId, openD
         <div className="maker-layer-list" aria-label="작업 요소">{objects.map(object => <button key={object.id} type="button" className={selectedId === object.id ? "active" : ""} onClick={() => setSelectedId(object.id)}>{objectName(object)}</button>)}</div>
         <p role="status" className="maker-feedback">{message}</p>
       </section>
+      </div>
       <aside className="maker-panel maker-properties">
         <h2>요소 편집</h2>
         {!selected ? <p className="maker-note">수정할 요소를 선택해 주세요.</p> : <>
