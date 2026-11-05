@@ -11,7 +11,7 @@ import { SearchView } from "../src/views/SearchView";
 import { DetailView } from "../src/views/DetailView";
 import { UploadView } from "../src/views/UploadView";
 import { PromptStudioView } from "../src/views/PromptStudioView";
-import { toggleReference } from "../src/views/CourseStudioView";
+import { makeSampleSlides, toggleReference } from "../src/views/CourseStudioView";
 import { LicenseManagementView } from "../src/views/LicenseManagementView";
 import { NamingRuleView } from "../src/views/NamingRuleView";
 import { SERVICES, guessType, normalizeTool } from "../src/lib/taxonomy";
@@ -23,6 +23,9 @@ import {
   withVersion,
 } from "../src/lib/versions";
 const noop = () => {};
+const sampleSlides = makeSampleSlides();
+assert.deepEqual(sampleSlides.map(slide => slide.variant), ["cover", "contents", "body"], "Sample contains cover, contents and body in order");
+assert.ok(sampleSlides[1].title && sampleSlides[1].body.includes("03"), "Contents slide retains its title and three items");
 assert.deepEqual(toggleReference(["a", "b", "c"], "d"), ["a", "b", "c"], "At most three references");
 assert.deepEqual(toggleReference(["a", "b", "c"], "b"), ["a", "c"], "Selected reference can be removed");
 assert.deepEqual(toggleReference(["a", "c"], "d"), ["a", "c", "d"], "A different reference can be selected after removal");

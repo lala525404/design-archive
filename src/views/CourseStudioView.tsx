@@ -1,11 +1,16 @@
 import React, { useState } from "react";
-import { ChevronDown, FileText, Plus, Printer, Trash2, Upload, Search, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, FileText, Plus, Printer, Trash2, Upload, Search, X } from "lucide-react";
 import { PageTitle } from "../components/Chrome";
 import { DesignThumbnail } from "../components/DesignThumbnail";
 import { DesignAsset } from "../types";
 
 type Slide = { id: number; title: string; body: string; layout: "basic" | "split" | "reference"; variant?: "cover" | "contents" | "body" };
 const makeSlide = (id: number): Slide => ({ id, title: "", body: "", layout: "basic" });
+export const makeSampleSlides = (): Slide[] => [
+  { id: -1, title: "고객 응대의 기본", body: "고객의 마음을 이해하는 첫걸음\n고객 서비스 교육 교안", layout: "reference", variant: "cover" },
+  { id: -2, title: "오늘의 학습 순서", body: "01  고객 응대의 기본\n02  경청과 공감의 방법\n03  문의 확인과 해결 안내", layout: "reference", variant: "contents" },
+  { id: -3, title: "경청에서 시작하는 상담", body: "고객의 말을 끝까지 듣고\n문의 내용을 정확히 확인합니다.\n\n공감  ·  확인  ·  안내", layout: "reference", variant: "body" },
+];
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] || c));
 export const toggleReference = (ids: string[], id: string) =>
   ids.includes(id) ? ids.filter(item => item !== id) : ids.length < 3 ? [...ids, id] : ids;
@@ -44,11 +49,7 @@ export function CourseStudioView({ onBack, allAssets }: { onBack: () => void; al
     setReferencePage(0);
     setInstructions("색채학 레퍼런스의 파란 배경과 노란 원을 참고하고, 제목은 흰색의 굵은 글자로 크게 만들어 주세요.");
     setExclusions("사진과 화려한 그라데이션은 제외해 주세요.");
-    setSlides([
-      { id: -1, title: "고객 응대의 기본", body: "고객의 마음을 이해하는 첫걸음\n고객 서비스 교육 교안", layout: "reference", variant: "cover" },
-      { id: -2, title: "오늘의 학습 순서", body: "01  고객 응대의 기본\n02  경청과 공감의 방법\n03  문의 확인과 해결 안내", layout: "reference", variant: "contents" },
-      { id: -3, title: "경청에서 시작하는 상담", body: "고객의 말을 끝까지 듣고\n문의 내용을 정확히 확인합니다.\n\n공감  ·  확인  ·  안내", layout: "reference", variant: "body" },
-    ]);
+    setSlides(makeSampleSlides());
     setCurrentId(-1);
     setStage("preview");
     setManualStarted(true);
@@ -145,6 +146,7 @@ export function CourseStudioView({ onBack, allAssets }: { onBack: () => void; al
         </section>
       </div>
       </> : <>
+        <div className="review-stage-bar"><button type="button" className="review-back" onClick={() => setStage("preview")}><ArrowLeft size={16}/> 디자인 확인으로 돌아가기</button><span>수정한 내용은 이 화면을 오가도 유지됩니다.</span></div>
         <div className="course-notice"><FileText size={18}/><span>{samplePreview ? "미리 제작한 샘플 3장입니다. 실제 전체 교안 자동 생성은 아직 연결되지 않았어요." : "기본 교안을 직접 편집하는 화면입니다. 자동 생성은 연결되지 않았어요."}</span></div>
         <div className="course-review">
           <aside className="review-pages" aria-label="교안 페이지"><h2>페이지 <span>{slides.length}</span></h2><div className="review-pages-list">{slides.map((slide, index) => <button key={slide.id} type="button" className={slide.id === current.id ? "active" : ""} aria-pressed={slide.id === current.id} onClick={() => setCurrentId(slide.id)}><span>{String(index + 1).padStart(2, "0")}</span><strong>{slide.title || "새 페이지"}</strong></button>)}</div><button type="button" className="review-add" onClick={addSlide}><Plus size={16}/> 페이지 추가</button></aside>
