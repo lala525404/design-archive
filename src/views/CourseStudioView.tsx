@@ -4,12 +4,33 @@ import { PageTitle } from "../components/Chrome";
 import { DesignThumbnail } from "../components/DesignThumbnail";
 import { DesignAsset } from "../types";
 
-type Slide = { id: number; title: string; body: string; layout: "basic" | "split" | "reference"; variant?: "cover" | "contents" | "body" };
+type SlideVariant = "cover" | "contents" | "section" | "body" | "table";
+type Slide = { id: number; title: string; body: string; layout: "basic" | "split" | "reference"; variant?: SlideVariant; table?: string[][] };
 const makeSlide = (id: number): Slide => ({ id, title: "", body: "", layout: "basic" });
+export const SAMPLE_PAGE_COUNT = 5;
+export const slideTemplates: { variant: SlideVariant; label: string; description: string }[] = [
+  { variant: "cover", label: "표지", description: "교안의 제목" },
+  { variant: "contents", label: "목차", description: "학습 순서" },
+  { variant: "section", label: "간지", description: "새 단원 구분" },
+  { variant: "body", label: "본문 (텍스트)", description: "학습 내용" },
+  { variant: "table", label: "본문 (표)", description: "내용 비교·정리" },
+];
+export function makeTemplateSlide(variant: SlideVariant, id: number): Slide {
+  const common = { id, layout: "reference" as const, variant };
+  switch (variant) {
+    case "cover": return { ...common, title: "교안 제목을 입력하세요", body: "부제 또는 교육 과정을 입력하세요" };
+    case "contents": return { ...common, title: "학습 순서", body: "01  첫 번째 내용\n02  두 번째 내용\n03  세 번째 내용" };
+    case "section": return { ...common, title: "단원 제목을 입력하세요", body: "새로운 학습 내용을 시작합니다" };
+    case "body": return { ...common, title: "본문 제목을 입력하세요", body: "학습 내용을 입력하세요.\n필요한 내용을 줄마다 정리해 보세요." };
+    case "table": return { ...common, title: "표 제목을 입력하세요", body: "", table: [["구분", "내용"], ["항목 1", "설명을 입력하세요"], ["항목 2", "설명을 입력하세요"]] };
+  }
+}
 export const makeSampleSlides = (): Slide[] => [
   { id: -1, title: "고객 응대의 기본", body: "고객의 마음을 이해하는 첫걸음\n고객 서비스 교육 교안", layout: "reference", variant: "cover" },
   { id: -2, title: "오늘의 학습 순서", body: "01  고객 응대의 기본\n02  경청과 공감의 방법\n03  문의 확인과 해결 안내", layout: "reference", variant: "contents" },
-  { id: -3, title: "경청에서 시작하는 상담", body: "고객의 말을 끝까지 듣고\n문의 내용을 정확히 확인합니다.\n\n공감  ·  확인  ·  안내", layout: "reference", variant: "body" },
+  { id: -3, title: "01. 고객 이해하기", body: "고객의 이야기에 귀 기울이기", layout: "reference", variant: "section" },
+  { id: -4, title: "경청에서 시작하는 상담", body: "고객의 말을 끝까지 듣고\n문의 내용을 정확히 확인합니다.\n\n공감  ·  확인  ·  안내", layout: "reference", variant: "body" },
+  { id: -5, title: "고객 응대 단계별 행동", body: "", layout: "reference", variant: "table", table: [["단계", "실천 방법"], ["공감", "고객의 이야기를 끝까지 듣기"], ["확인", "문의 내용과 상황 확인하기"], ["안내", "해결 방법을 쉽게 설명하기"]] },
 ];
 export const courseSlideClassName = (slide: Slide) =>
   ["course-preview", slide.layout, slide.variant ? `course-variant-${slide.variant}` : ""].filter(Boolean).join(" ");
@@ -21,7 +42,12 @@ export function CourseSlidePreview({ slide, pageNumber, editable = false, onUpda
         ? <h3 key={`title-${slide.id}`} contentEditable suppressContentEditableWarning role="textbox" aria-label="교안 제목 수정" data-placeholder="제목을 입력하세요" onBlur={event => onUpdate?.({title: event.currentTarget.innerText})}>{slide.title}</h3>
         : <h3>{slide.title || "제목을 입력하세요"}</h3>}
       <div className="course-preview-line"/>
-      {editable
+      {slide.variant === "table" && slide.table
+        ? <table className="course-slide-table" aria-label="교안 표"><tbody>{slide.table.map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, colIndex) => {
+          const Cell = rowIndex === 0 ? "th" : "td";
+          return <Cell key={colIndex} contentEditable={editable} suppressContentEditableWarning role={editable ? "textbox" : undefined} aria-label={editable ? `표 ${rowIndex + 1}행 ${colIndex + 1}열 수정` : undefined} onBlur={editable ? event => onUpdate?.({table: slide.table!.map((line, r) => line.map((value, c) => r === rowIndex && c === colIndex ? event.currentTarget.innerText : value))}) : undefined}>{cell}</Cell>;
+        })}</tr>)}</tbody></table>
+        : editable
         ? <p key={`body-${slide.id}`} contentEditable suppressContentEditableWarning role="textbox" aria-multiline="true" aria-label="교안 본문 수정" data-placeholder="학습 내용을 입력하세요" onBlur={event => onUpdate?.({body: event.currentTarget.innerText})}>{slide.body}</p>
         : <p>{slide.body || "학습 내용을 입력하세요"}</p>}
       {slide.layout === "reference" && <div className="reference-decor" aria-hidden="true"><i/><i/><i/></div>}
@@ -33,7 +59,7 @@ export const toggleReference = (ids: string[], id: string) =>
   ids.includes(id) ? ids.filter(item => item !== id) : ids.length < 3 ? [...ids, id] : ids;
 
 export type SampleJob = { status: "idle" | "running" | "complete"; startedAt: number; progress: number };
-export const sampleProgressAt = (elapsedMs: number) => Math.min(3, Math.max(0, Math.floor(elapsedMs / 8000 * 3)));
+export const sampleProgressAt = (elapsedMs: number) => Math.min(SAMPLE_PAGE_COUNT, Math.max(0, Math.floor(elapsedMs / 8000 * SAMPLE_PAGE_COUNT)));
 const idleJob: SampleJob = { status: "idle", startedAt: 0, progress: 0 };
 export function CourseStudioView({ onBack, allAssets, sampleJob = idleJob, onStartSample, onResetSample, visible = true, onProgressVisibilityChange, openJobRequest = 0 }: { onBack: () => void; allAssets: DesignAsset[]; sampleJob?: SampleJob; onStartSample?: () => void; onResetSample?: () => void; visible?: boolean; onProgressVisibilityChange?: (visible: boolean) => void; openJobRequest?: number }) {
   const [slides, setSlides] = useState<Slide[]>([makeSlide(1)]);
@@ -48,6 +74,7 @@ export function CourseStudioView({ onBack, allAssets, sampleJob = idleJob, onSta
   const [referencePage, setReferencePage] = useState(0);
   const [referenceIds, setReferenceIds] = useState<string[]>([]);
   const [manualStarted, setManualStarted] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
   const [openSection, setOpenSection] = useState<"source" | "reference" | "direction" | null>("source");
   const [instructions, setInstructions] = useState("");
   const [exclusions, setExclusions] = useState("");
@@ -84,10 +111,11 @@ export function CourseStudioView({ onBack, allAssets, sampleJob = idleJob, onSta
     setOpenSection(null);
   };
   const update = (patch: Partial<Slide>) => setSlides(previous => previous.map(s => s.id === current.id ? { ...s, ...patch } : s));
-  const addSlide = () => {
-    const id = Math.max(...slides.map(s => s.id)) + 1;
-    setSlides(previous => [...previous, makeSlide(id)]);
+  const addSlide = (variant: SlideVariant) => {
+    const id = Math.max(0, ...slides.map(s => s.id)) + 1;
+    setSlides(previous => [...previous, makeTemplateSlide(variant, id)]);
     setCurrentId(id);
+    setShowTemplates(false);
   };
   const removeSlide = () => {
     if (slides.length === 1) return;
@@ -100,10 +128,13 @@ export function CourseStudioView({ onBack, allAssets, sampleJob = idleJob, onSta
     const win = window.open("", "_blank");
     if (!win) { setPrintError("인쇄 창을 열지 못했어요. 브라우저의 팝업 차단을 해제해 주세요."); return; }
     setPrintError("");
+    const printBody = (slide: Slide) => slide.variant === "table" && slide.table
+      ? `<table>${slide.table.map((row, index) => `<tr>${row.map(cell => index === 0 ? `<th>${escapeHtml(cell)}</th>` : `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`).join("")}</table>`
+      : `<p>${escapeHtml(slide.body || "학습 내용을 입력해 주세요")}</p>`;
     const pages = slides.map((slide, index) => slide.layout === "reference"
-      ? `<article class="reference ${slide.variant || ""}"><div class="reference-hero"><div class="kicker">학습 교안 · ${String(index + 1).padStart(2, "0")}</div><h1>${escapeHtml(slide.title || "제목을 입력해 주세요")}</h1><span class="reference-circle"></span></div><div class="reference-body"><p>${escapeHtml(slide.body || "학습 내용을 입력해 주세요")}</p><div class="reference-chips"><i></i><i></i><i></i></div></div></article>`
+      ? `<article class="reference ${slide.variant || ""}"><div class="reference-hero"><div class="kicker">학습 교안 · ${String(index + 1).padStart(2, "0")}</div><h1>${escapeHtml(slide.title || "제목을 입력해 주세요")}</h1><span class="reference-circle"></span></div><div class="reference-body">${printBody(slide)}<div class="reference-chips"><i></i><i></i><i></i></div></div></article>`
       : `<article class="${slide.layout}"><div class="kicker">학습 교안 · ${String(index + 1).padStart(2, "0")}</div><h1>${escapeHtml(slide.title || "제목을 입력해 주세요")}</h1><div class="line"></div><p>${escapeHtml(slide.body || "학습 내용을 입력해 주세요")}</p></article>`).join("");
-    win.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>교안 미리보기</title><style>@page{size:landscape;margin:0}*{box-sizing:border-box}body{margin:0;font-family:Pretendard,"Malgun Gothic",sans-serif}article{min-height:100vh;padding:7%;page-break-after:always;print-color-adjust:exact;-webkit-print-color-adjust:exact}article:last-child{page-break-after:auto}.kicker{font-size:15px;color:#246bfd;font-weight:700}h1{font-size:46px;margin:32px 0 24px;word-break:keep-all}.line{width:55px;height:5px;background:#246bfd;margin-bottom:35px}p{font-size:24px;line-height:1.7;white-space:pre-wrap;word-break:keep-all}.split{background:linear-gradient(90deg,#f4f7ff 36%,white 36%)}article.reference{padding:0}.reference-hero{position:relative;background:#6e9bf7;color:white;padding:6% 7%;min-height:42vh}.reference-hero h1{position:relative;z-index:1;color:white;max-width:72%;font-size:54px}.reference-hero .kicker{color:white}.reference-circle{position:absolute;right:8%;top:15%;width:120px;height:120px;border-radius:50%;background:#f5cc55}.reference-body{padding:3% 7%}.reference-body p{font-size:22px;margin:0}.reference-chips{display:flex;gap:12px;margin-top:20px}.reference-chips i{width:54px;height:35px;border-radius:5px;background:#f5cc55}.reference-chips i:nth-child(2){background:#6e9bf7}.reference-chips i:nth-child(3){background:#efeae4}.reference.cover{background:#6e9bf7}.reference.cover .reference-body{background:#6e9bf7;color:white}.reference.cover .reference-chips i:nth-child(2){background:white}</style></head><body>${pages}</body></html>`);
+    win.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>교안 미리보기</title><style>@page{size:landscape;margin:0}*{box-sizing:border-box}body{margin:0;font-family:Pretendard,"Malgun Gothic",sans-serif}article{min-height:100vh;padding:7%;page-break-after:always;print-color-adjust:exact;-webkit-print-color-adjust:exact}article:last-child{page-break-after:auto}.kicker{font-size:15px;color:#246bfd;font-weight:700}h1{font-size:46px;margin:32px 0 24px;word-break:keep-all}.line{width:55px;height:5px;background:#246bfd;margin-bottom:35px}p{font-size:24px;line-height:1.7;white-space:pre-wrap;word-break:keep-all}.split{background:linear-gradient(90deg,#f4f7ff 36%,white 36%)}article.reference{padding:0}.reference-hero{position:relative;background:#6e9bf7;color:white;padding:6% 7%;min-height:42vh}.reference-hero h1{position:relative;z-index:1;color:white;max-width:72%;font-size:54px}.reference-hero .kicker{color:white}.reference-circle{position:absolute;right:8%;top:15%;width:120px;height:120px;border-radius:50%;background:#f5cc55}.reference-body{padding:3% 7%}.reference-body p{font-size:22px;margin:0}.reference-chips{display:flex;gap:12px;margin-top:20px}.reference-chips i{width:54px;height:35px;border-radius:5px;background:#f5cc55}.reference-chips i:nth-child(2){background:#6e9bf7}.reference-chips i:nth-child(3){background:#efeae4}.reference.cover,.reference.section{background:#6e9bf7}.reference.cover .reference-body,.reference.section .reference-body{background:#6e9bf7;color:white}.reference-body table{border-collapse:collapse;width:100%;font-size:18px}.reference-body th,.reference-body td{border:1px solid #d4dbe5;text-align:left;padding:8px 12px}.reference-body th{background:#eef4ff}.reference.cover .reference-chips i:nth-child(2){background:white}</style></head><body>${pages}</body></html>`);
     win.document.close();
     win.focus();
     win.print();
@@ -154,8 +185,8 @@ export function CourseStudioView({ onBack, allAssets, sampleJob = idleJob, onSta
             {manualStarted ? slidePreview(false) : <div className="course-preview-empty"><FileText size={28}/><strong>디자인 예시가 여기에 표시됩니다</strong><p>샘플로 표지·목차·본문을 확인해 보세요.</p></div>}
           </div>
           {samplePreview ? <>
-            <div className="course-slide-list sample-slides" aria-label="샘플 디자인 페이지">{slides.map((slide, index) => <button key={slide.id} type="button" className={slide.id === current.id ? "active" : ""} aria-pressed={slide.id === current.id} onClick={() => setCurrentId(slide.id)}>{slide.variant === "cover" ? "표지" : slide.variant === "contents" ? "목차" : slide.variant === "body" ? "본문" : `${index + 1}페이지`}</button>)}</div>
-            <div className="stage-action"><p>미리 제작한 3장 예시입니다. 변경한 요청으로 자동 생성되지는 않아요.</p><button type="button" className="btn btn-primary" onClick={() => { if (sampleJob.status === "idle") onStartSample?.(); setStage(onStartSample ? "progress" : "review"); }}>샘플 확정 · 다음</button></div>
+            <div className="course-slide-list sample-slides" aria-label="샘플 디자인 페이지">{slides.filter(slide => slide.id < 0).map((slide, index) => <button key={slide.id} type="button" className={slide.id === current.id ? "active" : ""} aria-pressed={slide.id === current.id} onClick={() => setCurrentId(slide.id)}>{slideTemplates.find(template => template.variant === slide.variant)?.label ?? `${index + 1}페이지`}</button>)}</div>
+            <div className="stage-action"><p>미리 제작한 5장 예시입니다. 변경한 요청으로 자동 생성되지는 않아요.</p><button type="button" className="btn btn-primary" onClick={() => { if (sampleJob.status === "idle") onStartSample?.(); setStage(onStartSample ? "progress" : "review"); }}>샘플 확정 · 다음</button></div>
           </> : <div className="stage-action"><p>AI 디자인 생성은 연결 준비 중입니다.</p><button type="button" className="btn" onClick={() => { setManualStarted(true); setStage("review"); }}>기본 교안 직접 편집</button></div>}
         </section>
       </div>
@@ -164,17 +195,17 @@ export function CourseStudioView({ onBack, allAssets, sampleJob = idleJob, onSta
         <section className="sample-progress" aria-live="polite">
           <div className="progress-tag">샘플 교안 · 고객 응대의 기본</div>
           <h2>{sampleJob.status === "complete" ? "샘플 교안이 준비됐어요" : "샘플 제작 과정을 보여드리고 있어요"}</h2>
-          <p>{sampleJob.status === "complete" ? "미리 준비된 3장의 예시를 확인하고 내용을 수정할 수 있어요." : "체험을 위해 약 8초 동안 진행 상태를 보여드립니다."}</p>
-          <div className="progress-track" role="progressbar" aria-label="샘플 진행률" aria-valuemin={0} aria-valuemax={3} aria-valuenow={sampleJob.progress}><span style={{width: `${(sampleJob.progress / 3) * 100}%`}}/></div>
-          <div className="progress-caption"><strong>{sampleJob.progress} / 3페이지</strong><span>{sampleJob.status === "complete" ? "샘플 준비 완료" : "샘플 체험 중"}</span></div>
+          <p>{sampleJob.status === "complete" ? "미리 준비된 5장의 예시를 확인하고 내용을 수정할 수 있어요." : "체험을 위해 약 8초 동안 진행 상태를 보여드립니다."}</p>
+          <div className="progress-track" role="progressbar" aria-label="샘플 진행률" aria-valuemin={0} aria-valuemax={SAMPLE_PAGE_COUNT} aria-valuenow={sampleJob.progress}><span style={{width: `${(sampleJob.progress / SAMPLE_PAGE_COUNT) * 100}%`}}/></div>
+          <div className="progress-caption"><strong>{sampleJob.progress} / {SAMPLE_PAGE_COUNT}페이지</strong><span>{sampleJob.status === "complete" ? "샘플 준비 완료" : "샘플 체험 중"}</span></div>
           <div className="progress-actions">{sampleJob.status === "complete" ? <button type="button" className="btn btn-primary" onClick={() => setStage("review")}>교안 확인하기</button> : <p>다른 메뉴로 이동하면 완료 시 알림이 표시됩니다.</p>}<button type="button" className="btn" onClick={() => setStage("preview")}>디자인 확인으로 돌아가기</button></div>
         </section>
       </> : <>
         <div className="review-stage-bar"><button type="button" className="review-back" onClick={() => setStage("preview")}><ArrowLeft size={16}/> 디자인 확인으로 돌아가기</button><span>수정한 내용은 이 화면을 오가도 유지됩니다.</span></div>
-        <div className="course-notice"><FileText size={18}/><span>{samplePreview ? "미리 제작한 샘플 3장입니다. 실제 전체 교안 자동 생성은 아직 연결되지 않았어요." : "기본 교안을 직접 편집하는 화면입니다. 자동 생성은 연결되지 않았어요."}</span></div>
+        <div className="course-notice"><FileText size={18}/><span>{samplePreview ? "미리 제작한 샘플 5장입니다. 실제 전체 교안 자동 생성은 아직 연결되지 않았어요." : "기본 교안을 직접 편집하는 화면입니다. 자동 생성은 연결되지 않았어요."}</span></div>
         <div className="course-review">
-          <aside className="review-pages" aria-label="교안 페이지"><h2>페이지 <span>{slides.length}</span></h2><div className="review-pages-list">{slides.map((slide, index) => <button key={slide.id} type="button" className={slide.id === current.id ? "active" : ""} aria-pressed={slide.id === current.id} onClick={() => setCurrentId(slide.id)}><span>{String(index + 1).padStart(2, "0")}</span><strong>{slide.title || "새 페이지"}</strong></button>)}</div><button type="button" className="review-add" onClick={addSlide}><Plus size={16}/> 페이지 추가</button></aside>
-          <section className="review-work" aria-label="페이지 내용 편집"><div className="review-topline"><div><strong>{slides.findIndex(s => s.id === current.id) + 1}페이지</strong><span>텍스트를 눌러 직접 수정하세요</span></div><button type="button" className="course-remove" onClick={removeSlide} disabled={slides.length === 1}><Trash2 size={15}/> 페이지 삭제</button></div><div className="review-canvas">{slidePreview(true)}</div><div className="review-actions"><p>수정한 내용은 새로고침하면 사라집니다.</p><button type="button" className="btn btn-primary" onClick={print}><Printer size={16}/> 인쇄 · PDF 저장</button></div><p role="status" className="course-error">{printError}</p></section>
+          <aside className="review-pages" aria-label="교안 페이지"><h2>페이지 <span>{slides.length}</span></h2><div className="review-pages-list">{slides.map((slide, index) => <button key={slide.id} type="button" className={slide.id === current.id ? "active" : ""} aria-pressed={slide.id === current.id} onClick={() => setCurrentId(slide.id)}><span>{String(index + 1).padStart(2, "0")}</span><strong>{slide.title || "새 페이지"}</strong></button>)}</div><button type="button" className="review-add" aria-expanded={showTemplates} aria-controls="page-template-picker" onClick={() => setShowTemplates(open => !open)}><Plus size={16}/> 페이지 추가</button>{showTemplates && <div className="page-template-picker" id="page-template-picker"><p>추가할 페이지를 선택하세요</p>{slideTemplates.map(template => <button type="button" key={template.variant} onClick={() => addSlide(template.variant)}><span className={`page-template-mark mark-${template.variant}`} aria-hidden="true"/><span><strong>{template.label}</strong><small>{template.description}</small></span></button>)}</div>}</aside>
+          <section className="review-work" aria-label="페이지 내용 편집"><div className="review-topline"><div><strong>{slides.findIndex(s => s.id === current.id) + 1}페이지</strong><span>제목·내용이나 표의 셀을 눌러 수정하세요</span></div><button type="button" className="course-remove" onClick={removeSlide} disabled={slides.length === 1}><Trash2 size={15}/> 페이지 삭제</button></div><div className="review-canvas">{slidePreview(true)}</div><div className="review-actions"><p>수정한 내용은 새로고침하면 사라집니다.</p><button type="button" className="btn btn-primary" onClick={print}><Printer size={16}/> 인쇄 · PDF 저장</button></div><p role="status" className="course-error">{printError}</p></section>
         </div>
       </>}
     </main>

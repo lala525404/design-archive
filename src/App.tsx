@@ -12,7 +12,7 @@ import { DetailView } from "./views/DetailView";
 import { UploadView, UploadResult } from "./views/UploadView";
 import { CURRENT_DESIGNER } from "./lib/taxonomy";
 import { PromptStudioView } from "./views/PromptStudioView";
-import { SampleJob, sampleProgressAt } from "./views/CourseStudioView";
+import { SAMPLE_PAGE_COUNT, SampleJob, sampleProgressAt } from "./views/CourseStudioView";
 import { LicenseManagementView } from "./views/LicenseManagementView";
 import { NamingRuleView } from "./views/NamingRuleView";
 import { ProjectView } from "./views/ProjectView";
@@ -122,7 +122,7 @@ export default function App() {
       const progress = sampleProgressAt(elapsed);
       if (elapsed >= 8000) {
         window.clearInterval(timer);
-        setSampleJob({ status: "complete", startedAt, progress: 3 });
+        setSampleJob({ status: "complete", startedAt, progress: SAMPLE_PAGE_COUNT });
         if (!progressVisibleRef.current) setSampleNotice(true);
       } else {
         setSampleJob(current => current.status === "running" && current.startedAt === startedAt ? { ...current, progress } : current);
@@ -464,8 +464,8 @@ export default function App() {
         userRole={userRole}
       />
       {!sampleProgressVisible && sampleJob.status !== "idle" && <div className="sample-job-floating">
-        {sampleNotice && sampleJob.status === "complete" && <div className="sample-job-notice" role="status"><button type="button" className="sample-job-close" aria-label="샘플 알림 닫기" onClick={() => setSampleNotice(false)}>×</button><strong>샘플 교안이 준비됐어요</strong><span>미리 준비한 3장 예시를 확인해 보세요.</span></div>}
-        <button type="button" className="sample-job-link" onClick={() => { setSampleNotice(false); if (view !== "prompt") setView("prompt"); setOpenJobRequest(value => value + 1); }}>{sampleJob.status === "running" ? `샘플 체험 중 · ${sampleJob.progress}/3` : "샘플 교안 확인하기"}</button>
+        {sampleNotice && sampleJob.status === "complete" && <div className="sample-job-notice" role="status"><button type="button" className="sample-job-close" aria-label="샘플 알림 닫기" onClick={() => setSampleNotice(false)}>×</button><strong>샘플 교안이 준비됐어요</strong><span>미리 준비한 {SAMPLE_PAGE_COUNT}장 예시를 확인해 보세요.</span></div>}
+        <button type="button" className="sample-job-link" onClick={() => { setSampleNotice(false); if (view !== "prompt") setView("prompt"); setOpenJobRequest(value => value + 1); }}>{sampleJob.status === "running" ? `샘플 체험 중 · ${sampleJob.progress}/${SAMPLE_PAGE_COUNT}` : "샘플 교안 확인하기"}</button>
       </div>}
     </div>
   );
