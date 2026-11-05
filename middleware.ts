@@ -120,22 +120,39 @@ function loginPage(wrong: boolean) {
     box-shadow: 0 18px 40px rgba(0, 113, 227, .18), 0 2px 6px rgba(0, 0, 0, .06);
     transition: transform .4s cubic-bezier(.2,.8,.3,1);
   }
+  /* 물: 연한 하늘색이 차오르고 → 그 위로 진한 파랑이 밑에서부터 차오르고 → 다시 하늘색… 반복
+     두 겹이 번갈아 위로 올라오며, 차오를 땐 포물선(감속) 곡선 + 끝에서 살짝 출렁이는 잔여 동작 */
   .liquid {
-    position: absolute; left: 0; right: 0; bottom: 0; height: 0%;
-    background: linear-gradient(180deg, #2b8cff, #0071e3 60%, #0058b8);
-    transition: height 2.2s cubic-bezier(.2,.7,.2,1);
+    position: absolute; left: 0; right: 0; bottom: 0; height: 0;
+    animation: refill 9s linear infinite backwards;
   }
-  body.loaded .liquid { height: 46%; }
-  body.loaded.typing .liquid { height: 60%; }
-  body.ok .liquid { height: 112%; transition-duration: .7s; }
+  .liquid.sky { background: linear-gradient(180deg, #9fd0ff, #6fb6ff 70%, #4ea3ff); }
+  .liquid.deep { background: linear-gradient(180deg, #2b8cff, #0071e3 60%, #0058b8); animation-delay: 4.5s; }
+  body:not(.loaded) .liquid { animation-play-state: paused; }
+  @keyframes refill {
+    0%     { height: 0;     z-index: 2; animation-timing-function: cubic-bezier(.3, .55, .35, 1); }
+    38%    { height: 112%;  z-index: 2; animation-timing-function: cubic-bezier(.45, 0, .55, 1); }
+    43%    { height: 104%;  z-index: 2; animation-timing-function: cubic-bezier(.45, 0, .55, 1); }
+    47%    { height: 110%;  z-index: 2; }
+    50%    { height: 110%;  z-index: 1; }
+    99.99% { height: 110%;  z-index: 1; }
+    100%   { height: 0;     z-index: 2; }
+  }
   .wave {
     position: absolute; left: 0; bottom: 100%; width: 200%; height: 18px; margin-bottom: -1px;
     animation: drift 3.2s linear infinite;
   }
-  .wave.back { opacity: .45; height: 22px; animation-duration: 5s; animation-direction: reverse; }
+  .wave.back { opacity: .5; height: 22px; animation-duration: 5s; animation-direction: reverse; }
+  /* 차오르는 동안 물결이 크게 일렁이다가 잔잔해진다 (4.5초마다 한 겹씩) */
+  .liquid .wave { animation: drift 3.2s linear infinite, swell 9s ease-out infinite; }
+  .liquid .wave.back { animation: drift 5s linear infinite reverse, swellBack 9s ease-out infinite; }
+  .liquid.deep .wave { animation-delay: 0s, 4.5s; }
+  .liquid.deep .wave.back { animation-delay: 0s, 4.5s; }
+  @keyframes swell { 0% { height: 34px; } 40% { height: 26px; } 50%, 100% { height: 14px; } }
+  @keyframes swellBack { 0% { height: 42px; } 40% { height: 32px; } 50%, 100% { height: 18px; } }
   @keyframes drift { to { transform: translateX(-50%); } }
   .glass {
-    position: absolute; inset: 0; border-radius: 50%; z-index: 2;
+    position: absolute; inset: 0; border-radius: 50%; z-index: 5;
     background:
       radial-gradient(90% 60% at 30% 12%, rgba(255,255,255,.7), rgba(255,255,255,0) 50%),
       linear-gradient(160deg, rgba(255,255,255,.22), rgba(255,255,255,0)),
@@ -146,8 +163,8 @@ function loginPage(wrong: boolean) {
     mix-blend-mode: normal;
   }
   .glyph {
-    position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; color: #fff;
-    filter: drop-shadow(0 1px 1px rgba(0, 40, 100, .35)) drop-shadow(0 4px 10px rgba(0, 60, 140, .35));
+    position: absolute; inset: 0; z-index: 6; display: grid; place-items: center; color: #fff;
+    filter: drop-shadow(0 1px 1.5px rgba(0, 40, 100, .45)) drop-shadow(0 4px 12px rgba(0, 60, 140, .4));
     transition: transform .4s cubic-bezier(.2,.8,.3,1);
   }
   .glyph svg { width: 46px; height: 46px; }
@@ -157,9 +174,20 @@ function loginPage(wrong: boolean) {
   body.wrong .orb { animation: shake .45s ease; }
   @keyframes shake { 20% { transform: translateX(-8px) } 60% { transform: translateX(8px) } }
   /* 화면 아래에도 은은하게 차오르는 물결 */
-  .sea { position: fixed; left: 0; right: 0; bottom: 0; height: 0; pointer-events: none; z-index: -1; transition: height 2.6s cubic-bezier(.2,.7,.2,1) .2s; }
-  body.loaded .sea { height: 15vh; }
-  body.ok .sea { height: 32vh; transition-duration: .8s; transition-delay: 0s; }
+  .sea { --sea: 15vh; position: fixed; left: 0; right: 0; bottom: 0; height: 0; pointer-events: none; z-index: -1; }
+  body.loaded .sea {
+    height: var(--sea);
+    animation: seafill 6.4s .25s backwards;
+    transition: height 1s cubic-bezier(.34, 1.3, .64, 1);
+  }
+  body.ok .sea { --sea: 34vh; animation: none; }
+  @keyframes seafill {
+    0%   { height: 0; animation-timing-function: cubic-bezier(.33, .9, .45, 1); }
+    62%  { height: calc(var(--sea) * 1.16); animation-timing-function: cubic-bezier(.45, 0, .55, 1); }
+    75%  { height: calc(var(--sea) * .92); animation-timing-function: cubic-bezier(.45, 0, .55, 1); }
+    87%  { height: calc(var(--sea) * 1.04); animation-timing-function: cubic-bezier(.45, 0, .55, 1); }
+    100% { height: var(--sea); }
+  }
   .sea .body { position: absolute; inset: 0; background: linear-gradient(180deg, #e6f1fc, #d6e8fb); }
   .sea .wave { margin-bottom: -2px; }
   .sea .wave { height: 26px; animation-duration: 7s; }
@@ -204,7 +232,11 @@ function loginPage(wrong: boolean) {
   </div>
   <main>
     <div class="orb" aria-hidden="true">
-      <div class="liquid">
+      <div class="liquid sky">
+        <svg class="wave back" viewBox="0 0 200 30" preserveAspectRatio="none"><path d="M0 9 Q 12.5 0 25 9 T 50 9 T 75 9 T 100 9 T 125 9 T 150 9 T 175 9 T 200 9 V 30 H 0 Z" fill="#c4e3ff" /></svg>
+        <svg class="wave" viewBox="0 0 200 30" preserveAspectRatio="none"><path d="M0 9 Q 12.5 0 25 9 T 50 9 T 75 9 T 100 9 T 125 9 T 150 9 T 175 9 T 200 9 V 30 H 0 Z" fill="#9fd0ff" /></svg>
+      </div>
+      <div class="liquid deep">
         <svg class="wave back" viewBox="0 0 200 30" preserveAspectRatio="none"><path d="M0 9 Q 12.5 0 25 9 T 50 9 T 75 9 T 100 9 T 125 9 T 150 9 T 175 9 T 200 9 V 30 H 0 Z" fill="#5aa9ff" /></svg>
         <svg class="wave" viewBox="0 0 200 30" preserveAspectRatio="none"><path d="M0 9 Q 12.5 0 25 9 T 50 9 T 75 9 T 100 9 T 125 9 T 150 9 T 175 9 T 200 9 V 30 H 0 Z" fill="#2b8cff" /></svg>
       </div>
