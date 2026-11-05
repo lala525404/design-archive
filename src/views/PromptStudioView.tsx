@@ -432,7 +432,7 @@ export const PromptStudioView: React.FC<PromptStudioViewProps> = (props) => {
       <button type="button" role="tab" aria-selected={mode === "course"} onClick={() => setMode("course")}>교안 만들기</button>
       <button type="button" role="tab" aria-selected={mode === "prompt"} onClick={() => setMode("prompt")}>디자인 프롬프트</button>
     </div>
-    {mode === "course" ? <CourseStudioView onBack={props.onBack} /> : <ImagePromptView {...props} />}
+    {mode === "course" ? <CourseStudioView onBack={props.onBack} allAssets={props.allAssets} /> : <ImagePromptView {...props} />}
   </>;
 };
 

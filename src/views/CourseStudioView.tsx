@@ -1,15 +1,26 @@
 import React, { useState } from "react";
-import { ArrowRight, FileText, Plus, Printer, Trash2 } from "lucide-react";
+import { ArrowRight, FileText, Plus, Printer, Trash2, Upload, Search, X } from "lucide-react";
 import { PageTitle } from "../components/Chrome";
+import { DesignThumbnail } from "../components/DesignThumbnail";
+import { DesignAsset } from "../types";
 
 type Slide = { id: number; title: string; body: string; layout: "basic" | "split" };
 const makeSlide = (id: number): Slide => ({ id, title: "", body: "", layout: "basic" });
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] || c));
 
-export function CourseStudioView({ onBack }: { onBack: () => void }) {
+export function CourseStudioView({ onBack, allAssets }: { onBack: () => void; allAssets: DesignAsset[] }) {
   const [slides, setSlides] = useState<Slide[]>([makeSlide(1)]);
   const [currentId, setCurrentId] = useState(1);
   const [printError, setPrintError] = useState("");
+  const [sourceFile, setSourceFile] = useState<File | null>(null);
+  const [sourceError, setSourceError] = useState("");
+  const [search, setSearch] = useState("");
+  const [referenceId, setReferenceId] = useState<string | null>(null);
+  const [instructions, setInstructions] = useState("");
+  const [exclusions, setExclusions] = useState("");
+  const reference = allAssets.find(asset => asset.id === referenceId);
+  const query = search.trim().toLocaleLowerCase();
+  const matches = allAssets.filter(asset => !query || [asset.id, asset.title, asset.project, asset.requestNo || "", asset.type].some(value => value.toLocaleLowerCase().includes(query))).slice(0, 6);
   const current = slides.find(slide => slide.id === currentId) || slides[0];
   const update = (patch: Partial<Slide>) => setSlides(previous => previous.map(s => s.id === current.id ? { ...s, ...patch } : s));
   const addSlide = () => {
@@ -35,11 +46,28 @@ export function CourseStudioView({ onBack }: { onBack: () => void }) {
   };
   return (
     <main className="page-shell course-studio">
-      <PageTitle title="교안 만들기" subtitle="강의 내용을 입력하고 템플릿에 배치해 교안 초안을 살펴보세요." onBack={onBack} />
-      <div className="course-notice"><FileText size={18}/><span>직접 입력한 내용을 템플릿에 배치하는 첫 단계입니다. AI 분석·파일 업로드·PPT 다운로드는 아직 연결되지 않았어요.</span></div>
-      <div className="course-steps" aria-label="사용 순서"><span><b>01</b> 내용 입력</span><ArrowRight size={16}/><span><b>02</b> 템플릿 선택</span><ArrowRight size={16}/><span><b>03</b> 미리보기·검수</span></div>
+      <PageTitle title="교안 만들기" subtitle="기획 교안과 참고 디자인을 선택하고 원하는 방향을 정리해 보세요." onBack={onBack} />
+      <div className="course-notice"><FileText size={18}/><span>현재는 제작 준비 화면입니다. 파일은 이 브라우저에서만 선택되며, AI의 파일·레퍼런스 분석과 교안 자동 생성은 아직 연결되지 않았어요.</span></div>
+      <div className="course-steps" aria-label="사용 순서"><span><b>01</b> 교안 선택</span><ArrowRight size={16}/><span><b>02</b> 레퍼런스 선택</span><ArrowRight size={16}/><span><b>03</b> 제작 방향 입력</span></div>
       <div className="course-workspace">
         <section className="course-editor" aria-label="교안 편집">
+          <div className="brief-section"><span className="course-overline">01 · 원본 자료</span><h2>기획 교안</h2><p>기획자가 작성한 교안을 선택해 주세요.</p>
+            <label className="source-upload"><Upload size={18}/><span>{sourceFile ? "파일 다시 선택" : "교안 파일 선택"}</span><input type="file" accept=".ppt,.pptx,.pdf,.doc,.docx,.txt" onChange={event => { const file = event.target.files?.[0]; event.target.value = ""; if (!file) return; if (file.size > 20 * 1024 * 1024) { setSourceError("20MB 이하의 파일을 선택해 주세요."); setSourceFile(null); return; } setSourceError(""); setSourceFile(file); }} /></label>
+            {sourceFile && <div className="source-file"><FileText size={16}/><span>{sourceFile.name}</span><button type="button" onClick={() => setSourceFile(null)} aria-label="선택 파일 제거"><X size={16}/></button></div>}
+            <p className="brief-hint">PPT·PDF·Word·텍스트 파일 선택 가능 · 최대 20MB<br/>선택한 파일은 서버에 전송되거나 분석되지 않습니다.</p><p role="status" className="course-error">{sourceError}</p>
+          </div>
+          <div className="brief-section"><span className="course-overline">02 · 참고 디자인</span><h2>아카이브에서 가져오기</h2><p>작업명, 요청번호 또는 자산 ID로 검색하고 썸네일을 선택하세요.</p>
+            <label className="reference-search"><Search size={17}/><span className="sr-only">레퍼런스 검색</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder="작업명 · 요청번호 · 자산 ID" /></label>
+            {reference ? <div className="selected-reference"><div className="reference-image"><DesignThumbnail asset={reference}/></div><div><strong>{reference.title}</strong><small>{reference.id} · {reference.type}{reference.device ? ` ${reference.device}` : ""} · {reference.version}</small><button type="button" onClick={() => setReferenceId(null)}>다른 레퍼런스 선택</button></div></div> : <div className="reference-results">{matches.map(asset => <button type="button" className="reference-choice" key={asset.id} onClick={() => setReferenceId(asset.id)}><div className="reference-image"><DesignThumbnail asset={asset}/></div><span><strong>{asset.title}</strong><small>{asset.id} · {asset.type}{asset.device ? ` ${asset.device}` : ""}</small></span></button>)}{matches.length === 0 && <p>일치하는 작업이 없어요. 다른 검색어를 입력해 주세요.</p>}</div>}
+            <p className="brief-hint">원본 이미지가 없는 작업은 샘플 그래픽으로 표시됩니다. 현재 ID는 임시 식별자이며, 요청번호는 여러 작업에 공통으로 쓰일 수 있어요.</p>
+          </div>
+          <div className="brief-section"><span className="course-overline">03 · 제작 방향</span><h2>어떻게 꾸밀까요?</h2><p>참고할 요소와 적용하지 않을 요소를 짧고 구체적으로 적어 주세요.</p>
+            <label className="course-field">반영할 점<textarea rows={4} value={instructions} onChange={event => setInstructions(event.target.value)} placeholder="예: 레퍼런스의 컬러 구성을 참고하고, 제목은 더 굵고 크게 만들어 주세요." maxLength={1000}/></label>
+            <label className="course-field">제외할 점 <span className="optional-label">선택</span><textarea rows={3} value={exclusions} onChange={event => setExclusions(event.target.value)} placeholder="예: 파란색, 장식 아이콘, 지나치게 긴 문장은 제외해 주세요." maxLength={1000}/></label>
+            <div className="prompt-example"><strong>이렇게 적으면 좋아요</strong><p>“레퍼런스의 차분한 컬러와 여백을 참고해 주세요. 제목은 더 굵게 하고, 파란색과 장식 아이콘은 제외해 주세요.”</p></div>
+            <button type="button" className="btn btn-primary course-pending" disabled>AI 교안 만들기 · 연결 준비 중</button><p className="brief-hint">입력한 요청은 아직 AI로 전송되지 않으며 미리보기에 적용되지 않습니다.</p>
+          </div>
+          <details className="manual-course"><summary>직접 교안 내용 편집하기</summary>
           <div className="course-panel-heading"><div><span className="course-overline">내용 편집</span><h2>교안 내용</h2></div><span className="course-page-count">{slides.findIndex(s => s.id === current.id) + 1} / {slides.length}</span></div>
           <div className="course-slide-list" aria-label="교안 페이지">
             {slides.map((slide, index) => <button key={slide.id} type="button" className={slide.id === current.id ? "active" : ""} aria-pressed={slide.id === current.id} onClick={() => setCurrentId(slide.id)}>{index + 1}페이지</button>)}
@@ -54,9 +82,10 @@ export function CourseStudioView({ onBack }: { onBack: () => void }) {
             <button type="button" className={current.layout === "split" ? "active" : ""} aria-pressed={current.layout === "split"} onClick={() => update({ layout: "split" })}><span className="template-icon split"><i/><i/><i/></span><strong>분할형</strong><small>여백으로 구성을 나누어</small></button>
           </div>
           <button type="button" className="course-remove" onClick={removeSlide} disabled={slides.length === 1}><Trash2 size={15}/> 현재 페이지 삭제</button>
+          </details>
         </section>
         <section className="course-preview-panel" aria-label="교안 미리보기">
-          <div className="course-panel-heading"><div><span className="course-overline">실시간 미리보기</span><h2>이렇게 보여요</h2></div><span className="course-preview-label">16:9</span></div>
+          <div className="course-panel-heading"><div><span className="course-overline">직접 편집한 내용</span><h2>미리보기</h2></div><span className="course-preview-label">16:9</span></div>
           <div className={`course-preview ${current.layout}`}><div className="course-preview-inner"><span>학습 교안 · {String(slides.findIndex(s => s.id === current.id) + 1).padStart(2, "0")}</span><h3>{current.title || "페이지 제목을 입력해 주세요"}</h3><div className="course-preview-line"/><p>{current.body || "학습 내용을 입력하면 이곳에서 확인할 수 있어요."}</p></div></div>
           <div className="course-preview-bottom"><p>인쇄 화면에서 PDF로 저장할 수 있어요.<br/>입력 내용은 페이지를 벗어나거나 새로고침하면 사라집니다.</p><button type="button" className="btn btn-primary" onClick={print}><Printer size={16}/> 인쇄 · PDF 저장</button></div>
           <p role="status" className="course-error">{printError}</p>
