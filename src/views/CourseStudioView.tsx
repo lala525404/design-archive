@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ArrowLeft, ChevronDown, FileText, Plus, Printer, Trash2, Upload, Search, X } from "lucide-react";
 import { PageTitle } from "../components/Chrome";
 import { DesignThumbnail } from "../components/DesignThumbnail";
@@ -15,14 +15,17 @@ const escapeHtml = (value: string) => value.replace(/[&<>"']/g, c => ({ "&": "&a
 export const toggleReference = (ids: string[], id: string) =>
   ids.includes(id) ? ids.filter(item => item !== id) : ids.length < 3 ? [...ids, id] : ids;
 
-export function CourseStudioView({ onBack, allAssets }: { onBack: () => void; allAssets: DesignAsset[] }) {
+export type SampleJob = { status: "idle" | "running" | "complete"; startedAt: number; progress: number };
+export const sampleProgressAt = (elapsedMs: number) => Math.min(3, Math.max(0, Math.floor(elapsedMs / 8000 * 3)));
+const idleJob: SampleJob = { status: "idle", startedAt: 0, progress: 0 };
+export function CourseStudioView({ onBack, allAssets, sampleJob = idleJob, onStartSample, onResetSample, visible = true, onProgressVisibilityChange, openJobRequest = 0 }: { onBack: () => void; allAssets: DesignAsset[]; sampleJob?: SampleJob; onStartSample?: () => void; onResetSample?: () => void; visible?: boolean; onProgressVisibilityChange?: (visible: boolean) => void; openJobRequest?: number }) {
   const [slides, setSlides] = useState<Slide[]>([makeSlide(1)]);
   const [currentId, setCurrentId] = useState(1);
   const [printError, setPrintError] = useState("");
   const [sourceFile, setSourceFile] = useState<File | null>(null);
   const [sampleSource, setSampleSource] = useState(false);
   const [samplePreview, setSamplePreview] = useState(false);
-  const [stage, setStage] = useState<"preview" | "review">("preview");
+  const [stage, setStage] = useState<"preview" | "progress" | "review">("preview");
   const [sourceError, setSourceError] = useState("");
   const [search, setSearch] = useState("");
   const [referencePage, setReferencePage] = useState(0);
@@ -36,9 +39,17 @@ export function CourseStudioView({ onBack, allAssets }: { onBack: () => void; al
   const matches = allAssets.filter(asset => !query || [asset.id, asset.title, asset.project, asset.requestNo || "", asset.type].some(value => value.toLocaleLowerCase().includes(query)));
   const visibleReferences = matches.slice(referencePage * 4, referencePage * 4 + 4);
   const current = slides.find(slide => slide.id === currentId) || slides[0];
+  useEffect(() => {
+    onProgressVisibilityChange?.(visible && stage === "progress");
+    return () => onProgressVisibilityChange?.(false);
+  }, [visible, stage, onProgressVisibilityChange]);
+  useEffect(() => {
+    if (openJobRequest > 0) setStage(sampleJob.status === "complete" ? "review" : "progress");
+  }, [openJobRequest]);
   const loadSample = () => {
     const hasWork = Boolean(sourceFile || sampleSource || referenceIds.length || instructions.trim() || exclusions.trim() || slides.some(slide => slide.title.trim() || slide.body.trim()));
     if (hasWork && !window.confirm("현재 선택하고 작성한 내용이 샘플로 바뀝니다. 샘플을 불러올까요?")) return;
+    onResetSample?.();
     setSourceFile(null);
     setSourceError("");
     setSampleSource(true);
@@ -96,7 +107,7 @@ export function CourseStudioView({ onBack, allAssets }: { onBack: () => void; al
   };
   return (
     <main className="page-shell course-studio">
-      <PageTitle title={stage === "preview" ? "교안 만들기" : "교안 검토 · 내용 수정"} subtitle={stage === "preview" ? "기획 교안과 참고 디자인을 선택하고 디자인 방향을 확인해 보세요." : "페이지를 선택하고 제목이나 내용을 직접 수정해 보세요."} onBack={stage === "preview" ? onBack : () => setStage("preview")} />
+      <PageTitle title={stage === "preview" ? "교안 만들기" : stage === "progress" ? "교안 제작 상태" : "교안 검토 · 내용 수정"} subtitle={stage === "preview" ? "기획 교안과 참고 디자인을 선택하고 디자인 방향을 확인해 보세요." : stage === "progress" ? "샘플 제작 흐름을 체험해 보세요." : "페이지를 선택하고 제목이나 내용을 직접 수정해 보세요."} onBack={stage === "preview" ? onBack : () => setStage("preview")} />
       {stage === "preview" ? <>
       <div className="course-notice"><FileText size={18}/><span>현재는 제작 준비 화면입니다. AI 분석과 자동 생성은 아직 연결되지 않았어요.</span><button type="button" className="sample-start" onClick={loadSample}>샘플로 사용해 보기</button></div>
       <div className="course-workspace">
@@ -141,10 +152,20 @@ export function CourseStudioView({ onBack, allAssets }: { onBack: () => void; al
           </div>
           {samplePreview ? <>
             <div className="course-slide-list sample-slides" aria-label="샘플 디자인 페이지">{slides.map((slide, index) => <button key={slide.id} type="button" className={slide.id === current.id ? "active" : ""} aria-pressed={slide.id === current.id} onClick={() => setCurrentId(slide.id)}>{slide.variant === "cover" ? "표지" : slide.variant === "contents" ? "목차" : slide.variant === "body" ? "본문" : `${index + 1}페이지`}</button>)}</div>
-            <div className="stage-action"><p>미리 제작한 3장 예시입니다. 변경한 요청으로 자동 생성되지는 않아요.</p><button type="button" className="btn btn-primary" onClick={() => setStage("review")}>샘플 확정 · 내용 수정</button></div>
+            <div className="stage-action"><p>미리 제작한 3장 예시입니다. 변경한 요청으로 자동 생성되지는 않아요.</p><button type="button" className="btn btn-primary" onClick={() => { if (sampleJob.status === "idle") onStartSample?.(); setStage(onStartSample ? "progress" : "review"); }}>샘플 확정 · 다음</button></div>
           </> : <div className="stage-action"><p>AI 디자인 생성은 연결 준비 중입니다.</p><button type="button" className="btn" onClick={() => { setManualStarted(true); setStage("review"); }}>기본 교안 직접 편집</button></div>}
         </section>
       </div>
+      </> : stage === "progress" ? <>
+        <div className="course-notice"><FileText size={18}/><span>실제 AI 생성이 아닌 샘플 체험입니다. 다른 메뉴로 이동해도 브라우저 탭을 열어둔 동안 상태가 이어져요. 새로고침하면 초기화됩니다.</span></div>
+        <section className="sample-progress" aria-live="polite">
+          <div className="progress-tag">샘플 교안 · 고객 응대의 기본</div>
+          <h2>{sampleJob.status === "complete" ? "샘플 교안이 준비됐어요" : "샘플 제작 과정을 보여드리고 있어요"}</h2>
+          <p>{sampleJob.status === "complete" ? "미리 준비된 3장의 예시를 확인하고 내용을 수정할 수 있어요." : "체험을 위해 약 8초 동안 진행 상태를 보여드립니다."}</p>
+          <div className="progress-track" role="progressbar" aria-label="샘플 진행률" aria-valuemin={0} aria-valuemax={3} aria-valuenow={sampleJob.progress}><span style={{width: `${(sampleJob.progress / 3) * 100}%`}}/></div>
+          <div className="progress-caption"><strong>{sampleJob.progress} / 3페이지</strong><span>{sampleJob.status === "complete" ? "샘플 준비 완료" : "샘플 체험 중"}</span></div>
+          <div className="progress-actions">{sampleJob.status === "complete" ? <button type="button" className="btn btn-primary" onClick={() => setStage("review")}>교안 확인하기</button> : <p>다른 메뉴로 이동하면 완료 시 알림이 표시됩니다.</p>}<button type="button" className="btn" onClick={() => setStage("preview")}>디자인 확인으로 돌아가기</button></div>
+        </section>
       </> : <>
         <div className="review-stage-bar"><button type="button" className="review-back" onClick={() => setStage("preview")}><ArrowLeft size={16}/> 디자인 확인으로 돌아가기</button><span>수정한 내용은 이 화면을 오가도 유지됩니다.</span></div>
         <div className="course-notice"><FileText size={18}/><span>{samplePreview ? "미리 제작한 샘플 3장입니다. 실제 전체 교안 자동 생성은 아직 연결되지 않았어요." : "기본 교안을 직접 편집하는 화면입니다. 자동 생성은 연결되지 않았어요."}</span></div>

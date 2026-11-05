@@ -16,13 +16,19 @@ import {
 import { PageTitle, Disclosure } from "../components/Chrome";
 import { DesignAsset } from "../types";
 import { DesignThumbnail } from "../components/DesignThumbnail";
-import { CourseStudioView } from "./CourseStudioView";
+import { CourseStudioView, SampleJob } from "./CourseStudioView";
 
 interface PromptStudioViewProps {
   initialAsset?: DesignAsset;
   allAssets: DesignAsset[];
   onBack: () => void;
   onOpenMenu: () => void;
+  sampleJob?: SampleJob;
+  onStartSample?: () => void;
+  onResetSample?: () => void;
+  visible?: boolean;
+  onProgressVisibilityChange?: (visible: boolean) => void;
+  openJobRequest?: number;
 }
 
 const ImagePromptView: React.FC<PromptStudioViewProps> = ({
@@ -427,12 +433,14 @@ const ImagePromptView: React.FC<PromptStudioViewProps> = ({
 
 export const PromptStudioView: React.FC<PromptStudioViewProps> = (props) => {
   const [mode, setMode] = useState<"course" | "prompt">("course");
+  useEffect(() => { if (props.openJobRequest) setMode("course"); }, [props.openJobRequest]);
   return <>
     <div className="creation-tabs" role="tablist" aria-label="제작 도구">
       <button type="button" role="tab" aria-selected={mode === "course"} onClick={() => setMode("course")}>교안 만들기</button>
       <button type="button" role="tab" aria-selected={mode === "prompt"} onClick={() => setMode("prompt")}>디자인 프롬프트</button>
     </div>
-    {mode === "course" ? <CourseStudioView onBack={props.onBack} allAssets={props.allAssets} /> : <ImagePromptView {...props} />}
+    <div hidden={mode !== "course"}><CourseStudioView onBack={props.onBack} allAssets={props.allAssets} sampleJob={props.sampleJob} onStartSample={props.onStartSample} onResetSample={props.onResetSample} visible={props.visible !== false && mode === "course"} onProgressVisibilityChange={props.onProgressVisibilityChange} openJobRequest={props.openJobRequest} /></div>
+    {mode === "prompt" && <ImagePromptView {...props} />}
   </>;
 };
 

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { DesignAsset, UserRole, SandollFontItem } from "./types";
 import { INITIAL_ASSETS, INITIAL_SAN_DOLL_FONTS } from "./data/sampleAssets";
 import { LandingView } from "./views/LandingView";
@@ -12,6 +12,7 @@ import { DetailView } from "./views/DetailView";
 import { UploadView, UploadResult } from "./views/UploadView";
 import { CURRENT_DESIGNER } from "./lib/taxonomy";
 import { PromptStudioView } from "./views/PromptStudioView";
+import { SampleJob, sampleProgressAt } from "./views/CourseStudioView";
 import { LicenseManagementView } from "./views/LicenseManagementView";
 import { NamingRuleView } from "./views/NamingRuleView";
 import { ProjectView } from "./views/ProjectView";
@@ -100,6 +101,35 @@ export default function App() {
     INITIAL_ASSETS[0],
   );
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [sampleJob, setSampleJob] = useState<SampleJob>({ status: "idle", startedAt: 0, progress: 0 });
+  const [sampleProgressVisible, setSampleProgressVisible] = useState(false);
+  const progressVisibleRef = useRef(false);
+  const [sampleNotice, setSampleNotice] = useState(false);
+  const [openJobRequest, setOpenJobRequest] = useState(0);
+  const onProgressVisibilityChange = useCallback((visible: boolean) => {
+    progressVisibleRef.current = visible;
+    setSampleProgressVisible(visible);
+  }, []);
+  const startSampleJob = () => {
+    setSampleNotice(false);
+    setSampleJob({ status: "running", startedAt: Date.now(), progress: 0 });
+  };
+  useEffect(() => {
+    if (sampleJob.status !== "running") return;
+    const startedAt = sampleJob.startedAt;
+    const timer = window.setInterval(() => {
+      const elapsed = Date.now() - startedAt;
+      const progress = sampleProgressAt(elapsed);
+      if (elapsed >= 8000) {
+        window.clearInterval(timer);
+        setSampleJob({ status: "complete", startedAt, progress: 3 });
+        if (!progressVisibleRef.current) setSampleNotice(true);
+      } else {
+        setSampleJob(current => current.status === "running" && current.startedAt === startedAt ? { ...current, progress } : current);
+      }
+    }, 250);
+    return () => window.clearInterval(timer);
+  }, [sampleJob.status, sampleJob.startedAt]);
 
   // ── 화면 이동 기록 ──
   // 기록마다 순번(idx)을 두고, 그 순번의 스크롤 위치를 기억해 뒤로 가면 되살린다
@@ -384,14 +414,20 @@ export default function App() {
         />
       )}
 
-      {view === "prompt" && (
+      <div hidden={view !== "prompt"}>
         <PromptStudioView
           initialAsset={promptAsset}
           allAssets={assets}
           onBack={() => goBack({ view: "landing" })}
           onOpenMenu={() => setIsDrawerOpen(true)}
+          sampleJob={sampleJob}
+          onStartSample={startSampleJob}
+          onResetSample={() => { setSampleNotice(false); setSampleJob({ status: "idle", startedAt: 0, progress: 0 }); }}
+          visible={view === "prompt"}
+          onProgressVisibilityChange={onProgressVisibilityChange}
+          openJobRequest={openJobRequest}
         />
-      )}
+      </div>
 
       {view === "license" && (
         <LicenseManagementView
@@ -427,6 +463,11 @@ export default function App() {
         onOpenMenu={() => setIsDrawerOpen(true)}
         userRole={userRole}
       />
+      {!sampleProgressVisible && sampleJob.status !== "idle" && <div className="sample-job-floating">
+        {sampleNotice && sampleJob.status === "complete" && <div className="sample-job-notice" role="status"><button type="button" className="sample-job-close" aria-label="샘플 알림 닫기" onClick={() => setSampleNotice(false)}>×</button><strong>샘플 교안이 준비됐어요</strong><span>미리 준비한 3장 예시를 확인해 보세요.</span></div>}
+        <button type="button" className="sample-job-link" onClick={() => { setSampleNotice(false); if (view !== "prompt") setView("prompt"); setOpenJobRequest(value => value + 1); }}>{sampleJob.status === "running" ? `샘플 체험 중 · ${sampleJob.progress}/3` : "샘플 교안 확인하기"}</button>
+      </div>}
     </div>
   );
 }
+
