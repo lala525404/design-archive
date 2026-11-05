@@ -15,6 +15,8 @@ export function CourseStudioView({ onBack, allAssets }: { onBack: () => void; al
   const [currentId, setCurrentId] = useState(1);
   const [printError, setPrintError] = useState("");
   const [sourceFile, setSourceFile] = useState<File | null>(null);
+  const [sampleSource, setSampleSource] = useState(false);
+  const [samplePreview, setSamplePreview] = useState(false);
   const [sourceError, setSourceError] = useState("");
   const [search, setSearch] = useState("");
   const [referencePage, setReferencePage] = useState(0);
@@ -28,6 +30,26 @@ export function CourseStudioView({ onBack, allAssets }: { onBack: () => void; al
   const matches = allAssets.filter(asset => !query || [asset.id, asset.title, asset.project, asset.requestNo || "", asset.type].some(value => value.toLocaleLowerCase().includes(query)));
   const visibleReferences = matches.slice(referencePage * 4, referencePage * 4 + 4);
   const current = slides.find(slide => slide.id === currentId) || slides[0];
+  const loadSample = () => {
+    const hasWork = Boolean(sourceFile || sampleSource || referenceIds.length || instructions.trim() || exclusions.trim() || slides.some(slide => slide.title.trim() || slide.body.trim()));
+    if (hasWork && !window.confirm("현재 선택하고 작성한 내용이 샘플로 바뀝니다. 샘플을 불러올까요?")) return;
+    setSourceFile(null);
+    setSourceError("");
+    setSampleSource(true);
+    setSamplePreview(true);
+    setReferenceIds(allAssets.length ? [allAssets[0].id] : []);
+    setSearch("");
+    setReferencePage(0);
+    setInstructions("정돈된 여백과 파란색 포인트를 사용하고, 제목은 굵고 크게 만들어 주세요.");
+    setExclusions("화려한 그라데이션과 장식용 아이콘은 제외해 주세요.");
+    setSlides([
+      { id: -1, title: "고객 응대의 기본", body: "고객의 말을 끝까지 듣고,\n문의 내용을 정확히 확인합니다.\n\n공감 → 확인 → 안내", layout: "basic" },
+      { id: -2, title: "고객 응대 3단계", body: "01  먼저 듣고 공감하기\n02  문의 내용과 상황 확인하기\n03  해결 방법을 쉽게 안내하기", layout: "basic" },
+    ]);
+    setCurrentId(-1);
+    setManualStarted(true);
+    setOpenSection(null);
+  };
   const update = (patch: Partial<Slide>) => setSlides(previous => previous.map(s => s.id === current.id ? { ...s, ...patch } : s));
   const addSlide = () => {
     const id = Math.max(...slides.map(s => s.id)) + 1;
@@ -53,13 +75,14 @@ export function CourseStudioView({ onBack, allAssets }: { onBack: () => void; al
   return (
     <main className="page-shell course-studio">
       <PageTitle title="교안 만들기" subtitle="기획 교안과 참고 디자인을 선택하고 원하는 방향을 정리해 보세요." onBack={onBack} />
-      <div className="course-notice"><FileText size={18}/><span>현재는 제작 준비 화면입니다. 파일은 이 브라우저에서만 선택되며, AI의 파일·레퍼런스 분석과 교안 자동 생성은 아직 연결되지 않았어요.</span></div>
+      <div className="course-notice"><FileText size={18}/><span>현재는 제작 준비 화면입니다. AI 분석과 자동 생성은 아직 연결되지 않았어요.</span><button type="button" className="sample-start" onClick={loadSample}>샘플로 사용해 보기</button></div>
       <div className="course-workspace">
         <section className="course-editor" aria-label="교안 편집">
           <div className="brief-section">
-            <button type="button" className="brief-trigger" aria-expanded={openSection === "source"} aria-controls="course-source" onClick={() => setOpenSection(openSection === "source" ? null : "source")}><span className="brief-number">01</span><span className="brief-trigger-copy"><strong>기획 교안</strong><small>{sourceFile ? sourceFile.name : "원본 파일을 선택해 주세요"}</small></span><ChevronDown size={18}/></button>
+            <button type="button" className="brief-trigger" aria-expanded={openSection === "source"} aria-controls="course-source" onClick={() => setOpenSection(openSection === "source" ? null : "source")}><span className="brief-number">01</span><span className="brief-trigger-copy"><strong>기획 교안</strong><small>{sampleSource ? "샘플 교안 · 고객 응대 기본" : sourceFile ? sourceFile.name : "원본 파일을 선택해 주세요"}</small></span><ChevronDown size={18}/></button>
             <div id="course-source" className="brief-content" hidden={openSection !== "source"}><p>기획자가 작성한 교안을 선택해 주세요.</p>
-            <label className="source-upload"><Upload size={18}/><span>{sourceFile ? "파일 다시 선택" : "교안 파일 선택"}</span><input type="file" accept=".ppt,.pptx,.pdf,.doc,.docx,.txt" onChange={event => { const file = event.target.files?.[0]; event.target.value = ""; if (!file) return; if (file.size > 20 * 1024 * 1024) { setSourceError("20MB 이하의 파일을 선택해 주세요."); setSourceFile(null); return; } setSourceError(""); setSourceFile(file); setOpenSection("reference"); }} /></label>
+            <label className="source-upload"><Upload size={18}/><span>{sourceFile || sampleSource ? "파일 다시 선택" : "교안 파일 선택"}</span><input type="file" accept=".ppt,.pptx,.pdf,.doc,.docx,.txt" onChange={event => { const file = event.target.files?.[0]; event.target.value = ""; if (!file) return; if (file.size > 20 * 1024 * 1024) { setSourceError("20MB 이하의 파일을 선택해 주세요."); return; } setSourceError(""); setSampleSource(false); setSourceFile(file); setOpenSection("reference"); }} /></label>
+            {sampleSource && <div className="sample-source"><strong>샘플 기획 내용</strong><p>고객 응대의 기본: 고객의 말을 끝까지 듣고 문의 내용을 정확히 확인한다. 고객 응대는 공감, 확인, 안내의 3단계로 진행한다.</p><small>사용 흐름을 보여주기 위한 예시 내용이며, 실제 업로드된 파일이 아닙니다.</small></div>}
             {sourceFile && <div className="source-file"><FileText size={16}/><span>{sourceFile.name}</span><button type="button" onClick={() => setSourceFile(null)} aria-label="선택 파일 제거"><X size={16}/></button></div>}
             <p className="brief-hint">PPT·PDF·Word·텍스트 파일 선택 가능 · 최대 20MB<br/>선택한 파일은 서버에 전송되거나 분석되지 않습니다.</p><p role="status" className="course-error">{sourceError}</p>
             </div>
@@ -89,12 +112,13 @@ export function CourseStudioView({ onBack, allAssets }: { onBack: () => void; al
           <button type="button" className="btn btn-primary course-pending" disabled>AI 교안 만들기 · 연결 준비 중</button><p className="brief-hint">입력한 요청은 아직 AI로 전송되지 않으며 미리보기에 적용되지 않습니다.</p>
         </section>
         <section className="course-preview-panel" aria-label="교안 미리보기">
-          <div className="course-panel-heading"><div><span className="course-overline">{manualStarted ? "기본 템플릿 · 직접 편집" : "디자인 결과"}</span><h2>미리보기</h2></div><span className="course-preview-label">16:9</span></div>
+          <div className="course-panel-heading"><div><span className="course-overline">{samplePreview ? "샘플 결과 · 직접 편집" : manualStarted ? "기본 템플릿 · 직접 편집" : "디자인 결과"}</span><h2>미리보기</h2></div><span className="course-preview-label">16:9</span></div>
           {!manualStarted ? <div className="course-preview-empty"><FileText size={28}/><strong>만들어진 교안을 이곳에서 확인해요</strong><p>AI 교안 생성은 준비 중이에요.<br/>기본 템플릿으로 직접 편집을 체험할 수 있습니다.</p><button type="button" className="btn" onClick={() => setManualStarted(true)}>기본 템플릿 열기</button></div> : <>
           <div className="course-slide-list" aria-label="교안 페이지">
             {slides.map((slide, index) => <button key={slide.id} type="button" className={slide.id === current.id ? "active" : ""} aria-pressed={slide.id === current.id} onClick={() => setCurrentId(slide.id)}>{index + 1}페이지</button>)}
             <button type="button" onClick={addSlide} aria-label="페이지 추가"><Plus size={15}/> 추가</button>
           </div>
+          {samplePreview && <p className="sample-guide">사용 가이드: 왼쪽 항목을 열어 샘플 교안·레퍼런스·요청을 확인하고, 아래 페이지를 눌러 직접 수정해 보세요. 이 결과는 미리 준비된 예시로, AI가 생성한 화면이 아닙니다.</p>}
           <p className="brief-hint preview-instruction">제목이나 본문을 눌러 화면에서 직접 수정하세요.</p>
           <div className={`course-preview ${current.layout}`}><div className="course-preview-inner"><span>학습 교안 · {String(slides.findIndex(s => s.id === current.id) + 1).padStart(2, "0")}</span><h3 key={`title-${current.id}`} contentEditable suppressContentEditableWarning role="textbox" aria-label="교안 제목 수정" data-placeholder="제목을 입력하세요" onBlur={event => update({title: event.currentTarget.innerText})}>{current.title}</h3><div className="course-preview-line"/><p key={`body-${current.id}`} contentEditable suppressContentEditableWarning role="textbox" aria-multiline="true" aria-label="교안 본문 수정" data-placeholder="학습 내용을 입력하세요" onBlur={event => update({body: event.currentTarget.innerText})}>{current.body}</p></div></div>
           <div className="preview-controls"><div className="course-template-title">템플릿 선택</div><div className="course-templates">

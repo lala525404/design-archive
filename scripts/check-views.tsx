@@ -119,6 +119,9 @@ const pages = [
   />,
   <NamingRuleView onBack={noop} onOpenMenu={noop} />,
 ];
+const courseStudio = renderToStaticMarkup(pages[3]);
+assert.ok(courseStudio.includes("샘플로 사용해 보기"), "Sample walkthrough is available");
+assert.ok(courseStudio.includes("AI 분석과 자동 생성은 아직 연결되지 않았어요"), "Unconnected AI is clearly disclosed");
 const landing = renderToStaticMarkup(pages[0]);
 
 assert.ok(
