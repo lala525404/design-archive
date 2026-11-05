@@ -11,6 +11,23 @@ export const makeSampleSlides = (): Slide[] => [
   { id: -2, title: "오늘의 학습 순서", body: "01  고객 응대의 기본\n02  경청과 공감의 방법\n03  문의 확인과 해결 안내", layout: "reference", variant: "contents" },
   { id: -3, title: "경청에서 시작하는 상담", body: "고객의 말을 끝까지 듣고\n문의 내용을 정확히 확인합니다.\n\n공감  ·  확인  ·  안내", layout: "reference", variant: "body" },
 ];
+export const courseSlideClassName = (slide: Slide) =>
+  ["course-preview", slide.layout, slide.variant ? `course-variant-${slide.variant}` : ""].filter(Boolean).join(" ");
+export function CourseSlidePreview({ slide, pageNumber, editable = false, onUpdate }: { slide: Slide; pageNumber: number; editable?: boolean; onUpdate?: (patch: Partial<Slide>) => void }) {
+  return <div className={courseSlideClassName(slide)}>
+    <div className="course-preview-inner">
+      <span>학습 교안 · {String(pageNumber).padStart(2, "0")}</span>
+      {editable
+        ? <h3 key={`title-${slide.id}`} contentEditable suppressContentEditableWarning role="textbox" aria-label="교안 제목 수정" data-placeholder="제목을 입력하세요" onBlur={event => onUpdate?.({title: event.currentTarget.innerText})}>{slide.title}</h3>
+        : <h3>{slide.title || "제목을 입력하세요"}</h3>}
+      <div className="course-preview-line"/>
+      {editable
+        ? <p key={`body-${slide.id}`} contentEditable suppressContentEditableWarning role="textbox" aria-multiline="true" aria-label="교안 본문 수정" data-placeholder="학습 내용을 입력하세요" onBlur={event => onUpdate?.({body: event.currentTarget.innerText})}>{slide.body}</p>
+        : <p>{slide.body || "학습 내용을 입력하세요"}</p>}
+      {slide.layout === "reference" && <div className="reference-decor" aria-hidden="true"><i/><i/><i/></div>}
+    </div>
+  </div>;
+}
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] || c));
 export const toggleReference = (ids: string[], id: string) =>
   ids.includes(id) ? ids.filter(item => item !== id) : ids.length < 3 ? [...ids, id] : ids;
@@ -78,21 +95,7 @@ export function CourseStudioView({ onBack, allAssets, sampleJob = idleJob, onSta
     setSlides(remaining);
     setCurrentId(remaining[0].id);
   };
-  const slidePreview = (editable: boolean) => (
-    <div className={`course-preview ${current.layout} ${current.variant || ""}`}>
-      <div className="course-preview-inner">
-        <span>학습 교안 · {String(slides.findIndex(s => s.id === current.id) + 1).padStart(2, "0")}</span>
-        {editable
-          ? <h3 key={`title-${current.id}`} contentEditable suppressContentEditableWarning role="textbox" aria-label="교안 제목 수정" data-placeholder="제목을 입력하세요" onBlur={event => update({title: event.currentTarget.innerText})}>{current.title}</h3>
-          : <h3>{current.title || "제목을 입력하세요"}</h3>}
-        <div className="course-preview-line"/>
-        {editable
-          ? <p key={`body-${current.id}`} contentEditable suppressContentEditableWarning role="textbox" aria-multiline="true" aria-label="교안 본문 수정" data-placeholder="학습 내용을 입력하세요" onBlur={event => update({body: event.currentTarget.innerText})}>{current.body}</p>
-          : <p>{current.body || "학습 내용을 입력하세요"}</p>}
-        {current.layout === "reference" && <div className="reference-decor" aria-hidden="true"><i/><i/><i/></div>}
-      </div>
-    </div>
-  );
+  const slidePreview = (editable: boolean) => <CourseSlidePreview slide={current} pageNumber={slides.findIndex(s => s.id === current.id) + 1} editable={editable} onUpdate={update} />;
   const print = () => {
     const win = window.open("", "_blank");
     if (!win) { setPrintError("인쇄 창을 열지 못했어요. 브라우저의 팝업 차단을 해제해 주세요."); return; }

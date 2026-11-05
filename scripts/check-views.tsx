@@ -11,7 +11,7 @@ import { SearchView } from "../src/views/SearchView";
 import { DetailView } from "../src/views/DetailView";
 import { UploadView } from "../src/views/UploadView";
 import { PromptStudioView } from "../src/views/PromptStudioView";
-import { makeSampleSlides, sampleProgressAt, toggleReference } from "../src/views/CourseStudioView";
+import { CourseSlidePreview, courseSlideClassName, makeSampleSlides, sampleProgressAt, toggleReference } from "../src/views/CourseStudioView";
 import { LicenseManagementView } from "../src/views/LicenseManagementView";
 import { NamingRuleView } from "../src/views/NamingRuleView";
 import { SERVICES, guessType, normalizeTool } from "../src/lib/taxonomy";
@@ -26,6 +26,15 @@ const noop = () => {};
 const sampleSlides = makeSampleSlides();
 assert.deepEqual(sampleSlides.map(slide => slide.variant), ["cover", "contents", "body"], "Sample contains cover, contents and body in order");
 assert.ok(sampleSlides[1].title && sampleSlides[1].body.includes("03"), "Contents slide retains its title and three items");
+assert.ok(courseSlideClassName(sampleSlides[1]).split(" ").includes("course-variant-contents"), "Contents slide uses a namespaced style");
+assert.ok(!courseSlideClassName(sampleSlides[1]).split(" ").includes("contents"), "Contents slide avoids the display:contents utility");
+for (const [index, slide] of sampleSlides.entries()) {
+  for (const editable of [false, true]) {
+    const html = renderToStaticMarkup(<CourseSlidePreview slide={slide} pageNumber={index + 1} editable={editable} />);
+    assert.ok(html.includes(courseSlideClassName(slide)) && html.includes(slide.title), "Each sample slide renders its own bounded preview and title");
+    assert.ok(html.includes(slide.body.split("\n")[0]), "Each sample slide renders its body");
+  }
+}
 assert.deepEqual([sampleProgressAt(0), sampleProgressAt(4000), sampleProgressAt(8000), sampleProgressAt(10000)], [0, 1, 3, 3], "Sample progress is bounded and completes");
 assert.deepEqual(toggleReference(["a", "b", "c"], "d"), ["a", "b", "c"], "At most three references");
 assert.deepEqual(toggleReference(["a", "b", "c"], "b"), ["a", "c"], "Selected reference can be removed");
