@@ -3,6 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // 비밀번호 잠금: 이 탭에서 비밀번호를 넣은 적이 없으면 다시 잠금 화면으로 (새 탭·창마다 묻기)
+      (function () {
+        var h = location.hostname;
+        if (h === "localhost" || h === "127.0.0.1" || h === "[::1]") return;
+        var ok = false;
+        try { ok = sessionStorage.getItem("da_unlocked") === "1"; } catch (e) {}
+        if (!ok) location.replace("/__logout?next=" + encodeURIComponent(location.pathname + location.search + location.hash));
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />

@@ -72,7 +72,17 @@ export function NavigationDrawer({
         </nav>
         <div className="drawer-bottom">
           <span>내가 등록한 작업 {myUploadsCount}개</span>
-          <a className="drawer-lock" href="/__logout">
+          <a
+            className="drawer-lock"
+            href="/__logout"
+            onClick={() => {
+              try {
+                sessionStorage.removeItem("da_unlocked");
+              } catch {
+                /* 무시 */
+              }
+            }}
+          >
             잠그기
           </a>
           <details>

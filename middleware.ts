@@ -3,7 +3,9 @@
  *
  * - 비밀번호는 Vercel 프로젝트 환경 변수 SITE_PASSWORD 로 정한다.
  *   (설정 전에는 아래 DEFAULT_PASSWORD 로 열린다)
- * - 맞으면 30일 동안 기억하는 쿠키를 주고, 그동안은 다시 묻지 않는다.
+ * - 맞으면 '세션 쿠키'를 준다 (브라우저를 닫으면 사라짐, 최대 12시간).
+ *   여기에 더해 앱이 탭마다 확인 표시(sessionStorage)를 보고, 없으면 /__logout 으로 보내
+ *   새 탭·창으로 다시 들어올 때마다 비밀번호를 묻는다. (새로고침은 그대로 통과)
  * - /__logout 으로 가면 잠금 상태로 돌아간다.
  * - 비밀번호를 바꾸면 기존 쿠키는 모두 무효가 된다.
  */
@@ -16,7 +18,7 @@ export const config = {
 
 const DEFAULT_PASSWORD = "design2026!";
 const COOKIE = "da_gate";
-const MAX_AGE = 60 * 60 * 24 * 30;
+const MAX_AGE = 60 * 60 * 12;
 
 const env = (k: string): string | undefined =>
   (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.[k];
@@ -32,12 +34,26 @@ async function tokenOf(password: string) {
 /** 같은 사이트 안의 경로만 돌아갈 곳으로 허용 */
 const safeNext = (v: string) => (v.startsWith("/") && !v.startsWith("//") ? v : "/");
 
-const cookieHeader = (value: string, maxAge: number) =>
-  `${COOKIE}=${value}; Path=/; Max-Age=${maxAge}; HttpOnly; Secure; SameSite=Lax`;
+/** maxAge 없이 주면 세션 쿠키 (브라우저를 닫으면 사라짐). 서버 쪽 만료는 쿠키 값의 시각으로 확인 */
+const cookieHeader = (value: string, maxAge?: number) =>
+  `${COOKIE}=${value}; Path=/;${maxAge !== undefined ? ` Max-Age=${maxAge};` : ""} HttpOnly; Secure; SameSite=Strict`;
+
+async function sign(issuedAt: number, secret: string) {
+  return `${issuedAt}.${await tokenOf(`${secret}:${issuedAt}`)}`;
+}
+
+async function isValid(value: string | undefined, secret: string) {
+  if (!value) return false;
+  const [at] = value.split(".");
+  const issuedAt = Number(at);
+  if (!issuedAt || Date.now() - issuedAt > MAX_AGE * 1000) return false;
+  return value === (await sign(issuedAt, secret));
+}
 
 export default async function middleware(request: Request) {
   const url = new URL(request.url);
-  const expected = await tokenOf(env("SITE_PASSWORD") || DEFAULT_PASSWORD);
+  const password = env("SITE_PASSWORD") || DEFAULT_PASSWORD;
+  const expected = await tokenOf(password);
 
   if (url.pathname === "/__login" && request.method === "POST") {
     const form = await request.formData();
@@ -46,7 +62,7 @@ export default async function middleware(request: Request) {
     if ((await tokenOf(password)) === expected) {
       return new Response(null, {
         status: 303,
-        headers: { Location: back, "Set-Cookie": cookieHeader(expected, MAX_AGE), "Cache-Control": "no-store" },
+        headers: { Location: back, "Set-Cookie": cookieHeader(await sign(Date.now(), expected)), "Cache-Control": "no-store" },
       });
     }
     // 틀리면 조금 기다렸다가 다시 묻는다 (마구 대입 방지)
@@ -55,14 +71,24 @@ export default async function middleware(request: Request) {
   }
 
   if (url.pathname === "/__logout") {
+    const back = safeNext(url.searchParams.get("next") ?? "/");
     return new Response(null, {
       status: 303,
-      headers: { Location: "/", "Set-Cookie": cookieHeader("", 0), "Cache-Control": "no-store" },
+      headers: {
+        Location: `/__login?next=${encodeURIComponent(back)}`,
+        "Set-Cookie": cookieHeader("", 0),
+        "Cache-Control": "no-store",
+      },
     });
   }
 
-  const cookies = (request.headers.get("cookie") ?? "").split(/;\s*/);
-  if (cookies.includes(`${COOKIE}=${expected}`)) return next();
+  if (url.pathname === "/__login") return loginPage(false);
+
+  const value = (request.headers.get("cookie") ?? "")
+    .split(/;\s*/)
+    .find((c) => c.startsWith(`${COOKIE}=`))
+    ?.slice(COOKIE.length + 1);
+  if (await isValid(value, expected)) return next();
 
   return loginPage(false);
 }
@@ -138,10 +164,12 @@ function loginPage(wrong: boolean) {
     <small>비밀번호는 디자인팀에 문의해 주세요.</small>
   </main>
   <script>
-    // 보던 화면(# 주소 포함)으로 돌아가도록
+    // 보던 화면(# 주소 포함)으로 돌아가도록, 그리고 이 탭은 열어 둔 것으로 표시
     document.getElementById("f").addEventListener("submit", function () {
-      var p = location.pathname === "/__login" ? "/" : location.pathname;
-      document.getElementById("next").value = p + location.search + location.hash;
+      var q = new URLSearchParams(location.search).get("next");
+      document.getElementById("next").value =
+        q || (location.pathname === "/__login" ? "/" : location.pathname + location.search + location.hash);
+      try { sessionStorage.setItem("da_unlocked", "1"); } catch (e) {}
     });
   </script>
 </body>
