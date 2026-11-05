@@ -4,7 +4,7 @@ import { PageTitle } from "../components/Chrome";
 import { DesignThumbnail } from "../components/DesignThumbnail";
 import { DesignAsset } from "../types";
 
-type Slide = { id: number; title: string; body: string; layout: "basic" | "split" | "reference" };
+type Slide = { id: number; title: string; body: string; layout: "basic" | "split" | "reference"; variant?: "cover" | "contents" | "body" };
 const makeSlide = (id: number): Slide => ({ id, title: "", body: "", layout: "basic" });
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] || c));
 export const toggleReference = (ids: string[], id: string) =>
@@ -17,7 +17,7 @@ export function CourseStudioView({ onBack, allAssets }: { onBack: () => void; al
   const [sourceFile, setSourceFile] = useState<File | null>(null);
   const [sampleSource, setSampleSource] = useState(false);
   const [samplePreview, setSamplePreview] = useState(false);
-  const [showOriginal, setShowOriginal] = useState(false);
+  const [stage, setStage] = useState<"preview" | "review">("preview");
   const [sourceError, setSourceError] = useState("");
   const [search, setSearch] = useState("");
   const [referencePage, setReferencePage] = useState(0);
@@ -27,7 +27,6 @@ export function CourseStudioView({ onBack, allAssets }: { onBack: () => void; al
   const [instructions, setInstructions] = useState("");
   const [exclusions, setExclusions] = useState("");
   const selectedReferences = referenceIds.map(id => allAssets.find(asset => asset.id === id)).filter((asset): asset is DesignAsset => Boolean(asset));
-  const exampleReference = allAssets.find(asset => asset.id === "asset-1");
   const query = search.trim().toLocaleLowerCase();
   const matches = allAssets.filter(asset => !query || [asset.id, asset.title, asset.project, asset.requestNo || "", asset.type].some(value => value.toLocaleLowerCase().includes(query)));
   const visibleReferences = matches.slice(referencePage * 4, referencePage * 4 + 4);
@@ -46,11 +45,12 @@ export function CourseStudioView({ onBack, allAssets }: { onBack: () => void; al
     setInstructions("색채학 레퍼런스의 파란 배경과 노란 원을 참고하고, 제목은 흰색의 굵은 글자로 크게 만들어 주세요.");
     setExclusions("사진과 화려한 그라데이션은 제외해 주세요.");
     setSlides([
-      { id: -1, title: "고객 응대의 기본", body: "고객의 말을 끝까지 듣고,\n문의 내용을 정확히 확인합니다.\n\n공감  ·  확인  ·  안내", layout: "reference" },
-      { id: -2, title: "고객 응대 3단계", body: "01  먼저 듣고 공감하기\n02  문의 내용과 상황 확인하기\n03  해결 방법을 쉽게 안내하기", layout: "reference" },
+      { id: -1, title: "고객 응대의 기본", body: "고객의 마음을 이해하는 첫걸음\n고객 서비스 교육 교안", layout: "reference", variant: "cover" },
+      { id: -2, title: "오늘의 학습 순서", body: "01  고객 응대의 기본\n02  경청과 공감의 방법\n03  문의 확인과 해결 안내", layout: "reference", variant: "contents" },
+      { id: -3, title: "경청에서 시작하는 상담", body: "고객의 말을 끝까지 듣고\n문의 내용을 정확히 확인합니다.\n\n공감  ·  확인  ·  안내", layout: "reference", variant: "body" },
     ]);
     setCurrentId(-1);
-    setShowOriginal(false);
+    setStage("preview");
     setManualStarted(true);
     setOpenSection(null);
   };
@@ -66,21 +66,37 @@ export function CourseStudioView({ onBack, allAssets }: { onBack: () => void; al
     setSlides(remaining);
     setCurrentId(remaining[0].id);
   };
+  const slidePreview = (editable: boolean) => (
+    <div className={`course-preview ${current.layout} ${current.variant || ""}`}>
+      <div className="course-preview-inner">
+        <span>학습 교안 · {String(slides.findIndex(s => s.id === current.id) + 1).padStart(2, "0")}</span>
+        {editable
+          ? <h3 key={`title-${current.id}`} contentEditable suppressContentEditableWarning role="textbox" aria-label="교안 제목 수정" data-placeholder="제목을 입력하세요" onBlur={event => update({title: event.currentTarget.innerText})}>{current.title}</h3>
+          : <h3>{current.title || "제목을 입력하세요"}</h3>}
+        <div className="course-preview-line"/>
+        {editable
+          ? <p key={`body-${current.id}`} contentEditable suppressContentEditableWarning role="textbox" aria-multiline="true" aria-label="교안 본문 수정" data-placeholder="학습 내용을 입력하세요" onBlur={event => update({body: event.currentTarget.innerText})}>{current.body}</p>
+          : <p>{current.body || "학습 내용을 입력하세요"}</p>}
+        {current.layout === "reference" && <div className="reference-decor" aria-hidden="true"><i/><i/><i/></div>}
+      </div>
+    </div>
+  );
   const print = () => {
     const win = window.open("", "_blank");
     if (!win) { setPrintError("인쇄 창을 열지 못했어요. 브라우저의 팝업 차단을 해제해 주세요."); return; }
     setPrintError("");
     const pages = slides.map((slide, index) => slide.layout === "reference"
-      ? `<article class="reference"><div class="reference-hero"><div class="kicker">학습 교안 · ${String(index + 1).padStart(2, "0")}</div><h1>${escapeHtml(slide.title || "제목을 입력해 주세요")}</h1><span class="reference-circle"></span></div><div class="reference-body"><p>${escapeHtml(slide.body || "학습 내용을 입력해 주세요")}</p><div class="reference-chips"><i></i><i></i><i></i></div></div></article>`
+      ? `<article class="reference ${slide.variant || ""}"><div class="reference-hero"><div class="kicker">학습 교안 · ${String(index + 1).padStart(2, "0")}</div><h1>${escapeHtml(slide.title || "제목을 입력해 주세요")}</h1><span class="reference-circle"></span></div><div class="reference-body"><p>${escapeHtml(slide.body || "학습 내용을 입력해 주세요")}</p><div class="reference-chips"><i></i><i></i><i></i></div></div></article>`
       : `<article class="${slide.layout}"><div class="kicker">학습 교안 · ${String(index + 1).padStart(2, "0")}</div><h1>${escapeHtml(slide.title || "제목을 입력해 주세요")}</h1><div class="line"></div><p>${escapeHtml(slide.body || "학습 내용을 입력해 주세요")}</p></article>`).join("");
-    win.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>교안 미리보기</title><style>@page{size:landscape;margin:0}*{box-sizing:border-box}body{margin:0;font-family:Pretendard,"Malgun Gothic",sans-serif}article{min-height:100vh;padding:7%;page-break-after:always;print-color-adjust:exact;-webkit-print-color-adjust:exact}article:last-child{page-break-after:auto}.kicker{font-size:15px;color:#246bfd;font-weight:700}h1{font-size:46px;margin:32px 0 24px;word-break:keep-all}.line{width:55px;height:5px;background:#246bfd;margin-bottom:35px}p{font-size:24px;line-height:1.7;white-space:pre-wrap;word-break:keep-all}.split{background:linear-gradient(90deg,#f4f7ff 36%,white 36%)}article.reference{padding:0}.reference-hero{position:relative;background:#6e9bf7;color:white;padding:6% 7%;min-height:42vh}.reference-hero h1{position:relative;z-index:1;color:white;max-width:72%;font-size:54px}.reference-hero .kicker{color:white}.reference-circle{position:absolute;right:8%;top:15%;width:120px;height:120px;border-radius:50%;background:#f5cc55}.reference-body{padding:3% 7%}.reference-body p{font-size:22px;margin:0}.reference-chips{display:flex;gap:12px;margin-top:20px}.reference-chips i{width:54px;height:35px;border-radius:5px;background:#f5cc55}.reference-chips i:nth-child(2){background:#6e9bf7}.reference-chips i:nth-child(3){background:#efeae4}</style></head><body>${pages}</body></html>`);
+    win.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>교안 미리보기</title><style>@page{size:landscape;margin:0}*{box-sizing:border-box}body{margin:0;font-family:Pretendard,"Malgun Gothic",sans-serif}article{min-height:100vh;padding:7%;page-break-after:always;print-color-adjust:exact;-webkit-print-color-adjust:exact}article:last-child{page-break-after:auto}.kicker{font-size:15px;color:#246bfd;font-weight:700}h1{font-size:46px;margin:32px 0 24px;word-break:keep-all}.line{width:55px;height:5px;background:#246bfd;margin-bottom:35px}p{font-size:24px;line-height:1.7;white-space:pre-wrap;word-break:keep-all}.split{background:linear-gradient(90deg,#f4f7ff 36%,white 36%)}article.reference{padding:0}.reference-hero{position:relative;background:#6e9bf7;color:white;padding:6% 7%;min-height:42vh}.reference-hero h1{position:relative;z-index:1;color:white;max-width:72%;font-size:54px}.reference-hero .kicker{color:white}.reference-circle{position:absolute;right:8%;top:15%;width:120px;height:120px;border-radius:50%;background:#f5cc55}.reference-body{padding:3% 7%}.reference-body p{font-size:22px;margin:0}.reference-chips{display:flex;gap:12px;margin-top:20px}.reference-chips i{width:54px;height:35px;border-radius:5px;background:#f5cc55}.reference-chips i:nth-child(2){background:#6e9bf7}.reference-chips i:nth-child(3){background:#efeae4}.reference.cover{background:#6e9bf7}.reference.cover .reference-body{background:#6e9bf7;color:white}.reference.cover .reference-chips i:nth-child(2){background:white}</style></head><body>${pages}</body></html>`);
     win.document.close();
     win.focus();
     win.print();
   };
   return (
     <main className="page-shell course-studio">
-      <PageTitle title="교안 만들기" subtitle="기획 교안과 참고 디자인을 선택하고 원하는 방향을 정리해 보세요." onBack={onBack} />
+      <PageTitle title={stage === "preview" ? "교안 만들기" : "교안 검토 · 내용 수정"} subtitle={stage === "preview" ? "기획 교안과 참고 디자인을 선택하고 디자인 방향을 확인해 보세요." : "페이지를 선택하고 제목이나 내용을 직접 수정해 보세요."} onBack={stage === "preview" ? onBack : () => setStage("preview")} />
+      {stage === "preview" ? <>
       <div className="course-notice"><FileText size={18}/><span>현재는 제작 준비 화면입니다. AI 분석과 자동 생성은 아직 연결되지 않았어요.</span><button type="button" className="sample-start" onClick={loadSample}>샘플로 사용해 보기</button></div>
       <div className="course-workspace">
         <section className="course-editor" aria-label="교안 편집">
@@ -117,32 +133,24 @@ export function CourseStudioView({ onBack, allAssets }: { onBack: () => void; al
           </div>
           <button type="button" className="btn btn-primary course-pending" disabled>AI 교안 만들기 · 연결 준비 중</button><p className="brief-hint">입력한 요청은 아직 AI로 전송되지 않으며 미리보기에 적용되지 않습니다.</p>
         </section>
-        <section className="course-preview-panel" aria-label="교안 미리보기">
-          <div className="course-panel-heading"><div><span className="course-overline">{samplePreview ? "샘플 결과 · 직접 편집" : manualStarted ? "기본 템플릿 · 직접 편집" : "디자인 결과"}</span><h2>미리보기</h2></div><span className="course-preview-label">16:9</span></div>
-          {!manualStarted ? <div className="course-preview-empty"><FileText size={28}/><strong>만들어진 교안을 이곳에서 확인해요</strong><p>AI 교안 생성은 준비 중이에요.<br/>기본 템플릿으로 직접 편집을 체험할 수 있습니다.</p><button type="button" className="btn" onClick={() => setManualStarted(true)}>기본 템플릿 열기</button></div> : <>
-          <div className="course-slide-list" aria-label="교안 페이지">
-            {slides.map((slide, index) => <button key={slide.id} type="button" className={slide.id === current.id ? "active" : ""} aria-pressed={slide.id === current.id} onClick={() => setCurrentId(slide.id)}>{index + 1}페이지</button>)}
-            <button type="button" onClick={addSlide} aria-label="페이지 추가"><Plus size={15}/> 추가</button>
+        <section className="course-design-stage" aria-label="디자인 방향 미리보기">
+          <div className="course-panel-heading"><div><span className="course-overline">디자인 방향</span><h2>미리보기</h2></div><span className="course-preview-label">{samplePreview ? "샘플 예시 · 16:9" : "16:9"}</span></div>
+          <div className="course-preview-panel">
+            {manualStarted ? slidePreview(false) : <div className="course-preview-empty"><FileText size={28}/><strong>디자인 예시가 여기에 표시됩니다</strong><p>샘플로 표지·목차·본문을 확인해 보세요.</p></div>}
           </div>
-          {samplePreview && <>
-            <div className="sample-reference-link">{exampleReference && <div className="sample-ref-image"><DesignThumbnail asset={exampleReference}/></div>}<div><strong>참고한 디자인 · 색채학 과정 상세페이지</strong><span>파란 배경 · 흰색 굵은 제목 · 노란 원형 포인트</span></div></div>
-            <div className="sample-compare" aria-label="샘플 전후 비교"><button type="button" className={showOriginal ? "active" : ""} aria-pressed={showOriginal} onClick={() => setShowOriginal(true)}>원본 교안</button><button type="button" className={!showOriginal ? "active" : ""} aria-pressed={!showOriginal} onClick={() => setShowOriginal(false)}>디자인 적용 예시</button></div>
-            <p className="sample-guide">미리 제작한 전후 예시예요. 선택이나 요청을 바꿔도 자동으로 다시 생성되지는 않습니다.</p>
-          </>}
-          <p className="brief-hint preview-instruction">{showOriginal && samplePreview ? "원본의 단순한 텍스트 구성을 보여주는 예시예요." : "제목이나 본문을 눌러 화면에서 직접 수정하세요."}</p>
-          {samplePreview && showOriginal
-            ? <div className="course-preview sample-original"><div className="original-label">기획 교안 · {String(slides.findIndex(s => s.id === current.id) + 1).padStart(2, "0")}</div><h3>{current.title || "제목을 입력하세요"}</h3><p>{current.body || "학습 내용을 입력하세요"}</p></div>
-            : <div className={`course-preview ${current.layout}`}><div className="course-preview-inner"><span>학습 교안 · {String(slides.findIndex(s => s.id === current.id) + 1).padStart(2, "0")}</span><h3 key={`title-${current.id}`} contentEditable suppressContentEditableWarning role="textbox" aria-label="교안 제목 수정" data-placeholder="제목을 입력하세요" onBlur={event => update({title: event.currentTarget.innerText})}>{current.title}</h3><div className="course-preview-line"/><p key={`body-${current.id}`} contentEditable suppressContentEditableWarning role="textbox" aria-multiline="true" aria-label="교안 본문 수정" data-placeholder="학습 내용을 입력하세요" onBlur={event => update({body: event.currentTarget.innerText})}>{current.body}</p>{current.layout === "reference" && <div className="reference-decor" aria-hidden="true"><i/><i/><i/></div>}</div></div>}
-          <div className="preview-controls"><div className="course-template-title">템플릿 선택</div><div className="course-templates">
-            <button type="button" className={current.layout === "basic" ? "active" : ""} aria-pressed={current.layout === "basic"} onClick={() => update({ layout: "basic" })}><span className="template-icon"><i/><i/><i/></span><strong>기본형</strong><small>제목과 내용을 간결하게</small></button>
-            <button type="button" className={current.layout === "split" ? "active" : ""} aria-pressed={current.layout === "split"} onClick={() => update({ layout: "split" })}><span className="template-icon split"><i/><i/><i/></span><strong>분할형</strong><small>여백으로 구성을 나누어</small></button>
-            {samplePreview && <button type="button" className={current.layout === "reference" ? "active" : ""} aria-pressed={current.layout === "reference"} onClick={() => { update({ layout: "reference" }); setShowOriginal(false); }}><span className="template-icon ref"><i/><i/><i/></span><strong>레퍼런스형</strong><small>샘플에 맞춰 제작</small></button>}
-          </div><button type="button" className="course-remove" onClick={removeSlide} disabled={slides.length === 1}><Trash2 size={15}/> 현재 페이지 삭제</button></div>
-          <div className="course-preview-bottom"><p>인쇄 화면에서 PDF로 저장할 수 있어요.<br/>입력 내용은 페이지를 벗어나거나 새로고침하면 사라집니다.</p><button type="button" className="btn btn-primary" onClick={print}><Printer size={16}/> 인쇄 · PDF 저장</button></div>
-          <p role="status" className="course-error">{printError}</p>
-          </>}
+          {samplePreview ? <>
+            <div className="course-slide-list sample-slides" aria-label="샘플 디자인 페이지">{slides.map((slide, index) => <button key={slide.id} type="button" className={slide.id === current.id ? "active" : ""} aria-pressed={slide.id === current.id} onClick={() => setCurrentId(slide.id)}>{slide.variant === "cover" ? "표지" : slide.variant === "contents" ? "목차" : slide.variant === "body" ? "본문" : `${index + 1}페이지`}</button>)}</div>
+            <div className="stage-action"><p>미리 제작한 3장 예시입니다. 변경한 요청으로 자동 생성되지는 않아요.</p><button type="button" className="btn btn-primary" onClick={() => setStage("review")}>샘플 확정 · 내용 수정</button></div>
+          </> : <div className="stage-action"><p>AI 디자인 생성은 연결 준비 중입니다.</p><button type="button" className="btn" onClick={() => { setManualStarted(true); setStage("review"); }}>기본 교안 직접 편집</button></div>}
         </section>
       </div>
+      </> : <>
+        <div className="course-notice"><FileText size={18}/><span>{samplePreview ? "미리 제작한 샘플 3장입니다. 실제 전체 교안 자동 생성은 아직 연결되지 않았어요." : "기본 교안을 직접 편집하는 화면입니다. 자동 생성은 연결되지 않았어요."}</span></div>
+        <div className="course-review">
+          <aside className="review-pages" aria-label="교안 페이지"><h2>페이지 <span>{slides.length}</span></h2><div className="review-pages-list">{slides.map((slide, index) => <button key={slide.id} type="button" className={slide.id === current.id ? "active" : ""} aria-pressed={slide.id === current.id} onClick={() => setCurrentId(slide.id)}><span>{String(index + 1).padStart(2, "0")}</span><strong>{slide.title || "새 페이지"}</strong></button>)}</div><button type="button" className="review-add" onClick={addSlide}><Plus size={16}/> 페이지 추가</button></aside>
+          <section className="review-work" aria-label="페이지 내용 편집"><div className="review-topline"><div><strong>{slides.findIndex(s => s.id === current.id) + 1}페이지</strong><span>텍스트를 눌러 직접 수정하세요</span></div><button type="button" className="course-remove" onClick={removeSlide} disabled={slides.length === 1}><Trash2 size={15}/> 페이지 삭제</button></div><div className="review-canvas">{slidePreview(true)}</div><div className="review-actions"><p>수정한 내용은 새로고침하면 사라집니다.</p><button type="button" className="btn btn-primary" onClick={print}><Printer size={16}/> 인쇄 · PDF 저장</button></div><p role="status" className="course-error">{printError}</p></section>
+        </div>
+      </>}
     </main>
   );
 }
