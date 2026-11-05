@@ -100,72 +100,155 @@ function loginPage(wrong: boolean) {
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex, nofollow" />
+<meta name="theme-color" content="#f2f2f2" />
 <title>디자인 자산 아카이브</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <style>
-  :root { --blue: #0071e3; }
   * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
   body {
-    min-height: 100vh; display: grid; place-items: center; padding: 24px;
+    min-height: 100vh; display: grid; place-items: center; padding: 24px; overflow: hidden;
     font-family: Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
-    background: radial-gradient(1200px 600px at 50% -10%, #e8f1fd 0%, #fff 60%);
-    color: #1d1d1f; -webkit-font-smoothing: antialiased;
+    background: #efefef; color: #1d1d1f; -webkit-font-smoothing: antialiased;
+  }
+  /* 배경: 아래쪽 검은 언덕 + 은은한 핑크 원 */
+  .hill {
+    position: fixed; left: -10vw; right: -10vw; bottom: -38vh; height: 70vh;
+    background: #1d1d1f; border-radius: 50% 50% 0 0 / 40% 40% 0 0; transform: rotate(-4deg);
+  }
+  .sun {
+    position: fixed; width: 220px; height: 220px; border-radius: 50%;
+    left: calc(50% - 330px); top: calc(50% - 250px);
+    background: radial-gradient(circle at 40% 40%, #f6c9c4, #fde9e6 60%, rgba(253,233,230,0) 72%);
   }
   .card {
-    width: 100%; max-width: 380px; text-align: center;
-    padding: 40px 32px 32px; border-radius: 28px;
-    background: rgba(255,255,255,.85); backdrop-filter: blur(20px);
-    box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 24px 60px rgba(0,0,0,.08);
+    position: relative; width: 100%; max-width: 360px; text-align: center;
+    padding: 44px 30px 30px; border-radius: 40px; background: #fff;
+    box-shadow: 0 30px 80px rgba(0,0,0,.14), 0 2px 6px rgba(0,0,0,.04);
   }
-  .logo { width: 64px; height: 64px; margin: 0 auto 20px; display: block; }
-  h1 { font-size: 24px; font-weight: 700; letter-spacing: -.03em; }
-  p { margin-top: 8px; font-size: 14px; color: #6e6e73; line-height: 1.5; }
-  form { margin-top: 26px; display: grid; gap: 10px; }
+  /* 캐릭터: 열쇠를 든 검은 폴더 */
+  .buddy { width: 168px; height: 150px; margin: 0 auto 18px; display: block; overflow: visible; }
+  .bob { animation: bob 2.6s ease-in-out infinite; transform-origin: 80px 120px; }
+  @keyframes bob { 50% { transform: translateY(-6px); } }
+  .shadow { animation: shadow 2.6s ease-in-out infinite; transform-origin: 80px 138px; }
+  @keyframes shadow { 50% { transform: scaleX(.86); opacity: .7; } }
+  .eyes { transition: transform .25s ease; }
+  .lid { transform-origin: center; transform-box: fill-box; animation: blink 4.2s infinite; }
+  @keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(.1); } }
+  .key { animation: key 2.6s ease-in-out infinite; transform-origin: 130px 92px; }
+  @keyframes key { 50% { transform: rotate(-10deg); } }
+  .sparkle { animation: twinkle 1.8s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+  .sparkle.s2 { animation-delay: .9s; }
+  @keyframes twinkle { 50% { transform: scale(.4); opacity: .3; } }
+  .sweat, .x-eye { opacity: 0; transition: opacity .2s; }
+  body.typing .eyes { transform: translate(-4px, 5px); }
+  body.wrong .open-eye { opacity: 0; }
+  body.wrong .x-eye, body.wrong .sweat { opacity: 1; }
+  body.wrong .bob { animation: shake .45s ease 1, bob 2.6s ease-in-out .45s infinite; }
+  @keyframes shake { 20% { transform: translateX(-7px) rotate(-4deg); } 60% { transform: translateX(7px) rotate(4deg); } }
+  body.ok .bob { animation: hop .5s ease forwards; }
+  @keyframes hop { 40% { transform: translateY(-18px); } 100% { transform: translateY(0); } }
+
+  h1 { font-size: 22px; font-weight: 800; letter-spacing: -.035em; }
+  .lead { margin-top: 8px; font-size: 14px; line-height: 1.55; color: #6e6e73; }
+  form { margin-top: 26px; display: grid; gap: 12px; }
   .field { position: relative; }
-  input {
-    width: 100%; height: 52px; padding: 0 52px 0 18px;
-    border: 1px solid ${wrong ? "#ff3b30" : "#d2d2d7"}; border-radius: 14px;
-    font: inherit; font-size: 16px; background: #fff; outline: none;
+  input[type=password], input[type=text] {
+    width: 100%; height: 56px; padding: 0 52px 0 22px;
+    border: 2px solid transparent; border-radius: 18px; background: #f2f2f2;
+    font: inherit; font-size: 16px; color: #1d1d1f; outline: none; transition: border-color .2s, background .2s;
   }
-  input:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgba(0,113,227,.15); }
+  input:focus { background: #fff; border-color: #1d1d1f; }
+  body.wrong input { border-color: #ff4d4f; background: #fff; }
+  .peek {
+    position: absolute; right: 10px; top: 10px; width: 36px; height: 36px; border: 0; border-radius: 12px;
+    background: transparent; color: #8e8e93; display: grid; place-items: center; cursor: pointer;
+  }
+  .peek:hover { background: #e8e8ed; color: #1d1d1f; }
   .go {
-    position: absolute; right: 6px; top: 6px; width: 40px; height: 40px;
-    border: 0; border-radius: 50%; background: #1d1d1f; color: #fff;
-    display: grid; place-items: center; cursor: pointer;
+    height: 56px; border: 0; border-radius: 18px; background: #1d1d1f; color: #fff;
+    font: inherit; font-size: 16px; font-weight: 700; cursor: pointer;
+    box-shadow: 0 10px 24px rgba(0,0,0,.18); transition: transform .15s, background .2s;
   }
-  .go:hover { background: var(--blue); }
-  .err { font-size: 13px; color: #e5254d; min-height: 18px; }
-  .shake { animation: shake .35s; }
-  @keyframes shake { 25% { transform: translateX(-6px) } 75% { transform: translateX(6px) } }
-  small { display: block; margin-top: 18px; font-size: 12px; color: #aeaeb2; }
+  .go:hover { background: #000; transform: translateY(-1px); }
+  .go:active { transform: translateY(1px); }
+  .msg { min-height: 18px; margin: -4px 0 -2px; font-size: 13px; color: #ff4d4f; font-weight: 600; }
+  .help { margin-top: 18px; font-size: 13px; color: #8e8e93; }
+  .help b { color: #1d1d1f; font-weight: 600; }
+  @media (max-width: 480px) {
+    body { padding: 16px; }
+    .card { padding: 36px 22px 24px; border-radius: 32px; }
+    .sun { left: -60px; top: 40px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
 </style>
 </head>
-<body>
-  <main class="card${wrong ? " shake" : ""}">
-    <svg class="logo" viewBox="0 0 64 64" aria-hidden="true">
-      <rect width="64" height="64" rx="15" fill="#0071e3"/>
-      <g transform="rotate(-10 32 32)" fill="#fff">
-        <rect x="16" y="16" width="14" height="14" rx="3.5"/><rect x="34" y="16" width="14" height="14" rx="3.5"/>
-        <rect x="16" y="34" width="14" height="14" rx="3.5"/><circle cx="41" cy="41" r="7"/>
+<body class="${wrong ? "wrong" : ""}">
+  <div class="sun" aria-hidden="true"></div>
+  <div class="hill" aria-hidden="true"></div>
+  <main class="card">
+    <svg class="buddy" viewBox="0 0 168 150" aria-hidden="true">
+      <ellipse class="shadow" cx="80" cy="138" rx="46" ry="6" fill="#e6e6e6" />
+      <g class="bob">
+        <!-- 다리 -->
+        <rect x="54" y="116" width="12" height="18" rx="6" fill="#1d1d1f" />
+        <rect x="92" y="116" width="12" height="18" rx="6" fill="#1d1d1f" />
+        <!-- 폴더 뒤판(탭) -->
+        <path d="M30 48 a12 12 0 0 1 12 -12 h22 a8 8 0 0 1 6 3 l7 8 h41 a12 12 0 0 1 12 12 v10 h-100 z" fill="#3a3a3c" />
+        <!-- 안에 꽂힌 종이 -->
+        <rect x="44" y="40" width="40" height="26" rx="4" fill="#fff" transform="rotate(-8 64 53)" />
+        <rect x="76" y="38" width="38" height="28" rx="4" fill="#f6c9c4" transform="rotate(7 95 52)" />
+        <!-- 폴더 앞판 -->
+        <path d="M28 62 a6 6 0 0 1 6 -6 h92 a6 6 0 0 1 6 6 v48 a16 16 0 0 1 -16 16 h-72 a16 16 0 0 1 -16 -16 z" fill="#1d1d1f" />
+        <!-- 눈 -->
+        <g class="eyes">
+          <g class="open-eye">
+            <g class="lid"><ellipse cx="64" cy="86" rx="10" ry="11" fill="#fff" /><circle cx="66" cy="88" r="5" fill="#1d1d1f" /><circle cx="68" cy="85" r="1.8" fill="#fff" /></g>
+            <g class="lid"><ellipse cx="96" cy="86" rx="10" ry="11" fill="#fff" /><circle cx="98" cy="88" r="5" fill="#1d1d1f" /><circle cx="100" cy="85" r="1.8" fill="#fff" /></g>
+          </g>
+          <g class="x-eye" stroke="#fff" stroke-width="3.4" stroke-linecap="round">
+            <path d="M57 80 l13 12 M70 80 l-13 12" /><path d="M89 80 l13 12 M102 80 l-13 12" />
+          </g>
+        </g>
+        <ellipse cx="54" cy="102" rx="6" ry="3.5" fill="#ff8b8b" opacity=".55" />
+        <ellipse cx="106" cy="102" rx="6" ry="3.5" fill="#ff8b8b" opacity=".55" />
+        <path class="sweat" d="M24 66 q6 9 0 13 q-6 -4 0 -13z" fill="#8cc3fa" />
+        <!-- 열쇠 든 팔 -->
+        <g class="key">
+          <path d="M130 92 q14 -2 16 -24" fill="none" stroke="#1d1d1f" stroke-width="8" stroke-linecap="round" />
+          <circle cx="148" cy="44" r="11" fill="none" stroke="#ffcc33" stroke-width="6" />
+          <path d="M147 56 l-1 12 M146 62 h-6" stroke="#ffcc33" stroke-width="6" stroke-linecap="round" />
+        </g>
       </g>
+      <path class="sparkle" d="M22 30 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3z" fill="#ffcc33" />
+      <path class="sparkle s2" d="M152 92 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2z" fill="#1d1d1f" />
     </svg>
     <h1>디자인 자산 아카이브</h1>
-    <p>사내 전용 페이지예요.<br />비밀번호를 입력해 주세요.</p>
+    <p class="lead">사내 전용 공간이에요.<br />비밀번호를 넣으면 문이 열려요.</p>
     <form method="post" action="/__login" id="f">
       <div class="field">
-        <input type="password" name="password" placeholder="비밀번호" autocomplete="current-password" autofocus required aria-label="비밀번호" />
-        <button class="go" type="submit" aria-label="들어가기">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        <input id="pw" type="password" name="password" placeholder="비밀번호" autocomplete="current-password" autofocus required aria-label="비밀번호" />
+        <button class="peek" type="button" id="peek" aria-label="비밀번호 보기">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
       </div>
+      <p class="msg" role="alert">${wrong ? "앗, 비밀번호가 달라요. 다시 입력해 주세요." : ""}</p>
+      <button class="go" type="submit">들어가기</button>
       <input type="hidden" name="next" id="next" value="/" />
-      <div class="err" role="alert">${wrong ? "비밀번호가 맞지 않아요." : ""}</div>
     </form>
-    <small>비밀번호는 디자인팀에 문의해 주세요.</small>
+    <p class="help">비밀번호를 모르면 <b>디자인팀</b>에 물어봐 주세요</p>
   </main>
   <script>
+    var b = document.body, pw = document.getElementById("pw");
+    pw.addEventListener("focus", function () { b.classList.add("typing"); });
+    pw.addEventListener("blur", function () { b.classList.remove("typing"); });
+    pw.addEventListener("input", function () { b.classList.remove("wrong"); });
+    document.getElementById("peek").addEventListener("click", function () {
+      pw.type = pw.type === "password" ? "text" : "password"; pw.focus();
+    });
     // 보던 화면(# 주소 포함)으로 돌아가도록, 그리고 이 탭은 열어 둔 것으로 표시
     document.getElementById("f").addEventListener("submit", function () {
+      b.classList.add("ok");
       var q = new URLSearchParams(location.search).get("next");
       document.getElementById("next").value =
         q || (location.pathname === "/__login" ? "/" : location.pathname + location.search + location.hash);
