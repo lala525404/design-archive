@@ -42,6 +42,7 @@ export function DesignMakerView({ allAssets, onBack, requestedReferenceId, openD
   const [comparison, setComparison] = useState<"before" | "after">("after");
   const [positive, setPositive] = useState("");
   const [negative, setNegative] = useState("");
+  const priorDraft = useRef<{ objects: DesignObject[]; background: string; referenceId: string; referenceSearch: string; positive: string; negative: string; selectedId: string | null; width: number; height: number; draftWidth: string; draftHeight: string } | null>(null);
   const nextId = useRef(3);
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<{ id: string; dx: number; dy: number } | null>(null);
@@ -52,6 +53,7 @@ export function DesignMakerView({ allAssets, onBack, requestedReferenceId, openD
   const filtered = allAssets.filter(asset => !search || [asset.id, asset.title, asset.project, asset.requestNo || ""].some(v => v.toLowerCase().includes(search))).slice(0, 30);
   const loadSample = () => {
     if ((sampleMode || positive || negative || referenceId || objects.some((object, index) => JSON.stringify(object) !== JSON.stringify(INITIAL[index])) || objects.length !== INITIAL.length) && !window.confirm("현재 작업이 샘플로 바뀝니다. 계속할까요?")) return;
+    if (!sampleMode) priorDraft.current = { objects: objects.map(object => ({ ...object })), background, referenceId, referenceSearch, positive, negative, selectedId, width, height, draftWidth, draftHeight };
     setObjects(makeDesignSample(width, height));
     setBackground("#6E9BF7");
     setReferenceId(allAssets.find(asset => asset.id === "asset-1")?.id || "");
@@ -59,6 +61,15 @@ export function DesignMakerView({ allAssets, onBack, requestedReferenceId, openD
     setPositive("레퍼런스의 파란 배경과 굵은 흰색 제목을 참고하고, 노란 원형 포인트를 넣어 주세요.");
     setNegative("사진과 복잡한 장식, 강한 그라데이션은 제외해 주세요.");
     setSelectedId(null); setSampleMode(true); setComparison("after"); setStage("brief"); setMessage("");
+  };
+  const exitSample = () => {
+    if (!window.confirm("샘플에서 수정한 내용은 사라지고, 샘플을 열기 전 작업으로 돌아갑니다. 계속할까요?")) return;
+    const previous = priorDraft.current;
+    if (previous) {
+      setObjects(previous.objects); setBackground(previous.background); setReferenceId(previous.referenceId); setReferenceSearch(previous.referenceSearch); setPositive(previous.positive); setNegative(previous.negative); setSelectedId(previous.selectedId);
+      setWidth(previous.width); setHeight(previous.height); setDraftWidth(previous.draftWidth); setDraftHeight(previous.draftHeight);
+    }
+    priorDraft.current = null; setSampleMode(false); setComparison("after"); setStage("brief"); setMessage("");
   };
   const beforeObjects = makeDesignSampleOriginal(width, height);
   const change = (patch: Partial<DesignObject>) => setObjects(current => current.map(object => object.id === selectedId ? { ...object, ...patch } : object));
@@ -130,9 +141,9 @@ export function DesignMakerView({ allAssets, onBack, requestedReferenceId, openD
   const numeric = (label: string, value: number, field: keyof DesignObject, min: number, max: number) =>
     <label className="maker-number">{label}<input type="number" value={Math.round(value)} min={min} max={max} onChange={event => { const n = event.target.valueAsNumber; if (Number.isFinite(n)) change({ [field]: clampNumber(n, min, max) }); }}/></label>;
   return <main className="page-shell design-maker">
-    <PageTitle title={stage === "brief" ? "2차 디자인 만들기" : "디자인 상세 수정"} subtitle={stage === "brief" ? "레퍼런스와 요청을 정하고 디자인 방향을 살펴보세요." : "요소를 선택해 위치와 색상, 텍스트를 수정해 보세요."} onBack={stage === "brief" ? onBack : () => setStage("brief")}/>
+    <PageTitle title={stage === "brief" ? "2차 디자인 만들기" : "디자인 상세 수정"} subtitle={stage === "brief" ? "레퍼런스와 요청을 정하고 디자인 방향을 살펴보세요." : "요소를 선택해 위치와 색상, 텍스트를 수정해 보세요."} onBack={stage === "brief" ? (sampleMode ? exitSample : onBack) : () => setStage("brief")}/>
     {stage === "brief" ? <>
-      <div className="maker-banner maker-intro"><span>AI 디자인 생성은 아직 연결되지 않았어요. 미리 제작한 샘플로 사용 흐름을 확인해 보세요.</span><button type="button" className="sample-start" onClick={loadSample}>샘플로 사용해 보기</button></div>
+      <div className="maker-banner maker-intro"><span>AI 디자인 생성은 아직 연결되지 않았어요. 미리 제작한 샘플로 사용 흐름을 확인해 보세요.</span>{sampleMode ? <button type="button" className="sample-start" onClick={exitSample}>샘플 종료</button> : <button type="button" className="sample-start" onClick={loadSample}>샘플로 사용해 보기</button>}</div>
       <div className={`maker-brief-grid ${width / height >= 2 ? "is-wide" : ""}`}>
         <aside className="maker-panel maker-brief-settings">
           <h2>디자인 요청</h2>
@@ -161,7 +172,7 @@ export function DesignMakerView({ allAssets, onBack, requestedReferenceId, openD
         </section>
       </div>
     </> : <>
-    <div className="maker-back-row"><button type="button" className="maker-outline" onClick={() => setStage("brief")}>← 디자인 방향으로 돌아가기</button><span>이 화면을 오가도 현재 작업은 유지됩니다.</span></div>
+    <div className="maker-back-row"><button type="button" className="maker-outline" onClick={() => setStage("brief")}>← 디자인 방향으로 돌아가기</button>{sampleMode && <button type="button" className="maker-outline" onClick={exitSample}>샘플 종료</button>}<span>이 화면을 오가도 현재 작업은 유지됩니다.</span></div>
     <div className="maker-banner">직접 편집하는 체험 화면입니다. 레퍼런스 자동 분석과 AI 디자인 생성은 아직 연결되지 않았어요.</div>
     <div className={`maker-layout ${width / height >= 2 ? "maker-wide" : ""}`}>
       <div className="maker-main-column">
@@ -207,7 +218,7 @@ export function DesignMakerView({ allAssets, onBack, requestedReferenceId, openD
           {selected.kind !== "image" && <label className="maker-color">색상<input type="color" value={selected.color} onChange={event => change({ color: event.target.value })}/><span>{selected.color.toUpperCase()}</span></label>}
           <div className="maker-divider"/>
           <div className="maker-prop-grid">{numeric("가로 위치", selected.x, "x", 0, width)}{numeric("세로 위치", selected.y, "y", 0, height)}{selected.kind !== "text" && numeric("너비", selected.width, "width", 10, 8192)}{selected.kind !== "text" && numeric("높이", selected.height, "height", 10, 8192)}{numeric("회전", selected.rotation, "rotation", -360, 360)}</div>
-          <div className="maker-actions"><button type="button" className="maker-outline" onClick={() => change({ flipped: !selected.flipped })} aria-pressed={selected.flipped}><FlipHorizontal2 size={16}/> 좌우 반전</button><button type="button" className="maker-outline" onClick={() => shiftLayer(1)} disabled={objects[objects.length - 1]?.id === selected.id}><ChevronUp size={16}/> 앞으로</button><button type="button" className="maker-outline" onClick={() => shiftLayer(-1)} disabled={objects[0]?.id === selected.id}><ChevronDown size={16}/> 뒤로</button><button type="button" className="maker-outline maker-delete" onClick={() => { setObjects(current => current.filter(object => object.id !== selected.id)); setSelectedId(null); }}><Trash2 size={16}/> 삭제</button></div>
+          <div className="maker-actions"><button type="button" className="maker-outline" onClick={() => change({ flipped: !selected.flipped })} aria-pressed={selected.flipped}><FlipHorizontal2 size={16}/> 좌우 반전</button><button type="button" className="maker-outline" onClick={() => shiftLayer(1)} disabled={objects[objects.length - 1]?.id === selected.id}><ChevronUp size={16}/> 앞으로</button><button type="button" className="maker-outline" onClick={() => shiftLayer(-1)} disabled={objects[0]?.id === selected.id}><ChevronDown size={16}/> 뒤로</button><button type="button" className="maker-outline maker-delete" onClick={() => { if (!window.confirm("선택한 요소를 삭제할까요? 삭제한 내용은 되돌릴 수 없습니다.")) return; setObjects(current => current.filter(object => object.id !== selected.id)); setSelectedId(null); }}><Trash2 size={16}/> 삭제</button></div>
           <p className="maker-note">위치는 요소 중심을 기준으로 합니다.</p>
         </>}
         <div className="maker-divider"/><label className="maker-color">배경색<input type="color" value={background} onChange={event => setBackground(event.target.value)}/><span>{background.toUpperCase()}</span></label>

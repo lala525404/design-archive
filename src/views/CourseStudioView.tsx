@@ -120,6 +120,7 @@ export function CourseStudioView({ onBack, allAssets, sampleJob = idleJob, onSta
   };
   const removeSlide = () => {
     if (slides.length === 1) return;
+    if (!window.confirm("현재 페이지를 삭제할까요? 삭제한 내용은 되돌릴 수 없습니다.")) return;
     const remaining = slides.filter(slide => slide.id !== current.id);
     setSlides(remaining);
     setCurrentId(remaining[0].id);
