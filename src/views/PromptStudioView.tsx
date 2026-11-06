@@ -31,6 +31,8 @@ interface PromptStudioViewProps {
   onCourseVisibilityChange?: (visible: boolean) => void;
   openJobRequest?: number;
   openDesignRequest?: number;
+  openCourseRequest?: number;
+  openToolDesignRequest?: number;
 }
 
 const ImagePromptView: React.FC<PromptStudioViewProps> = ({
@@ -437,6 +439,8 @@ export const PromptStudioView: React.FC<PromptStudioViewProps> = (props) => {
   const [mode, setMode] = useState<"course" | "prompt">("course");
   useEffect(() => { if (props.openJobRequest) setMode("course"); }, [props.openJobRequest]);
   useEffect(() => { if (props.openDesignRequest) setMode("prompt"); }, [props.openDesignRequest]);
+  useEffect(() => { if (props.openCourseRequest) setMode("course"); }, [props.openCourseRequest]);
+  useEffect(() => { if (props.openToolDesignRequest) setMode("prompt"); }, [props.openToolDesignRequest]);
   return <>
     <div className="creation-tabs" role="tablist" aria-label="제작 도구">
       <button type="button" role="tab" aria-selected={mode === "course"} onClick={() => setMode("course")}>교안 만들기</button>

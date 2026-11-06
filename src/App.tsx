@@ -101,6 +101,8 @@ export default function App() {
     INITIAL_ASSETS[0],
   );
   const [openDesignRequest, setOpenDesignRequest] = useState(0);
+  const [openCourseRequest, setOpenCourseRequest] = useState(0);
+  const [openToolDesignRequest, setOpenToolDesignRequest] = useState(0);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [sampleJob, setSampleJob] = useState<SampleJob>({ status: "idle", startedAt: 0, progress: 0 });
   const [sampleCourseVisible, setSampleCourseVisible] = useState(false);
@@ -430,6 +432,8 @@ export default function App() {
           onCourseVisibilityChange={onCourseVisibilityChange}
           openJobRequest={openJobRequest}
           openDesignRequest={openDesignRequest}
+          openCourseRequest={openCourseRequest}
+          openToolDesignRequest={openToolDesignRequest}
         />
       </div>
 
@@ -458,6 +462,7 @@ export default function App() {
         onRoleChange={handleRoleChange}
         onNavigate={(newView) => (newView === "upload" ? openUpload() : setView(newView))}
         myUploadsCount={myUploadsCount}
+        onOpenTool={(tool) => { if (tool === "course") setOpenCourseRequest(value => value + 1); else setOpenToolDesignRequest(value => value + 1); if (view !== "prompt") setView("prompt"); }}
       />
 
       {/* Secondary Bottom Navigation Bar */}

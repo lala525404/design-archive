@@ -10,6 +10,7 @@ interface Props {
     v: "landing" | "search" | "browse" | "journal" | "guide" | "upload" | "prompt" | "license" | "naming",
   ) => void;
   myUploadsCount: number;
+  onOpenTool?: (tool: "course" | "design") => void;
 }
 export function NavigationDrawer({
   isOpen,
@@ -18,6 +19,7 @@ export function NavigationDrawer({
   onRoleChange,
   onNavigate,
   myUploadsCount,
+  onOpenTool,
 }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -58,7 +60,6 @@ export function NavigationDrawer({
               ...(currentRole !== "user" ? [["upload", "자산 등록"]] : []),
               ["browse", "폴더로 보기"],
               ["journal", "디자인 저널"],
-              ["prompt", "제작 도구"],
               ["license", "라이선스 확인"],
               ...(currentRole !== "user" ? [["naming", "네이밍 규칙"]] : []),
               ["guide", "사용 가이드"],
@@ -69,6 +70,7 @@ export function NavigationDrawer({
               <ArrowUpRight size={20} />
             </button>
           ))}
+          <div className="drawer-tool-group"><strong>제작 도구</strong><button type="button" onClick={() => { onOpenTool?.("course"); onClose(); }}>교안 만들기 <ArrowUpRight size={18}/></button><button type="button" onClick={() => { onOpenTool?.("design"); onClose(); }}>2차 디자인 만들기 <ArrowUpRight size={18}/></button></div>
         </nav>
         <div className="drawer-bottom">
           <span>내가 등록한 작업 {myUploadsCount}개</span>

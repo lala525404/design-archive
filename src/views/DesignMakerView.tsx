@@ -60,7 +60,7 @@ export function DesignMakerView({ allAssets, onBack, requestedReferenceId, openD
     setReferenceSearch("");
     setPositive("레퍼런스의 파란 배경과 굵은 흰색 제목을 참고하고, 노란 원형 포인트를 넣어 주세요.");
     setNegative("사진과 복잡한 장식, 강한 그라데이션은 제외해 주세요.");
-    setSelectedId(null); setSampleMode(true); setComparison("after"); setStage("brief"); setMessage("");
+    setSelectedId(null); setSampleMode(true); setComparison("before"); setStage("brief"); setMessage("");
   };
   const exitSample = () => {
     if (!window.confirm("샘플에서 수정한 내용은 사라지고, 샘플을 열기 전 작업으로 돌아갑니다. 계속할까요?")) return;
@@ -146,7 +146,7 @@ export function DesignMakerView({ allAssets, onBack, requestedReferenceId, openD
       <div className="maker-banner maker-intro"><span>AI 디자인 생성은 아직 연결되지 않았어요. 미리 제작한 샘플로 사용 흐름을 확인해 보세요.</span>{sampleMode ? <button type="button" className="sample-start" onClick={exitSample}>샘플 종료</button> : <button type="button" className="sample-start" onClick={loadSample}>샘플로 사용해 보기</button>}</div>
       <div className={`maker-brief-grid ${width / height >= 2 ? "is-wide" : ""}`}>
         <aside className="maker-panel maker-brief-settings">
-          <h2>디자인 요청</h2>
+          <h2>1. 디자인 요청하기</h2><p className="maker-note">작업 크기와 참고 디자인을 고르고 원하는 방향을 적어 주세요.</p>
           <label className="maker-label">작업 크기 <span>픽셀</span></label>
           <div className="maker-size"><label>가로<input type="number" value={draftWidth} min="100" max="4096" onChange={event => setDraftWidth(event.target.value)} /></label><span>×</span><label>세로<input type="number" value={draftHeight} min="100" max="4096" onChange={event => setDraftHeight(event.target.value)} /></label></div>
           <button type="button" className="maker-outline maker-full" onClick={applySize}>크기 적용</button>
@@ -162,11 +162,11 @@ export function DesignMakerView({ allAssets, onBack, requestedReferenceId, openD
           <p className="maker-note">샘플은 미리 제작한 예시라 요청을 바꿔도 자동으로 다시 만들어지지 않아요.</p>
         </aside>
         <section className="maker-brief-preview" aria-label="디자인 전후 비교">
-          <div className="maker-work-head"><div><strong>디자인 미리보기</strong><span>{width} × {height} px</span></div></div>
+          <div className="maker-work-head"><div><strong>2. 디자인 확인하기</strong><span>{width} × {height} px</span></div></div>
           {sampleMode ? <>
-            <div className="maker-compare" aria-label="샘플 전후 선택"><button type="button" className={comparison === "before" ? "active" : ""} aria-pressed={comparison === "before"} onClick={() => setComparison("before")}>전 · 텍스트 초안</button><button type="button" className={comparison === "after" ? "active" : ""} aria-pressed={comparison === "after"} onClick={() => setComparison("after")}>후 · 디자인 적용 예시</button></div>
+            <div className="maker-compare" aria-label="샘플 전후 선택"><button type="button" className={comparison === "before" ? "active" : ""} aria-pressed={comparison === "before"} onClick={() => setComparison("before")}>1단계 · 텍스트 초안</button><button type="button" className={comparison === "after" ? "active" : ""} aria-pressed={comparison === "after"} onClick={() => setComparison("after")}>2단계 · 디자인 적용 예시</button></div>
             <div className="maker-brief-canvas"><div className="maker-brief-art" role="img" aria-label={comparison === "before" ? "텍스트만 배치된 샘플 초안" : "레퍼런스 스타일을 반영해 미리 제작한 샘플 디자인"} dangerouslySetInnerHTML={{__html: renderDesignSvg(width, height, comparison === "before" ? "#ffffff" : background, comparison === "before" ? beforeObjects : objects)}}/></div>
-            <div className="maker-brief-footer"><p>샘플 레퍼런스 ‘색채학 과정’의 파란 배경·흰색 제목·노란 원을 참고한 예시예요.</p><button type="button" className="btn btn-primary" onClick={() => { setComparison("after"); setStage("edit"); }}>샘플 확정 · 상세 수정</button></div>
+            <div className="maker-brief-footer"><p>{comparison === "before" ? "1단계: 텍스트만 있는 초안을 확인하세요." : "2단계: 색채학 레퍼런스 스타일을 반영한 샘플입니다."}</p>{comparison === "before" ? <button type="button" className="btn btn-primary" onClick={() => setComparison("after")}>다음 · 디자인 적용 예시</button> : <button type="button" className="btn btn-primary" onClick={() => setStage("edit")}>샘플 확정 · 상세 수정</button>}</div>
           </> : <><div className="maker-brief-empty"><strong>디자인 결과를 여기에서 확인해요</strong><p>샘플 버튼을 눌러 텍스트 초안과 디자인 적용 예시를 비교해 보세요.</p></div><div className="maker-brief-footer"><p>직접 요소를 조합해 작업할 수도 있어요.</p><button type="button" className="btn" onClick={() => setStage("edit")}>직접 편집 시작</button></div></>}
           <p role="status" className="maker-feedback">{message}</p>
         </section>
