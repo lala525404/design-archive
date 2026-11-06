@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { ArrowLeft, ChevronDown, FileText, Plus, Printer, Trash2, Upload, Search, X } from "lucide-react";
 import { PageTitle } from "../components/Chrome";
 import { DesignThumbnail } from "../components/DesignThumbnail";
+import { SampleNotice } from "../components/SampleNotice";
 import { DesignAsset } from "../types";
 
 type SlideVariant = "cover" | "contents" | "section" | "body" | "table";
@@ -145,7 +146,7 @@ export function CourseStudioView({ onBack, allAssets, sampleJob = idleJob, onSta
     <main className="page-shell course-studio">
       <PageTitle title={stage === "preview" ? "교안 만들기" : stage === "progress" ? "교안 제작 상태" : "교안 검토 · 내용 수정"} subtitle={stage === "preview" ? "기획 교안과 참고 디자인을 선택하고 디자인 방향을 확인해 보세요." : stage === "progress" ? "샘플 제작 흐름을 체험해 보세요." : "페이지를 선택하고 제목이나 내용을 직접 수정해 보세요."} onBack={stage === "preview" ? onBack : () => setStage("preview")} />
       {stage === "preview" ? <>
-      <div className="course-notice"><FileText size={18}/><span>현재는 제작 준비 화면입니다. AI 분석과 자동 생성은 아직 연결되지 않았어요.</span><button type="button" className="sample-start" onClick={loadSample}>샘플로 사용해 보기</button></div>
+      <SampleNotice onClick={loadSample}/>
       <div className="course-workspace">
         <section className="course-editor" aria-label="교안 편집">
           <div className="brief-section">

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronUp, Circle, Download, FlipHorizontal2, ImagePlus, Square, Trash2, Type } from "lucide-react";
 import { PageTitle } from "../components/Chrome";
 import { DesignThumbnail } from "../components/DesignThumbnail";
+import { SampleNotice } from "../components/SampleNotice";
 import { DesignAsset } from "../types";
 import { clampNumber, DesignObject, renderDesignSvg, resizeDesign } from "../lib/designEditor";
 
@@ -144,7 +145,7 @@ export function DesignMakerView({ allAssets, onBack, requestedReferenceId, openD
   return <main className="page-shell design-maker">
     <PageTitle title={stage === "brief" ? "2차 디자인 만들기" : "디자인 상세 수정"} subtitle={stage === "brief" ? "레퍼런스와 요청을 정하고 디자인 방향을 살펴보세요." : "요소를 선택해 위치와 색상, 텍스트를 수정해 보세요."} onBack={stage === "brief" ? (sampleMode ? exitSample : onBack) : () => setStage("brief")}/>
     {stage === "brief" ? <>
-      <div className="maker-banner maker-intro"><span>AI 디자인 생성은 아직 연결되지 않았어요. 미리 제작한 샘플로 사용 흐름을 확인해 보세요.</span>{sampleMode ? <button type="button" className="sample-start" onClick={exitSample}>샘플 종료</button> : <button type="button" className="sample-start" onClick={loadSample}>샘플로 사용해 보기</button>}</div>
+      <SampleNotice onClick={sampleMode ? exitSample : loadSample} active={sampleMode}/>
       <div className={`maker-brief-grid ${width / height >= 2 ? "is-wide" : ""}`}>
         <aside className="maker-panel maker-brief-settings">
           <h2>1. 디자인 요청하기</h2><p className="maker-note">작업 크기와 참고 디자인을 고르고 원하는 방향을 적어 주세요.</p>

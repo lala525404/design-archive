@@ -155,7 +155,9 @@ const pages = [
 ];
 const courseStudio = renderToStaticMarkup(pages[3]);
 assert.ok(courseStudio.includes("샘플로 사용해 보기"), "Sample walkthrough is available");
-assert.ok(courseStudio.includes("AI 분석과 자동 생성은 아직 연결되지 않았어요"), "Unconnected AI is clearly disclosed");
+assert.ok(courseStudio.includes("AI 디자인 생성은 아직 연결되지 않았어요"), "Unconnected AI is clearly disclosed");
+const sampleNotice = (html: string) => html.match(/<div class="shared-sample-notice">[\s\S]*?<\/div>/)?.[0];
+assert.ok(sampleNotice(courseStudio) && sampleNotice(courseStudio) === sampleNotice(makerBriefMarkup), "Both tools render the same sample notice");
 const landing = renderToStaticMarkup(pages[0]);
 
 assert.ok(
