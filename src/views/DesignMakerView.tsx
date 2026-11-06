@@ -42,6 +42,7 @@ export function DesignMakerView({ allAssets, onBack, requestedReferenceId, openD
   const [comparison, setComparison] = useState<"before" | "after">("after");
   const [positive, setPositive] = useState("");
   const [negative, setNegative] = useState("");
+  const [guideStep, setGuideStep] = useState(0);
   const priorDraft = useRef<{ objects: DesignObject[]; background: string; referenceId: string; referenceSearch: string; positive: string; negative: string; selectedId: string | null; width: number; height: number; draftWidth: string; draftHeight: string } | null>(null);
   const nextId = useRef(3);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -95,7 +96,7 @@ export function DesignMakerView({ allAssets, onBack, requestedReferenceId, openD
     const w = Number(draftWidth), h = Number(draftHeight);
     if (!Number.isInteger(w) || !Number.isInteger(h) || w < 100 || h < 100 || w > 4096 || h > 4096) { setMessage("가로와 세로에 100~4096 사이의 정수를 입력해 주세요."); return; }
     setObjects(current => resizeDesign(current, width, height, w, h));
-    setWidth(w); setHeight(h); setMessage("크기를 적용했어요. 요소 위치와 크기는 새 화면 비율에 맞춰 조정됩니다.");
+    setWidth(w); setHeight(h); setMessage("크기를 적용했어요. 요소 위치와 크기는 새 화면 비율에 맞춰 조정됩니다."); if (stage === "brief" && !sampleMode) setGuideStep(referenceId ? 2 : 1);
   };
   const add = (kind: DesignObject["kind"], imageData?: string) => {
     const id = `added-${nextId.current++}`;
@@ -149,16 +150,18 @@ export function DesignMakerView({ allAssets, onBack, requestedReferenceId, openD
           <h2>1. 디자인 요청하기</h2><p className="maker-note">작업 크기와 참고 디자인을 고르고 원하는 방향을 적어 주세요.</p>
           <label className="maker-label">작업 크기 <span>픽셀</span></label>
           <div className="maker-size"><label>가로<input type="number" value={draftWidth} min="100" max="4096" onChange={event => setDraftWidth(event.target.value)} /></label><span>×</span><label>세로<input type="number" value={draftHeight} min="100" max="4096" onChange={event => setDraftHeight(event.target.value)} /></label></div>
-          <button type="button" className="maker-outline maker-full" onClick={applySize}>크기 적용</button>
+          <p className="guide-caption" aria-live="polite">{!sampleMode && guideStep < 4 ? ["① 크기를 확인한 뒤 적용해 주세요.", "② 참고할 작업을 검색해 선택해 주세요.", "③ 반영할 점을 입력해 주세요.", "④ 제외할 점을 적거나 생략할 수 있어요."][guideStep] : "필요한 항목은 언제든 다시 수정할 수 있어요."}</p>
+          <button type="button" className={`maker-outline maker-full ${!sampleMode && guideStep === 0 ? "guide-focus" : ""}`} onClick={applySize}>크기 적용</button>
           <div className="maker-divider"/>
           <label className="maker-label" htmlFor="maker-brief-search">아카이브 레퍼런스</label>
-          <input id="maker-brief-search" className="maker-input" value={referenceSearch} onChange={event => setReferenceSearch(event.target.value)} placeholder="작업명 · 요청번호 · ID 검색"/>
-          <select className="maker-input" aria-label="레퍼런스 선택" value={referenceId} onChange={event => setReferenceId(event.target.value)}><option value="">참고할 작업 선택</option>{filtered.map(asset => <option key={asset.id} value={asset.id}>{asset.title} · {asset.id}</option>)}{reference && !filtered.some(asset => asset.id === reference.id) && <option value={reference.id}>{reference.title} · {reference.id}</option>}</select>
+          <input id="maker-brief-search" className={`maker-input ${!sampleMode && guideStep === 1 ? "guide-focus" : ""}`} value={referenceSearch} onChange={event => setReferenceSearch(event.target.value)} placeholder="작업명 · 요청번호 · ID 검색"/>
+          <select className={`maker-input ${!sampleMode && guideStep === 1 ? "guide-focus" : ""}`} aria-label="레퍼런스 선택" value={referenceId} onChange={event => { setReferenceId(event.target.value); if (event.target.value && !sampleMode) setGuideStep(2); }}><option value="">참고할 작업 선택</option>{filtered.map(asset => <option key={asset.id} value={asset.id}>{asset.title} · {asset.id}</option>)}{reference && !filtered.some(asset => asset.id === reference.id) && <option value={reference.id}>{reference.title} · {reference.id}</option>}</select>
           {reference && <div className="maker-reference"><div><DesignThumbnail asset={reference}/></div><span><strong>{reference.title}</strong><small>{reference.id} · {reference.type}</small></span></div>}
           <label className="maker-label" htmlFor="maker-positive">반영할 점 <span>포지티브</span></label>
-          <textarea id="maker-positive" className="maker-input" rows={3} value={positive} onChange={event => setPositive(event.target.value)} placeholder="예: 레퍼런스의 색상과 여백을 참고해 주세요."/>
+          <textarea id="maker-positive" className={`maker-input ${!sampleMode && guideStep === 2 ? "guide-focus" : ""}`} rows={3} value={positive} onChange={event => setPositive(event.target.value)} onBlur={() => { if (positive.trim() && guideStep === 2 && !sampleMode) setGuideStep(3); }} placeholder="예: 레퍼런스의 색상과 여백을 참고해 주세요."/>
           <label className="maker-label" htmlFor="maker-negative">제외할 점 <span>네거티브</span></label>
-          <textarea id="maker-negative" className="maker-input" rows={3} value={negative} onChange={event => setNegative(event.target.value)} placeholder="예: 사진과 복잡한 장식은 빼 주세요."/>
+          <textarea id="maker-negative" className={`maker-input ${!sampleMode && guideStep === 3 ? "guide-focus" : ""}`} rows={3} value={negative} onChange={event => setNegative(event.target.value)} placeholder="예: 사진과 복잡한 장식은 빼 주세요."/>
+          {!sampleMode && guideStep === 3 && <button type="button" className="maker-outline maker-full" onClick={() => setGuideStep(4)}>입력 완료 · 생략 가능</button>}
           <p className="maker-note">샘플은 미리 제작한 예시라 요청을 바꿔도 자동으로 다시 만들어지지 않아요.</p>
         </aside>
         <section className="maker-brief-preview" aria-label="디자인 전후 비교">
